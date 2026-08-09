@@ -9,6 +9,8 @@ Status values: `proposed` | `accepted` | `superseded by D-XX`
 
 ---
 
+# EXAMPLES 
+
 ## D-002 — <short title>
 
 - **Date:** YYYY-MM-DD
@@ -77,3 +79,41 @@ In C++98 there is no `= delete`, so the idiom to forbid copying is a
 private undefined copy constructor. We forbid it because these classes
 own a file descriptor and a double close is a silent, hard-to-trace
 bug in a server.
+
+# REAL DECISIONS
+
+## D-001 — HTTP proccessing: 3 classes HttpRequest (parser), processor, HttpResponse (builder)
+
+- **Date:** 2026-08-09
+- **Status:** accepted
+
+### Context
+
+Doubt about proccessing the request inside the response builder class.
+
+### Decision
+
+The whole proccessing of the http request and the decision of what to do with 
+it is encapsulated in a different class from the response builder. Which takes 
+the HttpRequest object and the server config in order to make a decision. This 
+class must only decide what to do but not execute the order, it should not 
+access disk for anything, therefore should be testable without content files.
+
+The response builder should only build the http response from the request and 
+decision data without considering the server config. It must be testable without 
+any config file. However it must access disk in order to read the files that 
+must be served.
+
+### Alternatives considered
+
+| Option | Why rejected |
+|---|---|
+| 2 classes: request and response | Response takes too much responability |
+
+
+### Consequences
+
+The decision data must have an structured interface.
+
+### Defence answer
+
