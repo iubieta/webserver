@@ -34,17 +34,17 @@ Logger::~Logger() {}
 std::string	Logger::levelToStr_(LogLevel level) const {
 	switch (level) {
 		case DEBUG:
-			return "DEBUG";
+			return "[DEBUG]";
 		case INFO:
-			return "INFO";
+			return "[INFO]";
 		case WARNING:
-			return "WARNING";
+			return "[WARNING]";
 		case ERROR:
-			return "ERROR";
+			return "[ERROR]";
 		case CRITICAL:
-			return "CRITICAL";
+			return "[CRITICAL]";
 	}
-	return "UNKNOWN";
+	return "[UNKNOWN]";
 }
 
 bool	Logger::checkFileLevel_(LogLevel level) const {
@@ -62,18 +62,21 @@ const std::string	Logger::getTimestamp_() const {
 	
 	timeinfo = localtime(&rawtime);
 	strftime(timestr, 40, TIME_FORMAT, timeinfo);
-	return std::string(timestr);
+	std::string timestamp = "[" + std::string(timestr) + "]";
+	return timestamp;
 }
 
 void	Logger::log_(LogLevel level, const std::string &message) const {
 	std::string timestr = getTimestamp_();
 	std::string levelstr = levelToStr_(level);
-	std::string	logstr = "[" + timestr + "] [" + levelstr + "] " + message + "\n";
+	std::string	logstr = levelstr + " " + message;
 	if (logFile_.is_open() && checkFileLevel_(level)) {
-		logFile_ << logstr;
+		if (timestamp_)
+			logstr = timestr + " " + logstr; 
+		logFile_ << logstr << " - " << __FILE__ << ":" << __LINE__ << std::endl;
 	}
 	if (console_ && checkConsoleLevel_(level)) {
-		std::cerr << logstr;
+		std::cerr << logstr << std::endl;;
 	}
 }
 
