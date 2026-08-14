@@ -15,16 +15,19 @@
 #define MAGENTA "\x1b[35m"
 #define CYAN    "\x1b[36m"
 #define WHITE   "\x1B[37m"
+#define RESET   "\x1B[0m"
 
 #define ASSERT_EQ(actual, expected)							\
     do {                                                	\
         if ((actual) != (expected)) {                   	\
 			std::cerr										\
+				<< RED										\
 				<< __FILE__ << ":" << __LINE__ << " - "		\
 				<< "ASSERT_EQ(" << #actual << #expected		\
 				<< ") Failed."								\
-				<< " Expected: " << expected				\
-				<< ", Received: " << actual					\
+				<< " Expected: \'" << expected				\
+				<< "\' Received: \'" << actual	<< "\'"		\
+				<< RESET									\
 				<< std::endl;								\
 			Tester::recordFail();							\
             return;                                         \
