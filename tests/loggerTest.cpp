@@ -125,11 +125,86 @@ void	testConsoleLevelFiltering() {
 	testConsoleLevel(Logger::CRITICAL, 1);
 }
 
+
+// Test 4: Console and file level independance
+// ----------------------------------------------------------------------------
+void	checkLevelIndependence(
+	Logger::LogLevel fileLvl, int FileExpec,
+	Logger::LogLevel consoleLvl, int ConsoleExpec) 
+{
+	std::string	logfile = "temp.log";
+	std::remove(logfile.c_str());
+	std::ostringstream consoleOut;
+	std::streambuf *ogStream = redirCerr(consoleOut);
+	Logger	log(logfile);
+	log.setFileLevel(fileLvl);
+	log.setConsoleLevel(consoleLvl);
+	logEveryLevel(log);
+	resetCerr(ogStream);
+	int fileLines = numberOfLines(logfile);
+	int consoleLines = countCharInStr('\n', consoleOut.str());
+	ASSERT_EQ(fileLines, FileExpec);
+	ASSERT_EQ(consoleLines, ConsoleExpec);
+	std::remove(logfile.c_str());
+}
+
+void	testLevelIndependance() {
+	checkLevelIndependence(Logger::DEBUG, 5, Logger::INFO, 4);
+	checkLevelIndependence(Logger::WARNING, 3, Logger::CRITICAL, 1);
+}
+
+// Test 5: Console off
+// ----------------------------------------------------------------------------
+void	testConsoleOff() {
+	std::ostringstream consoleOut;
+	std::streambuf *ogStream = redirCerr(consoleOut);
+	Logger	log;
+	log.setConsoleLevel(Logger::DEBUG);
+	logEveryLevel(log);
+	log.setConsole(0);
+	logEveryLevel(log);
+	resetCerr(ogStream);
+	int consoleLines = countCharInStr('\n', consoleOut.str());
+	ASSERT_EQ(consoleLines, 5);
+}
+
+// Test 6: Append mode
+// ----------------------------------------------------------------------------
+
+void	testAppendMode() {
+	std::string	logfile = "temp.log";
+	std::remove(logfile.c_str());
+	
+	int lines;
+	{
+		Logger		log(logfile);
+		log.setConsole(0);
+		log.setTimestamp(0);
+		logEveryLevel(log);
+	}
+	lines = numberOfLines(logfile);
+	ASSERT_EQ(lines, 5);
+	
+	{
+		Logger		log(logfile);
+		log.setConsole(0);
+		log.setTimestamp(0);
+		logEveryLevel(log);
+	}
+	lines = numberOfLines(logfile);
+	ASSERT_EQ(lines, 10);
+	std::remove(logfile.c_str());
+}
+
+
 // Test battery
 // ----------------------------------------------------------------------------
 int main() {
 	Tester::runTest("File error", testFileError);
 	Tester::runTest("File Level filtering", testFileLevelFiltering);
 	Tester::runTest("Console Level filtering", testConsoleLevelFiltering);
+	Tester::runTest("Level Independence", testLevelIndependance);
+	Tester::runTest("Console Off", testConsoleOff);
+	Tester::runTest("Append Mode", testAppendMode);
 	return Tester::report();
 }
