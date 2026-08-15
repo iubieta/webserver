@@ -36,8 +36,10 @@ Do not over-design: the design is validated while coding. Max 3-4 days.
 - [ ] Non-blocking sockets (`O_NONBLOCK`).
 - [ ] Single `poll()` for all I/O (listen included), read and write together.
 - [ ] `accept`/`read`/`write` only via `poll()`, handle `EAGAIN`/`EWOULDBLOCK`.
-- [ ] Logger per [LOGGING.md](LOGGING.md): stderr + file, levels, macros.
-- [ ] Access log line on response.
+- [x] Logger per [LOGGING.md](LOGGING.md): stderr + file, levels
+      (`Logger::Level`), per-output thresholds.
+- [ ] Access log line on response (pending design, see
+      [LOGGING.md](LOGGING.md#no-implementado-access-log)).
 - [ ] Basic robustness: `nc`/`ab` with concurrent connections.
 
 The event loop is the heart of the project — invest the time here.
