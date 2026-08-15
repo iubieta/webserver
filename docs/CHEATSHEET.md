@@ -81,14 +81,13 @@ ab -n 1000 -c 50 http://localhost:8080/
 ## Tests
 
 ```sh
-make test                # run unit + integration tests
-make test_unit           # unit tests only
-make test_integration    # integration tests (starts a server)
+make test                 # build and run the unit tests
+make test ARGS=logger     # run only the "logger" test group
 ```
 
-Test cases live in `tests/`. Each module should have a matching unit test
-and, if it touches the wire, an integration scenario. Before merging, run
-the full suite plus `make re` from a clean tree.
+Test cases live in `tests/`. Each module should have a matching unit test.
+Integration scenarios (bash + `curl`/`nc`) are not implemented yet. Before
+merging, run the full suite plus `make re` from a clean tree.
 
 Full guide on running and writing tests: [TESTING.md](TESTING.md).
 
