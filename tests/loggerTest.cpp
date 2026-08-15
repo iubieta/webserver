@@ -229,7 +229,7 @@ void	testMessageFidelity() {
 }
 // Test battery
 // ----------------------------------------------------------------------------
-int main() {
+void logger_tests() {
 	Tester::runTest("File error", testFileError);
 	Tester::runTest("File Level filtering", testFileLevelFiltering);
 	Tester::runTest("Console Level filtering", testConsoleLevelFiltering);
@@ -237,5 +237,5 @@ int main() {
 	Tester::runTest("Console Off", testConsoleOff);
 	Tester::runTest("Append Mode", testAppendMode);
 	Tester::runTest("Message Fidelity", testMessageFidelity);
-	return Tester::report();
+	Tester::report();
 }
