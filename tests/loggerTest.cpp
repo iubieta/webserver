@@ -90,7 +90,7 @@ void	testFileError() {
 
 // Test 2: File Level Filtering
 // ----------------------------------------------------------------------------
-void	testFileLevel(Logger::LogLevel level, int expected) {
+void	testFileLevel(Logger::Level level, int expected) {
 	std::string	logfile = "temp.log";
 	std::remove(logfile.c_str());
 	int lines;
@@ -117,7 +117,7 @@ void	testFileLevelFiltering() {
 
 // Test 3: Console Level Filtering
 // ----------------------------------------------------------------------------
-void	testConsoleLevel(Logger::LogLevel level, int expected) {
+void	testConsoleLevel(Logger::Level level, int expected) {
 	
 	std::ostringstream consoleOut;
 	std::streambuf *ogStream = redirCerr(consoleOut);
@@ -142,8 +142,8 @@ void	testConsoleLevelFiltering() {
 // Test 4: Console and file level independance
 // ----------------------------------------------------------------------------
 void	checkLevelIndependence(
-	Logger::LogLevel fileLvl, int FileExpec,
-	Logger::LogLevel consoleLvl, int ConsoleExpec) 
+	Logger::Level fileLvl, int FileExpec,
+	Logger::Level consoleLvl, int ConsoleExpec) 
 {
 	std::string	logfile = "temp.log";
 	std::remove(logfile.c_str());

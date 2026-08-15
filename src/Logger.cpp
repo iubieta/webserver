@@ -34,7 +34,7 @@ Logger::~Logger() {}
 
 // Private methods ------------------------------------------------------------
 
-std::string	Logger::levelToStr_(LogLevel level) const {
+std::string	Logger::levelToStr_(Level level) const {
 	switch (level) {
 		case DEBUG:
 			return "[DEBUG]";
@@ -50,11 +50,11 @@ std::string	Logger::levelToStr_(LogLevel level) const {
 	return "[UNKNOWN]";
 }
 
-bool	Logger::checkFileLevel_(LogLevel level) const {
+bool	Logger::checkFileLevel_(Level level) const {
 	return level >= fileLevel_;
 }
 
-bool	Logger::checkConsoleLevel_(LogLevel level) const {
+bool	Logger::checkConsoleLevel_(Level level) const {
 	return level >= consoleLevel_;
 }
 
@@ -69,7 +69,7 @@ const std::string	Logger::getTimestamp_() const {
 	return timestamp;
 }
 
-void	Logger::log_(LogLevel level, const std::string &message, 
+void	Logger::log_(Level level, const std::string &message, 
 					const char *file, int line) const 
 {
 	std::string timestr = getTimestamp_();
@@ -90,7 +90,7 @@ void	Logger::log_(LogLevel level, const std::string &message,
 
 // Setters --------------------------------------------------------------------
 
-void	Logger::setFileLevel(LogLevel level) {
+void	Logger::setFileLevel(Level level) {
 	fileLevel_ = level;
 }
 
@@ -98,7 +98,7 @@ void	Logger::setConsole(bool enabled) {
 	console_ = enabled;
 }
 
-void	Logger::setConsoleLevel(LogLevel level) {
+void	Logger::setConsoleLevel(Level level) {
 	consoleLevel_ = level;
 }
 

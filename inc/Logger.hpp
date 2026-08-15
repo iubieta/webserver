@@ -15,20 +15,20 @@
 class Logger {
 
 public: 
-	enum LogLevel { DEBUG, INFO, WARNING, ERROR, CRITICAL };
+	enum Level { DEBUG, INFO, WARNING, ERROR, CRITICAL };
 
 private:
 	mutable std::ofstream	logFile_;
-	LogLevel				fileLevel_;
+	Level				fileLevel_;
 	bool					console_;
-	LogLevel				consoleLevel_;
+	Level				consoleLevel_;
 	bool					timestamp_;
 
-	std::string				levelToStr_(LogLevel level) const;
-	bool					checkFileLevel_(LogLevel level) const;
-	bool					checkConsoleLevel_(LogLevel level) const;
+	std::string				levelToStr_(Level level) const;
+	bool					checkFileLevel_(Level level) const;
+	bool					checkConsoleLevel_(Level level) const;
 	const std::string		getTimestamp_() const;
-	void					log_(LogLevel level, const std::string &message,
+	void					log_(Level level, const std::string &message,
 								const char *file = NULL, int line=0) const;
 
 	Logger(const Logger& other);
@@ -39,9 +39,9 @@ public:
 	Logger(const std::string &filepath);
 	~Logger();
 
-	void					setFileLevel(LogLevel level);
+	void					setFileLevel(Level level);
 	void					setConsole(bool enabled);
-	void					setConsoleLevel(LogLevel level);
+	void					setConsoleLevel(Level level);
 	void					setTimestamp(bool enabled);
 	void					debug(const std::string &message,
 								const char *file = NULL, int line = 0) const;
