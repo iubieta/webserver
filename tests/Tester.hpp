@@ -23,7 +23,8 @@
 			std::cerr										\
 				<< RED										\
 				<< __FILE__ << ":" << __LINE__ << " - "		\
-				<< "ASSERT_EQ(" << #actual << #expected		\
+				<< "ASSERT_EQ(" << #actual					\
+				<< ", "	<< #expected						\
 				<< ") Failed."								\
 				<< " Expected: \'" << expected				\
 				<< "\' Received: \'" << actual	<< "\'"		\
