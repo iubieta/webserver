@@ -60,6 +60,19 @@ int		countCharInStr(char c, const std::string str) {
 	return count;
 }
 
+bool	fileHasLine(std::string &path, std::string str) {
+	std::ifstream	file;
+	file.open(path.c_str(), std::ifstream::in);
+	if (!file.is_open())
+		return false;
+	std::string		line;
+	while (std::getline(file, line)) {
+		if (line == str)
+			return true;
+	}
+	return false;
+}
+
 // Test 1: File opening error
 // ----------------------------------------------------------------------------
 void	testFileError() {
@@ -196,7 +209,24 @@ void	testAppendMode() {
 	std::remove(logfile.c_str());
 }
 
-
+// Test 7: Message Fidelity
+// ----------------------------------------------------------------------------
+void	testMessageFidelity() {
+	std::string	logfile = "temp.log";
+	std::remove(logfile.c_str());
+	std::ostringstream consoleOut;
+	std::streambuf *ogStream = redirCerr(consoleOut);
+	Logger	log(logfile);
+	log.setTimestamp(0);
+	log.info("Mensaje de info", __FILE__, 100);
+	resetCerr(ogStream);
+	std::string fileExpec = "[INFO] Mensaje de info - ";
+	fileExpec += std::string(__FILE__) + ":100";
+	std::string consoleExpec = "[INFO] Mensaje de info\n";
+	ASSERT_EQ(fileHasLine(logfile, fileExpec), true);
+	ASSERT_EQ(consoleOut.str(), consoleExpec);
+	std::remove(logfile.c_str());
+}
 // Test battery
 // ----------------------------------------------------------------------------
 int main() {
@@ -206,5 +236,6 @@ int main() {
 	Tester::runTest("Level Independence", testLevelIndependance);
 	Tester::runTest("Console Off", testConsoleOff);
 	Tester::runTest("Append Mode", testAppendMode);
+	Tester::runTest("Message Fidelity", testMessageFidelity);
 	return Tester::report();
 }
