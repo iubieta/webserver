@@ -3,9 +3,12 @@
 // Logger class implementation.
 // ----------------------------------------------------------------------------
 
+#include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <ctime>
+#include <cstdlib>
 
 #include "../inc/Logger.hpp"
 
@@ -66,14 +69,19 @@ const std::string	Logger::getTimestamp_() const {
 	return timestamp;
 }
 
-void	Logger::log_(LogLevel level, const std::string &message) const {
+void	Logger::log_(LogLevel level, const std::string &message, 
+					const char *file, int line) const 
+{
 	std::string timestr = getTimestamp_();
 	std::string levelstr = levelToStr_(level);
 	std::string	logstr = levelstr + " " + message;
 	if (logFile_.is_open() && checkFileLevel_(level)) {
 		if (timestamp_)
 			logstr = timestr + " " + logstr; 
-		logFile_ << logstr << " - " << __FILE__ << ":" << __LINE__ << std::endl;
+		logFile_ << logstr;
+		if (file)
+			logFile_ << " - " << file << ":" << line;
+		logFile_ << std::endl;
 	}
 	if (console_ && checkConsoleLevel_(level)) {
 		std::cerr << logstr << std::endl;;
@@ -99,24 +107,29 @@ void	Logger::setTimestamp(bool enabled) {
 }
 
 // Logging methods ------------------------------------------------------------
-void	Logger::debug(const std::string &message) const {
-	log_(DEBUG, message);
+void	Logger::debug(const std::string &message, 
+			const char *file, int	line) const {
+	log_(DEBUG, message, file, line);
 }
 
-void	Logger::info(const std::string &message) const {
-	log_(INFO, message);
+void	Logger::info(const std::string &message,
+			const char *file, int	line) const {
+	log_(INFO, message, file, line);
 }
 
-void	Logger::warning(const std::string &message) const {
-	log_(WARNING, message);
+void	Logger::warning(const std::string &message,
+			const char *file, int	line) const {
+	log_(WARNING, message, file, line);
 }
 
-void	Logger::error(const std::string &message) const {
-	log_(ERROR, message);
+void	Logger::error(const std::string &message,
+			const char *file, int	line) const {
+	log_(ERROR, message, file, line);
 }
 
-void	Logger::critical(const std::string &message) const {
-	log_(CRITICAL, message);
+void	Logger::critical(const std::string &message,
+			const char *file, int	line) const {
+	log_(CRITICAL, message, file, line);
 }
 
 // int main() {

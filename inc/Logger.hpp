@@ -28,7 +28,8 @@ private:
 	bool					checkFileLevel_(LogLevel level) const;
 	bool					checkConsoleLevel_(LogLevel level) const;
 	const std::string		getTimestamp_() const;
-	void					log_(LogLevel level, const std::string &message) const;
+	void					log_(LogLevel level, const std::string &message,
+								const char *file = NULL, int line=0) const;
 
 	Logger(const Logger& other);
 	Logger&				operator=(const Logger& other);
@@ -42,11 +43,16 @@ public:
 	void					setConsole(bool enabled);
 	void					setConsoleLevel(LogLevel level);
 	void					setTimestamp(bool enabled);
-	void					debug(const std::string &message) const;
-	void					info(const std::string &message) const;
-	void					warning(const std::string &message) const;
-	void					error(const std::string &message) const;
-	void					critical(const std::string &message) const;
+	void					debug(const std::string &message,
+								const char *file = NULL, int line = 0) const;
+	void					info(const std::string &message,
+								const char *file = NULL, int line = 0) const;
+	void					warning(const std::string &message,
+								const char *file = NULL, int line = 0) const;
+	void					error(const std::string &message,
+								const char *file = NULL, int line = 0) const;
+	void					critical(const std::string &message,
+								const char *file = NULL, int line = 0) const;
 };
 
 #endif // !LOGGER_HPP
