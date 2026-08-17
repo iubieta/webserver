@@ -18,17 +18,17 @@ public:
 	enum Level { DEBUG, INFO, WARNING, ERROR, CRITICAL };
 
 private:
-	mutable std::ofstream	logFile_;
-	Level				fileLevel_;
+	mutable std::ofstream	log_file_;
+	Level					file_level_;
 	bool					console_;
-	Level				consoleLevel_;
+	Level					console_level_;
 	bool					timestamp_;
 
-	std::string				levelToStr_(Level level) const;
-	bool					checkFileLevel_(Level level) const;
-	bool					checkConsoleLevel_(Level level) const;
-	const std::string		getTimestamp_() const;
-	void					log_(Level level, const std::string &message,
+	std::string				levelToStr(Level level) const;
+	bool					checkFileLevel(Level level) const;
+	bool					checkConsoleLevel(Level level) const;
+	const std::string		getTimestamp() const;
+	void					log(Level level, const std::string &message,
 								const char *file = NULL, int line=0) const;
 
 	Logger(const Logger& other);

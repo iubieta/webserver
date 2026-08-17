@@ -14,19 +14,19 @@
 
 // Canonichal form ------------------------------------------------------------
 Logger::Logger() : 
-	fileLevel_(DEBUG),
-	console_(true), consoleLevel_(INFO),
+	file_level_(DEBUG),
+	console_(true), console_level_(INFO),
 	timestamp_(true)
 {}
 
 Logger::Logger(const std::string &filepath) : 
-	fileLevel_(DEBUG), 
-	console_(true), consoleLevel_(INFO),
+	file_level_(DEBUG), 
+	console_(true), console_level_(INFO),
 	timestamp_(true)
 {
-	logFile_.open(filepath.c_str(), std::ios::app);
-	if (!logFile_.is_open()) {
-		log_(WARNING, "Log file could not be opened, continuing in console mode");
+	log_file_.open(filepath.c_str(), std::ios::app);
+	if (!log_file_.is_open()) {
+		log(WARNING, "Log file could not be opened, continuing in console mode");
 	}
 }
 
@@ -34,7 +34,7 @@ Logger::~Logger() {}
 
 // Private methods ------------------------------------------------------------
 
-std::string	Logger::levelToStr_(Level level) const {
+std::string	Logger::levelToStr(Level level) const {
 	switch (level) {
 		case DEBUG:
 			return "[DEBUG]";
@@ -50,15 +50,15 @@ std::string	Logger::levelToStr_(Level level) const {
 	return "[UNKNOWN]";
 }
 
-bool	Logger::checkFileLevel_(Level level) const {
-	return level >= fileLevel_;
+bool	Logger::checkFileLevel(Level level) const {
+	return level >= file_level_;
 }
 
-bool	Logger::checkConsoleLevel_(Level level) const {
-	return level >= consoleLevel_;
+bool	Logger::checkConsoleLevel(Level level) const {
+	return level >= console_level_;
 }
 
-const std::string	Logger::getTimestamp_() const {
+const std::string	Logger::getTimestamp() const {
 	time_t			rawtime = time(NULL);
 	struct tm		*timeinfo;
 	char			timestr[40];
@@ -69,21 +69,21 @@ const std::string	Logger::getTimestamp_() const {
 	return timestamp;
 }
 
-void	Logger::log_(Level level, const std::string &message, 
+void	Logger::log(Level level, const std::string &message, 
 					const char *file, int line) const 
 {
-	std::string timestr = getTimestamp_();
-	std::string levelstr = levelToStr_(level);
+	std::string timestr = getTimestamp();
+	std::string levelstr = levelToStr(level);
 	std::string	logstr = levelstr + " " + message;
-	if (logFile_.is_open() && checkFileLevel_(level)) {
+	if (log_file_.is_open() && checkFileLevel(level)) {
 		if (timestamp_)
 			logstr = timestr + " " + logstr; 
-		logFile_ << logstr;
+		log_file_ << logstr;
 		if (file)
-			logFile_ << " - " << file << ":" << line;
-		logFile_ << std::endl;
+			log_file_ << " - " << file << ":" << line;
+		log_file_ << std::endl;
 	}
-	if (console_ && checkConsoleLevel_(level)) {
+	if (console_ && checkConsoleLevel(level)) {
 		std::cerr << logstr << std::endl;;
 	}
 }
@@ -91,7 +91,7 @@ void	Logger::log_(Level level, const std::string &message,
 // Setters --------------------------------------------------------------------
 
 void	Logger::setFileLevel(Level level) {
-	fileLevel_ = level;
+	file_level_ = level;
 }
 
 void	Logger::setConsole(bool enabled) {
@@ -99,7 +99,7 @@ void	Logger::setConsole(bool enabled) {
 }
 
 void	Logger::setConsoleLevel(Level level) {
-	consoleLevel_ = level;
+	console_level_ = level;
 }
 
 void	Logger::setTimestamp(bool enabled) {
@@ -109,27 +109,27 @@ void	Logger::setTimestamp(bool enabled) {
 // Logging methods ------------------------------------------------------------
 void	Logger::debug(const std::string &message, 
 			const char *file, int	line) const {
-	log_(DEBUG, message, file, line);
+	log(DEBUG, message, file, line);
 }
 
 void	Logger::info(const std::string &message,
 			const char *file, int	line) const {
-	log_(INFO, message, file, line);
+	log(INFO, message, file, line);
 }
 
 void	Logger::warning(const std::string &message,
 			const char *file, int	line) const {
-	log_(WARNING, message, file, line);
+	log(WARNING, message, file, line);
 }
 
 void	Logger::error(const std::string &message,
 			const char *file, int	line) const {
-	log_(ERROR, message, file, line);
+	log(ERROR, message, file, line);
 }
 
 void	Logger::critical(const std::string &message,
 			const char *file, int	line) const {
-	log_(CRITICAL, message, file, line);
+	log(CRITICAL, message, file, line);
 }
 
 // int main() {
