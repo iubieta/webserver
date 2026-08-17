@@ -20,7 +20,7 @@ TEST_NAME 	:= run_tests
 
 TEST_DIR	:= tests
 TEST_SRCS	:= Tester.cpp test_main.cpp \
-			   test_logger.cpp 
+			   logger_test.cpp 
 TEST_OBJS	:= $(TEST_SRCS:%.cpp=$(OBJ_DIR)/tests/%.o)
 DEPS		+= $(TEST_OBJS:.o=.d)
 

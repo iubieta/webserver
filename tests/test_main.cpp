@@ -4,7 +4,7 @@
 #include <cstring>
 #include <iostream>
 
-#include "TestList.hpp"
+#include "test_list.hpp"
 
 struct	TestEntry {
 	const char	*name;
