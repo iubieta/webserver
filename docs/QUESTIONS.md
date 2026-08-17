@@ -9,50 +9,27 @@ They are defence material.
 
 Priority: `blocker` (stops work now) | `soon` | `later`
 
----
-
 ## Open
 
-### Q-004 — <the question, phrased as a question>
+### Q-001 — What C functions and libraries are allowed?
 
-- **Raised:** YYYY-MM-DD by <login>
-- **Priority:** soon
-- **Area:** sockets / http / config / cgi / build / other
-
-**Why it matters:** what breaks or stays undecided until we know.
-
-**What we already believe:** current guess, so we can check whether we
-were wrong later.
-
-**How we will find out:** RFC section, man page, NGINX experiment,
-peer, staff.
-
----
-
-### Q-003 — Example: does `poll` reporting POLLIN guarantee a whole
-request is available?
-
-- **Raised:** 2026-01-01 by <login>
-- **Priority:** blocker
-- **Area:** sockets
-
-**Why it matters:** it decides whether the HTTP parser can be a
-one-shot function or must be an incremental state machine.
-
-**What we already believe:** no guarantee; readiness only means at
-least one byte can be read without blocking.
-
-**How we will find out:** `man 2 poll`, plus an experiment sending a
-request one byte at a time with `nc`.
+- **Raised:** 2026-08-12 — **Answered:** YYYY-MM-DD
+- **Answer:** the short version.
+- **Evidence:** Not sure if Ctime or time.h can be used or other c-style 
+libraries or functions.
+- **Consequence:** time.h is being used in Logger class. 
 
 ---
 
 ## Answered
 
-### Q-001 — <the question>
+### Q-002 — What is mutable and can it be used?
 
-- **Raised:** YYYY-MM-DD — **Answered:** YYYY-MM-DD
-- **Answer:** the short version.
-- **Evidence:** RFC 7230 section X.Y / `man 2 recv` / experiment in
-  `docs/observations-http.md`.
-- **Consequence:** links to the decision it produced, if any (D-XXX).
+- **Raised:** 2026-08-12 — **Answered:** 2026-08-12
+- **Answer:** Similar to const but in a logical sense. Yes can be used.
+- **Evidence:** 
+- **Consequence:** Mutable allows to call const function over a "non" physical
+const object. It used to mark the object as logical const although what it 
+points to or represents changes. 
+- **Example:** an ofstream can be mutable because the file it represents doesnt
+change but the file content can change.

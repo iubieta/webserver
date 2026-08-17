@@ -39,6 +39,7 @@ make          # compile the project
 make clean    # remove object files
 make re       # clean + rebuild
 make fclean   # remove objects, binary and dependencies
+make test     # build and run the unit tests (./run_tests)
 ```
 
 ## Run

@@ -140,13 +140,14 @@ Rules:
 - `assert()` is for **invariants and preconditions of our own code only**
   (e.g. `assert(state_ == READY)`). Never assert on external input: client
   data is handled with return codes, not by aborting.
-- Log through the `Logger` macros (`LOG_DEBUG`/`LOG_INFO`/`LOG_WARN`/
-  `LOG_ERROR`/`LOG_ACCESS`); no bare `printf`/`cerr` in production code.
-- `DEBUG` for internal trace, `INFO` for lifecycle and requests, `WARN`/
-  `ERROR` for failures. Every served request emits an access line.
+- Log through the `Logger` class methods (`debug`/`info`/`warning`/`error`/
+  `critical`, levels in `Logger::Level`); no bare `printf`/`cerr` in
+  production code.
+- `DEBUG` for internal trace, `INFO` for lifecycle and requests, `WARNING`/
+  `ERROR`/`CRITICAL` for failures.
 - Do **not** check `errno` after `read`/`write` (subject rule); log custom
   messages instead of `strerror(errno)`.
-- Full design in [LOGGING.md](LOGGING.md).
+- Full design and current implementation in [LOGGING.md](LOGGING.md).
 
 ## Testing
 

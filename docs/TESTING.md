@@ -1,172 +1,178 @@
 # Testing
 
-Guide for **running** and **creating** the Webserver tests. Two layers:
+Guide for **running** and **creating** the Webserver tests. This document
+describes the **current** test infrastructure.
+
+Two layers are planned:
 
 - **Unit tests** (C++) — parsers and pure logic, no network, no server.
 - **Integration tests** (bash + `curl`/`nc`) — against the real server.
 
-No external test framework (e.g. Google Test) is allowed: unit tests use a
-tiny in-house harness; integration tests use standard shell tools.
+Only the **unit** layer exists today, with an in-house harness. No external
+test framework (e.g. Google Test) is allowed.
 
-## Running the tests
-
-```sh
-make test                # run unit + integration
-make test_unit           # run unit tests only (no server, no network)
-make test_integration    # run integration tests (starts a server instance)
-make re                  # clean build first, to avoid stale objects
-```
-
-Both targets must exit non-zero on failure (so CI/pre-merge checks can rely
-on them). Run `make re` in a clean tree, then `make test`, before every
-merge.
-
-For debugging a single failing case:
-
-```sh
-./tests/unit/config_parser_test      # run one unit binary directly
-bash tests/integration/01_get.sh     # run one integration scenario
-./webserv tests/fixtures/config/basic.conf   # start the server by hand
-```
-
-## Test layout
+## Current test files
 
 ```
 tests/
-├── unit/                    # C++ unit test binaries, one per module
-│   ├── config_parser_test.cpp
-│   ├── http_parser_test.cpp
-│   └── ...
-├── integration/             # shell scenarios, numbered in order
-│   ├── 01_get.sh
-│   ├── 02_post.sh
-│   └── ...
-├── fixtures/                # inputs shared by the tests
-│   ├── config/              #   sample server configs
-│   ├── files/               #   static files to serve
-│   └── cgi/                 #   scripts for CGI scenarios
-└── run_tests.sh             # (optional) shared runner for integration
+├── Tester.hpp        # harness: ASSERT_EQ macro + test runner API
+├── Tester.cpp        # harness implementation (counters, reporting)
+├── main.cpp          # test registry: runs the selected test groups
+├── TestList.hpp      # declarations of each test group entry point
+├── loggerTest.cpp    # unit tests for the Logger class (group "logger")
+└── run_tests         # compiled test binary (build artifact, in repo root)
 ```
 
-Unit test file naming mirrors the module: `config_parser_test.cpp` tests
-`src/config/config_parser.cpp`. Integration scenarios are numbered so the
-runner executes them in a deterministic order.
+`loggerTest.cpp` is the first unit test module. As new modules land, each
+gets its own test file in `tests/` (e.g. `configParserTest.cpp`) plus a
+group entry.
 
-## Unit tests
+## Building and running
 
-A minimal harness in `tests/unit/test.h` (no external framework):
+The [Makefile](../Makefile) builds both the server and the tests:
+
+```sh
+make              # build the server binary ./webserv
+make test         # build the test binary ./run_tests and run it
+make test ARGS=logger   # run only the "logger" test group
+make clean        # remove obj/
+make fclean       # remove obj/, ./webserv and ./run_tests
+make re           # fclean + all
+```
+
+`make test` compiles `tests/Tester.cpp`, `tests/main.cpp`, `tests/*Test.cpp`
+plus the project sources (`src/`), links `./run_tests` and executes it.
+Passing `ARGS=<group>` runs only the matching group(s).
+
+Output is colorized (green `OK`, red `KO`).
+
+> **Note:** `run_tests` currently always exits with status 0, even if some
+> tests fail — the failures are reported by the harness but **not**
+> propagated to the exit code. Propagating `Tester::report()`'s value through
+> `main.cpp` is a pending improvement.
+
+## Test groups
+
+Each test module exposes a single entry point, e.g.
+`void logger_tests()`, that runs all the module's batteries. The registry
+in `tests/main.cpp` lists the available groups:
 
 ```cpp
-#ifndef TEST_HPP
-#define TEST_HPP
-
-#include <iostream>
-#include <string>
-
-static int failures_ = 0;
-
-#define TEST(name)                                                        \
-    static void name();                                                   \
-    static bool name##_registered = test::registerTest(#name, name);      \
-    static void name()
-
-#define ASSERT_EQ(actual, expected)                                       \
-    if (!((actual) == (expected))) {                                      \
-        ++failures_;                                                      \
-        std::cerr << "FAIL " << __FILE__ << ":" << __LINE__               \
-                  << "  " #actual " != " #expected << std::endl;          \
-    }
-
-#define ASSERT_TRUE(expr) ASSERT_EQ(expr, true)
-#endif
+static const TestEntry g_tests[] = {
+    { "logger", logger_tests },
+};
 ```
 
-What to test:
+Running `./run_tests` with no arguments runs every group in order; passing
+group names as arguments filters to those:
 
-- **Config parser**: valid/invalid directives, unknown keys, defaults,
-  `listen`/`server_name`/`root`/`index`/`error_page`/`client_max_body_size`,
-  location blocks and method restrictions.
-- **HTTP parser**: request line, header parsing, `Host` requirement,
-  `Content-Length`, chunked bodies, header size/count limits, unknown
-  methods/versions.
-- **MIME / path helpers**: extension → content type, path joining, trailing
-  slashes.
+```sh
+./run_tests logger        # just the logger group
+```
 
-Rules:
+## Harness API
 
-- Unit tests exercise **pure logic only** — no sockets, no `poll()`. Anything
-  needing the network belongs in integration tests.
-- Each `TEST(name)` function covers one behaviour; the runner reports
-  failures and the exit code must be non-zero on any failure.
-- Register every test in the per-file `main()` (see the harness skeleton in
-  `tests/unit/`).
+All tests share the tiny harness in `Tester.hpp` / `Tester.cpp`:
+
+- `ASSERT_EQ(actual, expected)` — macro. If `(actual) != (expected)`, it
+  prints a red failure line (file, line, expected vs. received), records a
+  failure via `Tester::recordFail()`, and **returns from the current test
+  function immediately**.
+- `Tester::runTest(name, fn)` — runs one test function `fn()` and reports
+  `name --> OK` / `name --> KO`.
+- `Tester::report()` — prints the summary (`OK! All tests passed` or
+  `FAIL: n/total`) and returns the number of failures (not used by the
+  runner yet, see note above).
+
+## How to write a new test module
+
+For a module `Foo`, in `tests/fooTest.cpp`:
+
+1. Write one `void` function per behaviour, following the naming
+   `test<Something>`.
+2. Use `ASSERT_EQ(actual, expected)` to assert (it returns early on failure,
+   so assert once per concern or split into separate functions).
+3. Group the batteries in one entry point `void foo_tests()` that calls
+   `Tester::runTest("Name", testSomething);` for each and finishes with
+   `Tester::report();`.
+4. Declare the entry point in `tests/TestList.hpp`:
+
+   ```cpp
+   void foo_tests();
+   ```
+
+5. Register the group in `tests/main.cpp`:
+
+   ```cpp
+   { "foo", foo_tests },
+   ```
+
+6. Add the source to `TEST_SRCS` in the Makefile:
+
+   ```make
+   TEST_SRCS := Tester.cpp main.cpp \
+                loggerTest.cpp \
+                fooTest.cpp
+   ```
+
+Skeleton:
+
+```cpp
+// tests/fooTest.cpp
+void testSomething() {
+    int result = doTheThing();
+    ASSERT_EQ(result, 42);
+}
+
+void foo_tests() {
+    Tester::runTest("Something", testSomething);
+    Tester::report();
+}
+```
+
+## Current test batteries
+
+`tests/loggerTest.cpp` covers the `Logger` class in seven batteries:
+
+| #  | Battery              | What it checks                                        |
+| -- | -------------------- | ----------------------------------------------------- |
+| 1  | File error           | Opening an unwritable path → `[WARNING]` on console, continues in console mode |
+| 2  | File Level filtering | Per-level file thresholds (`DEBUG`→5 … `CRITICAL`→1 lines) |
+| 3  | Console Level filtering | Per-level console thresholds, messages counted on redirected `stderr` |
+| 4  | Level independence   | File and console levels set independently, both honored |
+| 5  | Console off          | `setConsole(0)` silences the console output           |
+| 6  | Append mode          | Reopening the logger appends (5 → 10 lines), never truncates |
+| 7  | Message fidelity     | Exact file line `[INFO] msg - file:line` and console line without `file:line` |
+
+Helpers used by the tests: `logEveryLevel`, `numberOfLines`,
+`redirCerr`/`resetCerr` (redirect `std::cerr` to an `ostringstream`),
+`countCharInStr`, `fileHasLine`.
 
 ## Integration tests
 
-A scenario is a bash script: **fixture → start server → request → assert →
-teardown**.
+> **Estado: pendiente.** Integration scenarios (bash + `curl`/`nc`) are
+> planned but not implemented yet. Expected structure:
 
-Template:
-
-```sh
-#!/usr/bin/env bash
-set -euo pipefail
-PORT="${PORT:-8080}"
-BIN="${BIN:-./webserv}"
-
-"$BIN" tests/fixtures/config/basic.conf &
-SERVER_PID=$!
-trap 'kill $SERVER_PID 2>/dev/null' EXIT
-sleep 0.2
-
-code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/")
-[ "$code" = "200" ] || { echo "FAIL: expected 200, got $code"; exit 1; }
-
-curl -s "http://localhost:$PORT/index.html" | grep -q "<title>Home</title>"
+```
+tests/
+├── integration/         # shell scenarios, numbered in order
+│   ├── 01_get.sh
+│   ├── 02_post.sh
+│   └── ...
+└── fixtures/            # inputs shared by the tests
+    ├── config/          #   sample server configs
+    ├── files/           #   static files to serve
+    └── cgi/             #   scripts for CGI scenarios
 ```
 
-Common assertions:
-
-```sh
-# status code only
-code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
-
-# exact body
-curl -s "$url" | cmp -s - tests/fixtures/files/expected.txt
-
-# headers
-curl -sI "$url" | grep -qi '^content-type: text/html'
-
-# raw HTTP with nc (checking exact bytes)
-printf 'GET / HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc localhost "$PORT" | head -1 | grep -q '^HTTP/1.1 200'
-```
-
-What to cover (checklist by module):
-
-- **Server / routing**: `GET` static file, `GET /` → index, unknown path →
-  `404`, forbidden method → `405`, directory listing (`autoindex on/off`).
-- **Methods**: `POST` with body / upload, `DELETE` existing/missing file,
-  method not allowed per location.
-- **Config**: multiple servers on different ports, `server_name` matching,
-  `error_page` custom pages, redirects (`return`), `client_max_body_size` →
-  `413`.
-- **HTTP edge cases**: keep-alive (two requests one connection), chunked
-  body, `Expect: 100-continue`, oversized headers → `431`/`400`, unknown
-  version → `505`.
-- **CGI**: `GET` with `QUERY_STRING`, `POST` body, script writing headers,
-  missing interpreter → `500`.
-- **Robustness**: malformed request → `400` and server still alive; idle
-  timeout → `408`; stress with `siege`/`ab` (see
-  [CHEATSHEET.md](CHEATSHEET.md#load--stress)).
+A scenario follows: **fixture → start server → request → assert → teardown**
+(`set -euo pipefail`, start `./webserv` in background, `trap 'kill $PID'
+EXIT`, assert with `curl`/`nc`).
 
 ## Quality gates
 
 Before merging to `main`:
 
-1. `make re` in a clean tree (no stale objects).
-2. `make test` — full suite passes.
-3. Valgrind on the server + a request (`valgrind --leak-check=full
-   ./webserv ...`) → no leaks. ASan (`-fsanitize=address`) as a dev-only
-   alternative.
-4. New module ⇒ matching unit test in `tests/unit/` and (if it touches the
-   wire) an integration scenario.
+1. `make re` then `make test` — all tests pass.
+2. Existing behaviour must not regress; run the full suite before merging.
+3. New module ⇒ matching unit test in `tests/`.
