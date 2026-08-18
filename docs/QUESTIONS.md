@@ -14,10 +14,19 @@ Priority: `blocker` (stops work now) | `soon` | `later`
 ### Q-001 — What C functions and libraries are allowed?
 
 - **Raised:** 2026-08-12 — **Answered:** YYYY-MM-DD
-- **Answer:** the short version.
+- **Answer:** 
 - **Evidence:** Not sure if Ctime or time.h can be used or other c-style 
 libraries or functions.
 - **Consequence:** time.h is being used in Logger class. 
+
+### Q-003 - How a duplicated interface:port server config should be treated?
+
+- **Raised:** 2026-08-18 — **Answered:** YYYY-MM-DD
+- **Answer:** 
+- **Evidence:** bind con only be called once in a specific interface:port 
+combination. If a server config file declare it twice the server must handle
+it correctly
+- **Consequence:** Implement deduplication in server core.
 
 ---
 
