@@ -28,6 +28,13 @@ combination. If a server config file declare it twice the server must handle
 it correctly
 - **Consequence:** Implement deduplication in server core.
 
+### Q-004 - OCF: Is the default constructor obligattory?
+
+- **Raised:** 2026-08-18 — **Answered:** YYYY-MM-DD
+- **Answer:** 
+- **Evidence:** in the subject there is no mention to the ortodox canonical form
+- **Consequence:** there is no need for default constructor
+
 ---
 
 ## Answered
