@@ -3,7 +3,8 @@
 #include <limits>
 
 LocationConfig::LocationConfig()
-			: root_(""),
+			: target_(""), 
+			  root_(""),
 			  autoindex_(false),
 			  allow_methods_(),
 			  index_(),
@@ -11,7 +12,8 @@ LocationConfig::LocationConfig()
 {}
 
 LocationConfig::LocationConfig(const LocationConfig &other)
-			: root_(other.root_),
+			: target_(other.target_), 
+			  root_(other.root_),
 			  autoindex_(other.autoindex_),
 			  allow_methods_(other.allow_methods_),
 			  index_(other.index_),
@@ -22,6 +24,7 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 {
 	if(this != &other)
 	{
+		target_ = other.target_;
 		root_ = other.root_;
 		autoindex_ = other.autoindex_;
 		allow_methods_ = other.allow_methods_;
@@ -68,7 +71,12 @@ const std::string &LocationConfig::getMethod(size_t index) const
 	return allow_methods_.at(index);
 }
 
-int LocationConfig::setRoot(const std::string root)
+const std::string &LocationConfig::getTarget() const
+{
+	return target_;
+}
+
+int LocationConfig::setRoot(const std::string &root)
 {
 	if(root.empty())
 		return -1;
@@ -99,6 +107,12 @@ int LocationConfig::setClientMax(const std::string &client_max_str)
 	return 0;
 }
 
+int LocationConfig::setClientMax(size_t clientMax)
+{
+	client_max_body_size_ = clientMax;
+	return 0;
+}
+
 void LocationConfig::addIndex(const std::string &index)
 {
 	if(!index.empty())
@@ -112,4 +126,45 @@ int LocationConfig::addMethod(const std::string &method)
     
 	allow_methods_.push_back(method);
     return 0;
+}
+
+int LocationConfig::setVecIndex(const std::vector<std::string> &index)
+{
+	if (index.empty())
+		return -1;
+	index_ = index;
+	return 0;
+}
+
+int LocationConfig::setAutoindex(const std::string &autoindex)
+{
+	if(autoindex.empty())
+		return -1;
+	else if (autoindex == "on")
+	{
+		autoindex_ = true;
+		return 0;
+	}
+	else if (autoindex == "off")
+	{
+		autoindex_ = false;
+		return 0;
+	}
+	return -1;
+}
+
+int LocationConfig::setAutoindex(bool autoindex)
+{
+	autoindex_ = autoindex;
+	return 0;
+}
+
+int LocationConfig::setTarget(const std::string &target)
+{
+	if (target.empty())
+		return -1;
+	if (target[0] != '/')
+		return -1;
+	target_ = target;
+	return 0;
 }
