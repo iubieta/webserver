@@ -45,7 +45,7 @@ class ServerConfig
         int setListen(const std::string &listen);
         int setHost(const std::string &host);
         int setClientMax(const std::string &client_max);
-        void setAutoindex(bool autoindex);
+        int setAutoindex(const std::string  &autoindex);
         int setServerName(const std::string &server_name);
         int setRoot(const std::string &root);
 

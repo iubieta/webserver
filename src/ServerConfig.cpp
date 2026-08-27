@@ -164,9 +164,21 @@ int ServerConfig::setClientMax(const std::string &client_max_str)
 	return 0;
 }
 
-void ServerConfig::setAutoindex(bool autoindex)
+int ServerConfig::setAutoindex(const std::string &autoindex)
 {
-	autoindex_ = autoindex;
+    if (autoindex.empty())
+        return -1;
+	else if (autoindex == "on")
+    {
+        autoindex_ = true;
+        return 0;
+    }
+    else if (autoindex == "off")
+    {
+        autoindex_ = false;
+        return 0;
+    }
+    return -1;
 }
 
 int ServerConfig::setServerName(const std::string &server_name)
