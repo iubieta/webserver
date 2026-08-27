@@ -1,33 +1,92 @@
 #include "../inc/ConfigParser.hpp"
-#include <sstream>
 
 ConfigParse::ConfigParse(const std::string &file_name):file_name_(file_name)
 {}
 
+ConfigParse::ConfigParse(const ConfigParse &other)
+	: file_name_(other.file_name_),
+	  token_(other.token_),
+	  server_(other.server_)
+{}
+
+ConfigParse &ConfigParse::operator=(const ConfigParse &other)
+{
+	if (this != &other)
+	{
+		file_name_ = other.file_name_;
+		token_	= other.token_;
+		server_ = other.server_;
+	}
+	return *this;
+}
+
 ConfigParse::~ConfigParse() {}
 
-bool ConfigParse::isDelimiter(char c)
+bool ConfigParse::isDelimiter(char c) const
 {
 	if (c == ' ' || c == '\t')
 		return true;
 	return false;
 }
 
-void ConfigParse::ftTokenize(const std::string &line)
+bool ConfigParse::isBrace(char c) const
 {
-	std::stringstream ss(line);
-	std::string token;
-
-	while(ss >> token)
-	{
-		this->token_.push_back(token);
-	}
+	if (c == '{' || c == '}')
+		return true;
+	return false;
 }
 
+bool ConfigParse::endSemicolon(const std::string &token) const
+{
+	if (token.empty())
+		return false;
+	if(token[token.size() - 1] == ';')
+		return true;
+	return false;
+}
+
+std::string ConfigParse::clearSemicolon(const std::string &token) const
+{
+	std::string result;
+
+	result = token.substr(0, token.size() - 1);
+	return result;
+}
+
+void ConfigParse::ftTokenize(const std::string &line)
+{
+	std::string token;
+	size_t i;
+	size_t start;
+
+	i = 0;
+	while(i  < line.size())
+	{
+		while (isDelimiter(line[i]) && line[i] != '\0')
+			i++;
+		if (i == line.size())
+			break ; // avoid empty lines
+		start = i;
+		if (isBrace(line[i]))
+		{
+			token = line.substr(start, 1);
+			i++;
+		}
+		else
+		{
+	
+			while (i < line.size() && !isDelimiter(line[i]) 
+					&& !isBrace(line[i]))
+				i++;
+			token = line.substr(start, i - start);
+			
+		}
+		token_.push_back(token);
+		
+	}
+}
 void ConfigParse::fileToken()
 {
-	std::vector<std::string>::iterator it;
-
 	std::ifstream file(file_name_.c_str());
 	std::string line;
 	size_t i;
@@ -35,43 +94,44 @@ void ConfigParse::fileToken()
 	if(!file.is_open())
 	{
 		std::cerr <<"Error opening the file\n";
+		return ;
 	}
 
 	while(std::getline(file, line))
 	{
 		i = 0;
-		while(isDelimiter(line[i]) && line[i] != '\0')
+		while(i < line.size() && isDelimiter(line[i]))
 			i++;
 		line = line.substr(i);
-		if(line[0] == '#')
+		if(line.empty() ||line[0] == '#')
 			continue;
 	
 		ftTokenize(line);
 	}
 
 	file.close();
+	
+}
 
-	it = token_.begin();
-	int j = 0;
-	while(it != token_.end())
-	{
-		std::cout<<"[" << j << "]" << "token->"<< *it << std::endl;
-		++it;
-		j++;
-	}
-	std::cout << "index: "<< j << std::endl;
-	std::cout << "size: "<< token_.size() << std::endl;
-
+const std::vector<std::string> &ConfigParse::getTokens() const
+{
+	return this->token_;
 }
 
 int ConfigParse::parseManager()
 {
-
 	size_t	i;
+
+	if (token_.empty())
+		return -1;
 	i = 0;
-	while(token_[i] == "server" && token_[i + 1] == "{")
+	while (i < token_.size())
 	{
-		if(serverBlocks(i) == -1)
+		if (token_[i] != "server")
+			return -1;
+		if (i + 1 >= token_.size() || token_[i + 1] != "{")
+			return -1;
+		if (serverBlocks(i) == -1)
 		{
 			std::cerr << "Syntax error in the configuration file\n";
 			return -1;
@@ -81,164 +141,206 @@ int ConfigParse::parseManager()
 	return 0;
 }
 
-int ConfigParse::locationBlocks(size_t &index, ConfigServer &server)
+int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 {
-	std::string request;
-	std::string method;
-	std::string attribute;
-	ConfigLocation location;
-	bool flag;
-	size_t i;
+	std::string temp;
+	LocationConfig location;
 
-	if(token_[index][0] != '/')
-			return -1;
-	request = token_[index++];
-	if(!server.root_.empty())
-		location.root_ = server.root_;
-	if(token_[index++] != "{")
+	if (index >= token_.size() || token_[index].empty()
+		|| token_[index][0] != '/')
 		return -1;
 
-	while(token_[index] != "}" && index < token_.size())
+	if(location.setTarget(token_[index]) == -1)
+		return -1;
+	index++;
+
+	if(!server.getRoot().empty())
+		location.setRoot(server.getRoot());
+	if(!server.getIndexs().empty())
+		location.setVecIndex(server.getIndexs());
+	if(server.getClientMaxBody() > 0)
+		location.setClientMax(server.getClientMaxBody());
+	if (server.getAutoindex() == true)
+		location.setAutoindex(server.getAutoindex());
+
+	if (index >= token_.size() || token_[index] != "{")
+		return -1;
+
+
+	index++;
+	while (index < token_.size() && token_[index] != "}")
 	{
 		if (token_[index] == "autoindex")
 		{
 			index++;
-			if (token_[index][token_[index].size() - 1] != ';' &&
-					token_[index][token_[index].size()] != '\0' )
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
 				return -1;
-
-			attribute = token_[index].substr(0, token_[index].size() - 1);
-
-			if (attribute == "on")
-				location.autoindex_ = true;
-			else if(attribute == "off")
-				location.autoindex_ = false;
-			else
+			temp = clearSemicolon(token_[index]);
+			if (location.setAutoindex(temp) == -1)
 				return -1;
-			index++;
 		}
-		else if(token_[index] == "allow_methods")
+		else if (token_[index] == "root")
 		{
 			index++;
-			i = 0;
-			flag = true;
-			while(i < 3 && flag)
-			{
-				if (token_[index][token_[index].size() - 1] == ';')
-				{
-					if(token_[index][token_[index].size()] != '\0')
-						return -1;
-					attribute = token_[index].substr(0, token_[index].size() - 1);
-					flag = false;
-				}
-				else 
-				{
-					attribute = token_[index];
-				}
-				if(attribute == "GET")
-				{
-					location.methods_.push_back(attribute);
-					index++;
-				}
-				else if(attribute == "POST")
-				{
-					location.methods_.push_back(attribute);
-					index++;
-				}
-				else if(attribute == "DELETE")
-				{
-					location.methods_.push_back(attribute);
-					index++;
-				}
-				else
-					break;
-				i++;
-			}
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.setRoot(temp) == -1)
+				return -1;
 		}
+		else if (token_[index] == "allow_methods")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				if (location.addMethod(token_[index]) == -1)
+					return -1;
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.addMethod(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "index")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				location.addIndex(token_[index]);
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (temp.empty())
+				return -1;
+			location.addIndex(temp);
+		}
+		else
+			return -1;
+		index++;
 	}
-	if (token_[index] != "}")
+	if (index >= token_.size() || token_[index] != "}")
 		return -1;
-	server.location_.push_back(location);
+	if (location.getMethods().empty())
+		location.addMethod("GET");
+	server.addLocation(location);
 	return 0;
 }
 
 int ConfigParse::serverBlocks(size_t &index)
 {
-	ConfigServer server;
-	std::stringstream ss;
-	std::string attribute;
-	int number;
+	ServerConfig server;
+	std::string temp;
 
 	index++;
-	if(token_[index] != "{")
+	if (index >= token_.size() || token_[index] != "{")
 		return -1;
-	
 	index++;
-	while(token_[index] != "}" && index < token_.size())
+	while (index < token_.size() && token_[index] != "}")
 	{
-		if(token_[index] == "server_name") // string
+		if (token_[index] == "server_name")
 		{
-			index ++;
-			if (token_[index][token_[index].size() - 1] != ';' &&
-					token_[index][token_[index].size()] != '\0' )
-				return -1;
-
-			attribute = token_[index].substr(0, token_[index].size() - 1);
-			server.server_name_ = attribute;
 			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setServerName(temp) == -1)
+				return -1;
 		}
-		else if(token_[index] == "listen") //int
+		else if (token_[index] == "host")
 		{
 			index++;
-
-			if (token_[index][token_[index].size() - 1] != ';' &&
-					token_[index][token_[index].size()] != '\0' )
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
 				return -1;
-
-			ss.str(token_[index]);
-			if (ss.fail())
+			temp = clearSemicolon(token_[index]);
+			if (server.setHost(temp) == -1)
 				return -1;
-			ss >> number;
-			server.listen_ = number;
-			index++;
-			
 		}
-		else if(token_[index] == "root") // string
+		else if (token_[index] == "listen")
 		{
-			index ++;
-			if (token_[index][token_[index].size() - 1] != ';' &&
-					token_[index][token_[index].size()] != '\0' )
-				return -1;
-
-
-			attribute = token_[index].substr(0, token_[index].size() - 1);
-			server.root_ = attribute;
 			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setListen(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "root")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setRoot(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "autoindex")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setAutoindex(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "client_max_body_size")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setClientMax(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "index")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				server.addIndex(token_[index]);
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (temp.empty())
+				return -1;
+			server.addIndex(temp);
 		}
 		else if (token_[index] == "location")
 		{
-			index ++;
+			index++;
 			if (locationBlocks(index, server) == -1)
 				return -1;
-			index++;
-			
 		}
-		
-	}
-
-	if (token_[index] != "}")// esta llave es del server
+		else
 			return -1;
-
-	this->server.push_back(server);
-	
+		index++;
+	}
+	if (index >= token_.size() || token_[index] != "}")
+		return -1;
+	this->server_.push_back(server);
 	return 0;
-}
-
-int main()
-{
 	
-	ConfigParse conf("../config/default.conf");
-	conf.fileToken();
-	conf.parseManager();
-
 }
+
