@@ -2,9 +2,11 @@
 // ----------------------------------------------------------------------------
 
 #include <cstring>
+#include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <vector>
+#include <sstream>
 
 #include "../inc/ServerCore.hpp"
 #include "../inc/log_global.hpp"
@@ -14,7 +16,7 @@
 ServerCore::ServerCore(std::vector<ServerConfig> configs) : configs_(configs) {
 	epoll_fd_ = epoll_create(1);
 	if (epoll_fd_ < 0) {
-		log::global().critical("Epoll creation failed", __FILE__, __LINE__);
+		log::global().critical("ServerCore: Epoll creation failed", __FILE__, __LINE__);
 		// TODO: exit??
 	}
 }
@@ -26,14 +28,14 @@ ServerCore::~ServerCore() {
 
 // Private Methods ------------------------------------------------------------
 void ServerCore::initSockets() {
-	log::global().debug("Initializing server sockets", __FILE__, __LINE__);
+	log::global().debug("ServerCores: initializing server sockets", __FILE__, __LINE__);
 	std::vector<ServerConfig>::iterator it;
 	std::vector<ServerConfig>::iterator ite = configs_.end();
 	for (it = configs_.begin(); it != ite; ++it) {
 		ListeningSocket *ls = new ListeningSocket(it->getHost(), it->getListen());
 		ls->setup();
 		if (!ls->isReady()) {
-			log::global().warning("Socket init failed", __FILE__, __LINE__);
+			log::global().warning("ServerCore: socket init failed", __FILE__, __LINE__);
 			continue;
 		}
 		socks_.push_back(ls);
@@ -42,15 +44,19 @@ void ServerCore::initSockets() {
 		event.events = EPOLLIN;
 		event.data.fd = ls->getFd();
 		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-			log::global().warning("Epoll ctl failed", __FILE__, __LINE__);
+			log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
 			continue;
 		}
-		log::global().debug("Socket added to epoll monitoring", __FILE__, __LINE__);
+		std::ostringstream msg;
+		msg << "ServerCore: socket added to epoll monitoring (fd: " << ls->getFd() << ")";
+		log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 }
 
 void ServerCore::cleanConnection(int fd) {
-	log::global().debug("Cleaning connection", __FILE__, __LINE__);
+	std::ostringstream msg;
+	msg << "ServerCore: cleaning connection (fd: " << fd << ")";
+	log::global().debug(msg.str(), __FILE__, __LINE__);
 	epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL);
 	conns_[fd]->disconnect();
 	delete conns_[fd];
@@ -58,7 +64,7 @@ void ServerCore::cleanConnection(int fd) {
 }
 
 void ServerCore::closeSockets() {
-	log::global().debug("Closing server sockets", __FILE__, __LINE__);
+	log::global().debug("ServerCore: closing server sockets", __FILE__, __LINE__);
 	std::vector<ListeningSocket*>::iterator it;
 	std::vector<ListeningSocket*>::iterator ite = socks_.end();
 	for (it = socks_.begin(); it != ite; ++it) {
@@ -67,7 +73,7 @@ void ServerCore::closeSockets() {
 }
 
 void ServerCore::closeConnections() {
-	log::global().debug("Closing server connections", __FILE__, __LINE__);
+	log::global().debug("ServerCore: closing server connections", __FILE__, __LINE__);
 	while (!conns_.empty()) {
 		cleanConnection(conns_.begin()->first);
 	}
@@ -78,20 +84,21 @@ int ServerCore::handleSocketEvent(int fd) {
 	std::vector<ListeningSocket*>::iterator ite = socks_.end();
 	for (it = socks_.begin(); it != ite; ++it) {
 		if (fd == (*it)->getFd() ) {
-			log::global().debug("New socket event", __FILE__, __LINE__);
+			std::ostringstream msg;
+			msg << "ServerCore: new socket event(fd: " << fd << ")";
+			log::global().debug(msg.str(), __FILE__, __LINE__);
 			ListeningSocket *ls = *it;
 			int conn_fd = ls->acceptClient();
 			if (conn_fd < 0) {
-				log::global().warning("New connection accept failed", __FILE__, __LINE__);
+				log::global().warning("ServerCore: connection failed", __FILE__, __LINE__);
 				continue;
 			}
-			log::global().debug("New connection accepted", __FILE__, __LINE__);
 			struct epoll_event	event;
 			memset(&event, 0, sizeof(event));
 			event.events = EPOLLIN;
 			event.data.fd = conn_fd;
 			if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-				log::global().warning("Epoll ctl failed", __FILE__, __LINE__);
+				log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
 				close(conn_fd);
 				continue;
 			}
@@ -103,16 +110,23 @@ int ServerCore::handleSocketEvent(int fd) {
 }
 
 int ServerCore::handleConnectionEvent(struct epoll_event &event) {
+	int fd = event.data.fd;
 	if (event.events & (EPOLLERR | EPOLLHUP)) {
-		log::global().warning("Connection error", __FILE__, __LINE__);
-		cleanConnection(event.data.fd);
+		std::ostringstream msg;
+		msg << "ServerCore: connecton error (fd: " << event.data.fd << ")";
+		log::global().debug(msg.str(), __FILE__, __LINE__);
+		cleanConnection(fd);
 		return -1;
 	}
 	if (event.events & EPOLLIN) {
-		int fd = event.data.fd;
+		std::ostringstream msg;
+		msg << "ServerCore: connection has data to read (fd: " << fd << ")";
+		log::global().debug(msg.str(), __FILE__, __LINE__);
 		int read_bytes = conns_[fd]->readFromFd();
 		if (read_bytes <= 0) {
-			log::global().warning("Nothing read, closing connection", __FILE__, __LINE__);
+			std::ostringstream msg;
+			msg << "ServerCore: 0 bytes read, closing connection (fd: " << fd << ")";
+			log::global().debug(msg.str(), __FILE__, __LINE__);
 			cleanConnection(fd);
 		}
 		if (read_bytes > 0) {
@@ -121,7 +135,9 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		return read_bytes;
 	}
 	if (event.events & EPOLLOUT) {
-		log::global().debug("Sending data to the client", __FILE__, __LINE__);
+		std::ostringstream msg;
+		msg << "ServerCore: connection has data to send (fd: " << fd << ")";
+		log::global().debug(msg.str(), __FILE__, __LINE__);
 		int fd = event.data.fd;
 		int sent_bytes = conns_[fd]->writeToFd();
 		if (!conns_[fd]->wantsWrite()) {
@@ -135,20 +151,20 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 
 // Public Methods -------------------------------------------------------------
 int ServerCore::setup() {
-	log::global().debug("Server setup", __FILE__, __LINE__);
+	log::global().debug("ServerCore: setup", __FILE__, __LINE__);
 	initSockets();
 	return 0;
 }
 
 int ServerCore::run() {
-	log::global().debug("Server loop", __FILE__, __LINE__);
+	log::global().debug("ServerCore: loop", __FILE__, __LINE__);
 	struct epoll_event	events[EVENTS_MAX];
 	int					event_count;
 	while (true) {
 		event_count = epoll_wait(epoll_fd_, events,
 				EVENTS_MAX, TIMEOUT_MS);
 		if (event_count < 0) {
-			log::global().critical("Epoll wait failed", __FILE__, __LINE__);
+			log::global().critical("ServerCore: epoll wait failed", __FILE__, __LINE__);
 			break;
 			// TODO: exit??
 		}

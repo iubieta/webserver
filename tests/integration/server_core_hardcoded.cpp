@@ -9,6 +9,7 @@
 #include <vector>
 
 int main() {
+	log::global().setConsoleLevel(Logger::DEBUG);
 	std::vector<ServerConfig> cfgs;
 	
 	ServerConfig cfg_1;
@@ -24,8 +25,6 @@ int main() {
 	cfgs.push_back(cfg_2);
 
 	ServerCore serv(cfgs);
-	log::global().debug("Setting up server...");
 	serv.setup();
-	log::global().debug("Running server...");
 	serv.run();
 }

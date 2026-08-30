@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------------
 
 #include "../inc/Logger.hpp"
+#include <sstream>
 
 namespace log {
 	Logger& global() {
