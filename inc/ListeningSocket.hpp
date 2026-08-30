@@ -10,19 +10,19 @@
 
 class ListeningSocket {
 private:
-	std::string		host_;
-	int				port_;
+	unsigned int	host_;
+	unsigned int	port_;
 	int				fd_;
 
 	ListeningSocket(const ListeningSocket &other);
 	ListeningSocket& operator=(const ListeningSocket &other);
 
 public:
-	ListeningSocket(const std::string &host, int port);
+	ListeningSocket(unsigned int host, unsigned int port);
 	~ListeningSocket();
 
-	const std::string	&getHost() const;
-	int					getPort() const;
+	unsigned int		getHost() const;
+	unsigned int		getPort() const;
 	int					getFd() const;
 	
 	bool				setup();
