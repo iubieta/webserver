@@ -13,6 +13,7 @@ struct	TestEntry {
 
 static const TestEntry g_tests[] = {
 	{ "logger" , logger_tests },
+	{ "config" , config_tests },
 };
 
 static size_t g_count = sizeof(g_tests) / sizeof(TestEntry);

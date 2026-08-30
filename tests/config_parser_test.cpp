@@ -98,7 +98,7 @@ void testMissingCloseBrace()
 
 void testMethodSemicolon()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/allow_methods_missing_semicolon.config");
@@ -109,7 +109,7 @@ void testMethodSemicolon()
 
 void testMethodUnkwon()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/allow_methods_unknown_value.config");
@@ -120,7 +120,7 @@ void testMethodUnkwon()
 
 void testCharacterAfterSemicolon()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/characters_after_semicolon.config");
@@ -132,7 +132,7 @@ void testCharacterAfterSemicolon()
 
 void testUnknwonDirective()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/unknown_directive.config");
@@ -143,7 +143,7 @@ void testUnknwonDirective()
 
 void testUnknwonValue()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/unknown_value.config");
@@ -154,7 +154,7 @@ void testUnknwonValue()
 
 void testValidThreeServers()
 {
-	int resul;
+	int result;
 
 	ConfigParse config(
 		"tests/fixtures/config/valid_three_servers.config");
