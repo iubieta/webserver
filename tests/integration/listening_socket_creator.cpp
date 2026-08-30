@@ -5,7 +5,11 @@
 // ----------------------------------------------------------------------------
 
 #include "../../inc/ListeningSocket.hpp"
+#include <cstring>
 #include <iostream>
+#include <string>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <unistd.h>
 
 enum Mode { HOLD, ACCEPT, SCOPE };
@@ -20,13 +24,30 @@ int strToMode(const std::string &str) {
 	return -1;
 }
 
+unsigned int hostStrToUint(const char *host_str) {
+	unsigned int host;
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
+    struct sockaddr_in *ipv4;
+    int status;
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;       // only IPv4
+    hints.ai_socktype = SOCK_STREAM; // Sockets TCP
+    status = getaddrinfo(host_str, NULL, &hints, &res);
+    if (status != 0 || res == NULL) 
+    	return -1; 
+    ipv4 = reinterpret_cast<struct sockaddr_in *>(res->ai_addr);
+    host = ipv4->sin_addr.s_addr;
+	return host;
+}
+
 int main(int argc, char **argv) {
 	if (argc != 5) {		
 		std::cerr << "ERROR: check your arguments" << std::endl;
 		return 1;
 	}
-	std::string host(argv[1]);
-	int			port = atoi(argv[2]);
+	unsigned int host = hostStrToUint(argv[1]);
+	unsigned int port = atoi(argv[2]);
 	std::string flag(argv[3]);
 	std::string mode_str(argv[4]);
 	if (flag != "--mode" || 
