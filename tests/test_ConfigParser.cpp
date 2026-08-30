@@ -96,7 +96,72 @@ void testMissingCloseBrace()
 
 }
 
+void testMethodSemicolon()
+{
+	int resul;
 
+	ConfigParse config(
+		"tests/fixtures/config/allow_methods_missing_semicolon.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, -1);
+}
+
+void testMethodUnkwon()
+{
+	int resul;
+
+	ConfigParse config(
+		"tests/fixtures/config/allow_methods_unknown_value.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, -1);
+}
+
+void testCharacterAfterSemicolon()
+{
+	int resul;
+
+	ConfigParse config(
+		"tests/fixtures/config/characters_after_semicolon.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, -1);
+}
+
+
+void testUnknwonDirective()
+{
+	int resul;
+
+	ConfigParse config(
+		"tests/fixtures/config/unknown_directive.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, -1);
+}
+
+void testUnknwonValue()
+{
+	int resul;
+
+	ConfigParse config(
+		"tests/fixtures/config/unknown_value.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, -1);
+}
+
+void testValidThreeServers()
+{
+	int resul;
+
+	ConfigParse config(
+		"tests/fixtures/config/valid_three_servers.config");
+		config.fileToken();
+		result = config.parseManager();
+		ASSERT_EQ(result, 0);
+}
 
 void	config_tests()
 {
@@ -105,5 +170,11 @@ void	config_tests()
 	Tester::runTest("valid braces and semicolon", testValid);
 	Tester::runTest("Missing opening brace", testMissingOpenBrace);
 	Tester::runTest("Missing closing brace", testMissingCloseBrace);
+	Tester::runTest("allow methods missing semicolon", testMethodSemicolon);
+	Tester::runTest("allow methods unknown value", testMethodUnkwon);
+	Tester::runTest("characters after semicolon", testCharacterAfterSemicolon);
+	Tester::runTest("unknown directive", testUnknwonDirective);
+	Tester::runTest("unknown value", testUnknwonValue);
+	Tester::runTest("valid three servers", testValidThreeServers);
 	Tester::report();
 }
