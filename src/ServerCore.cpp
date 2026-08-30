@@ -103,6 +103,13 @@ int ServerCore::handleSocketEvent(int fd) {
 				continue;
 			}
 			conns_[conn_fd] = new Connection(conn_fd);
+			
+			// Connection stablished message
+			std::ostringstream response;
+			response << "SERVER: Connection succesfully stablished\n";
+			conns_[conn_fd]->appendToWriteBuff(response.str());
+			event.events = EPOLLIN | EPOLLOUT;
+			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event);
 			return (fd);
 		}
 	}
@@ -130,7 +137,12 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 			cleanConnection(fd);
 		}
 		if (read_bytes > 0) {
-			log::global().debug("Received data from the client", __FILE__, __LINE__);
+			// Received bytes message
+			std::ostringstream response;
+			response << "SERVER: " << read_bytes << " bytes received\n";
+			conns_[fd]->appendToWriteBuff(response.str());
+			event.events = EPOLLIN | EPOLLOUT;
+			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
 		}
 		return read_bytes;
 	}
