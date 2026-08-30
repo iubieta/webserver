@@ -40,12 +40,24 @@ ssize_t Connection::readFromFd() {
 }
 
 ssize_t Connection::writeToFd() {
-	if (write_offset_ >= write_buff_.size())
-		return 0;
 	const char *temp = write_buff_.c_str() + write_offset_;
-	ssize_t sent_bytes = send(fd_, temp, BUFFLEN, 0);
-	if (sent_bytes > 0)
+	ssize_t write_len = BUFFLEN;
+	if (BUFFLEN > write_buff_.size() - write_offset_) {
+		write_len = write_buff_.size() - write_offset_; 
+	}
+	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
+	if (sent_bytes > 0) {
+		std::string sent(temp);
+		sent = sent.substr(0, sent_bytes);
 		write_offset_ += sent_bytes;
+		std::ostringstream msg;
+		msg << "Connection: SENT -> " <<  sent; 
+		log::global().debug(msg.str(), __FILE__, __LINE__);
+	}
+	if (write_offset_ >= write_buff_.size()) {
+		write_buff_.clear();
+		write_offset_ = 0;
+	}
 	return sent_bytes;
 }
 
