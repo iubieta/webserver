@@ -8,7 +8,7 @@
 #include <string>
 #include <sys/types.h>
 
-#define BUFFLEN 2048
+#define BUFFLEN 32768 // 32 KB
 
 class Connection {
 private:
