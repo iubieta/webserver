@@ -54,7 +54,6 @@ int		ListeningSocket::getFd() const {
 
 // Public methods -------------------------------------------------------------
 bool	ListeningSocket::setup() {
-	int status;
 	struct sockaddr_in	addr;
 
 	memset(&addr, 0, sizeof(addr));
