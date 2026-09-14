@@ -12,7 +12,8 @@ OBJ_DIR		:= obj
 
 SRCS	:= 	main.cpp \
 			Logger.cpp log_global.cpp \
-			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp
+			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp \
+			ListeningSocket.cpp Buffer.cpp Connection.cpp 
 OBJS	:= $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS	:= $(OBJS:.o=.d)
 
