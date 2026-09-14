@@ -55,7 +55,7 @@ ssize_t Connection::writeToFd() {
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 	if (write_offset_ >= write_buff_.size()) {
-		cleanWriteBuff();
+		clearWriteBuff();
 	}
 	return sent_bytes;
 }
@@ -65,7 +65,7 @@ void Connection::clearWriteBuff() {
 	write_offset_ = 0;
 }
 
-std::string Connection::readBuff() {
+const std::string &Connection::readBuff() {
 	return read_buff_;
 }
 
