@@ -1,5 +1,6 @@
 // Buffer.cpp
 // ----------------------------------------------------------------------------
+#include "../inc/Buffer.hpp"
 
 // Constructors and destructors -----------------------------------------------
 
@@ -10,11 +11,12 @@ Buffer::Buffer(const Buffer& other) {
 	*this = other;
 }
 
-Buffer::Buffer& operator=(const Buffer&other) {
+Buffer& Buffer::operator=(const Buffer&other) {
 	if (this != &other) {
 		data_ = other.data_;
 		offset_ = other.offset_;
 	}
+	return *this;
 }
 
 Buffer::~Buffer() {}
@@ -22,7 +24,7 @@ Buffer::~Buffer() {}
 // Public methods -------------------------------------------------------------
 
 const char *Buffer::data() const {
-	return &data_ + offset_;
+	return &data_[offset_];
 }
 
 size_t Buffer::size() const {
@@ -30,7 +32,7 @@ size_t Buffer::size() const {
 }
 
 bool Buffer::empty() const {
-	if (offset == data.size()) {
+	if (offset_ == data_.size()) {
 		return true;
 	}
 	return false;
@@ -46,8 +48,8 @@ void Buffer::append(const char *str, size_t n) {
 
 void Buffer::consume(size_t n) {
 	offset_ += n;
-	if (offset >= data.size()) {
-		data = "";
-		offset = 0;
+	if (offset_ >= data_.size()) {
+		data_ = "";
+		offset_ = 0;
 	}
 }

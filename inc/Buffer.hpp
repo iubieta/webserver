@@ -4,6 +4,8 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
+#include <string>
+
 class Buffer {
 private:
 	std::string data_;
