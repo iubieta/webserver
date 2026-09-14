@@ -11,7 +11,7 @@
 Connection::Connection(int fd) : fd_(fd), closed_(false), write_offset_(0) {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
-	log::global().debug(msg.str(), __FILE__, __LINE__);
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 Connection::~Connection() {
@@ -19,7 +19,7 @@ Connection::~Connection() {
 		close(fd_);
 		std::ostringstream msg;
 		msg << "Connection: closing (fd: " << fd_ << ")"; 
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 }
 
@@ -34,7 +34,7 @@ ssize_t Connection::readFromFd() {
 		read_buff_.append(temp, read_bytes);
 		std::ostringstream msg;
 		msg << "Connection: RECEIVED -> " << temp; 
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 	return read_bytes;
 }
@@ -52,7 +52,7 @@ ssize_t Connection::writeToFd() {
 		write_offset_ += sent_bytes;
 		std::ostringstream msg;
 		msg << "Connection: SENT -> " <<  sent; 
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 	if (write_offset_ >= write_buff_.size()) {
 		cleanWriteBuff();
@@ -78,14 +78,14 @@ void Connection::appendToWriteBuff(const std::string &data) {
 	write_buff_.append(data);
 	std::ostringstream msg;
 	msg << "Connection: WRITE BUFFER -> " <<  write_buff_; 
-	log::global().debug(msg.str(), __FILE__, __LINE__);
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 void Connection::disconnect() {
 	if (fd_ != -1) {
 		std::ostringstream msg;
 		msg << "Connection: closing fd (fd: " << fd_ << ")"; 
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		close(fd_);
 		fd_ = -1;
 	}

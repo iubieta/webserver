@@ -11,7 +11,7 @@ SRC_DIR		:= src
 OBJ_DIR		:= obj
 
 SRCS	:= 	main.cpp \
-			Logger.cpp \
+			Logger.cpp log_global.cpp \
 			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp
 OBJS	:= $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS	:= $(OBJS:.o=.d)
