@@ -22,12 +22,12 @@ ListeningSocket::ListeningSocket(unsigned int host, unsigned int port) :
 	if (port < 1 || port > 65535) {
 		std::ostringstream msg;
 		msg << "ListeningSocket: invalid port " << port;
-		log::global().warning(msg.str(), __FILE__,__LINE__);
+		ft_log::global().warning(msg.str(), __FILE__,__LINE__);
 	}
 	std::ostringstream msg;
 	msg << "ListeningSocket: obj created (host: " 
 		<< host << ", port: " << port << ")";
-	log::global().debug(msg.str(), __FILE__, __LINE__);
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 ListeningSocket::~ListeningSocket() {
@@ -35,7 +35,7 @@ ListeningSocket::~ListeningSocket() {
 		close(fd_);
 		std::ostringstream msg;
 		msg << "ListeningSocket: fd " << fd_ << "closed";
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 }
 
@@ -54,7 +54,6 @@ int		ListeningSocket::getFd() const {
 
 // Public methods -------------------------------------------------------------
 bool	ListeningSocket::setup() {
-	int status;
 	struct sockaddr_in	addr;
 
 	memset(&addr, 0, sizeof(addr));
@@ -63,30 +62,29 @@ bool	ListeningSocket::setup() {
 	addr.sin_addr.s_addr = host_;
 
 	int	sock_fd = -1;
-	bool bound = false;
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd == -1) {
-		log::global().debug("ListeningSocket: socket creation failed", __FILE__, __LINE__);
+		ft_log::global().debug("ListeningSocket: socket creation failed", __FILE__, __LINE__);
 		return false;
 	}
 	
 	int yes = 1;
 	if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
-		log::global().debug("ListeningSocket: set socket options failed", __FILE__, __LINE__);
+		ft_log::global().debug("ListeningSocket: set socket options failed", __FILE__, __LINE__);
 		close(sock_fd);
 		return false;
 	}
 
 	if (fcntl(sock_fd, F_SETFL, O_NONBLOCK) < 0) {
-		log::global().debug("ListeningSocket: set socket as nonblocking failed", __FILE__, __LINE__);
+		ft_log::global().debug("ListeningSocket: set socket as nonblocking failed", __FILE__, __LINE__);
 		close(sock_fd);
 		return false;
 	}
 
 	if (bind(sock_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-		log::global().debug("ListeningSocket: socket bound succesfully", __FILE__, __LINE__);
+		ft_log::global().debug("ListeningSocket: socket bound succesfully", __FILE__, __LINE__);
 	} else {
-		log::global().debug("ListeningSocket: socket binding failed", __FILE__, __LINE__);
+		ft_log::global().debug("ListeningSocket: socket binding failed", __FILE__, __LINE__);
 		close(sock_fd);
 		return false;
 	}
@@ -95,10 +93,10 @@ bool	ListeningSocket::setup() {
 		fd_ = sock_fd;
 		std::ostringstream msg;
 		msg << "ListeningSocket: socket listening (fd: " << fd_ << ")";
-		log::global().debug(msg.str(), __FILE__, __LINE__);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		return true;
 	} else {
-		log::global().warning("ListeningSocket: socket failed to start listening", __FILE__, __LINE__);
+		ft_log::global().warning("ListeningSocket: socket failed to start listening", __FILE__, __LINE__);
 		close(sock_fd);
 		return false;
 	}

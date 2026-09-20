@@ -3,6 +3,6 @@
 // ----------------------------------------------------------------------------
 #include "Logger.hpp"
 
-namespace log {
+namespace ft_log {
 	Logger& global();
 }

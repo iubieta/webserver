@@ -5,7 +5,7 @@
 #include "../inc/Logger.hpp"
 #include <sstream>
 
-namespace log {
+namespace ft_log {
 	Logger& global() {
 		static Logger instance;
 		return instance;
