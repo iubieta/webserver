@@ -9,7 +9,7 @@
 #include <vector>
 
 int main() {
-	log::global().setConsoleLevel(Logger::DEBUG);
+	ft_log::global().setConsoleLevel(Logger::DEBUG);
 	std::vector<ServerConfig> cfgs;
 	
 	ServerConfig cfg_1;
