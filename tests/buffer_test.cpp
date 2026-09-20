@@ -195,24 +195,32 @@ void testConsume() {
 	// 0 bytes
 	buff.consume(0);
 	ASSERT_EQ(buff.size(), 80);
+	// std::cout.write(buff.data(), 80);
+	// std::cout << std::endl;
 	diff = memcmp(buff.data(), str.c_str(), 80);
 	ASSERT_EQ(diff, 0);
 
 	// 1 bytes
 	buff.consume(1);
 	ASSERT_EQ(buff.size(), 79);
+	// std::cout.write(buff.data(), 79);
+	// std::cout << std::endl;
 	diff = memcmp(buff.data(), &str.c_str()[1], 79);
 	ASSERT_EQ(diff, 0);
 	
 	// n bytes
 	buff.consume(39);
 	ASSERT_EQ(buff.size(), 40);
+	// std::cout.write(buff.data(), 40);
+	// std::cout << std::endl;
 	diff = memcmp(buff.data(), &str.c_str()[40], 40);
 	ASSERT_EQ(diff, 0);
 	
 	// n bytes > size
 	buff.consume(100);
 	ASSERT_EQ(buff.size(), 0);
+	// std::cout << buff.data();
+	// std::cout << std::endl;
 	ASSERT_EQ(buff.empty(), true);
 	diff = memcmp(buff.data(), "\0", 1);
 	ASSERT_EQ(diff, 0);
