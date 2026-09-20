@@ -24,6 +24,7 @@ ServerCore::ServerCore(std::vector<ServerConfig> configs) : configs_(configs) {
 ServerCore::~ServerCore() {
 	closeConnections();
 	closeSockets();
+	close(epoll_fd_);
 }
 
 // Private Methods ------------------------------------------------------------
