@@ -4,6 +4,7 @@
 #include <cstring>
 #include <sstream>
 #include <netinet/in.h>
+#include <stdexcept>
 #include <string>
 #include <unistd.h>
 #include <sys/types.h>
@@ -22,7 +23,8 @@ ListeningSocket::ListeningSocket(unsigned int host, unsigned int port) :
 	if (port < 1 || port > 65535) {
 		std::ostringstream msg;
 		msg << "ListeningSocket: invalid port " << port;
-		ft_log::global().warning(msg.str(), __FILE__,__LINE__);
+		ft_log::global().critical(msg.str(), __FILE__,__LINE__);
+		throw std::invalid_argument("Port out of range 1-65535");
 	}
 	std::ostringstream msg;
 	msg << "ListeningSocket: obj created (host: " 
