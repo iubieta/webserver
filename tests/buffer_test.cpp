@@ -240,4 +240,5 @@ void buffer_tests() {
 	Tester::runTest("Char* Append:", testCharAppend);
 	Tester::runTest("Str Char* Append:", testStrCharAppend);
 	Tester::runTest("Consume:", testConsume);
+	Tester::report();
 }
