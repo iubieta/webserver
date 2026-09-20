@@ -107,7 +107,7 @@ int ServerCore::handleSocketEvent(int fd) {
 			// Connection stablished message
 			std::ostringstream response;
 			response << "SERVER: Connection succesfully stablished\n";
-			conns_[conn_fd]->appendToWriteBuff(response.str());
+			conns_[conn_fd]->appendToWrite(response.str());
 			event.events = EPOLLIN | EPOLLOUT;
 			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event);
 			return (fd);
@@ -140,7 +140,7 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 			// Received bytes message
 			std::ostringstream response;
 			response << "SERVER: " << read_bytes << " bytes received\n";
-			conns_[fd]->appendToWriteBuff(response.str());
+			conns_[fd]->appendToWrite(response.str());
 			event.events = EPOLLIN | EPOLLOUT;
 			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
 		}

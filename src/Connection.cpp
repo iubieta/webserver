@@ -8,7 +8,7 @@
 #include <sstream>
 
 // Constructors ---------------------------------------------------------------
-Connection::Connection(int fd) : fd_(fd), closed_(false), write_offset_(0) {
+Connection::Connection(int fd) : fd_(fd), closed_(false) {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
 	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
@@ -24,61 +24,18 @@ Connection::~Connection() {
 }
 
 // Public methods -------------------------------------------------------------
-ssize_t Connection::readFromFd() {
-	if (fd_ == -1) {
-		return -1;
-	}
-	char	temp[BUFFLEN];
-	ssize_t read_bytes = recv(fd_, temp, BUFFLEN, 0);
-	if (read_bytes > 0) {
-		read_buff_.append(temp, read_bytes);
-		std::ostringstream msg;
-		msg << "Connection: RECEIVED -> " << temp; 
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-	}
-	return read_bytes;
+
+// Status control
+int Connection::getFd() const {
+	return fd_;
 }
 
-ssize_t Connection::writeToFd() {
-	const char *temp = write_buff_.c_str() + write_offset_;
-	ssize_t write_len = BUFFLEN;
-	if (BUFFLEN > write_buff_.size() - write_offset_) {
-		write_len = write_buff_.size() - write_offset_; 
-	}
-	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
-	if (sent_bytes > 0) {
-		std::string sent(temp);
-		sent = sent.substr(0, sent_bytes);
-		write_offset_ += sent_bytes;
-		std::ostringstream msg;
-		msg << "Connection: SENT -> " <<  sent; 
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-	}
-	if (write_offset_ >= write_buff_.size()) {
-		clearWriteBuff();
-	}
-	return sent_bytes;
+bool Connection::isClosed() const {
+	return closed_;
 }
 
-void Connection::clearWriteBuff() {
-	write_buff_.clear();
-	write_offset_ = 0;
-}
-
-const std::string &Connection::readBuff() {
-	return read_buff_;
-}
-
-void Connection::clearReadBuff() {
-	write_buff_.clear();
-	write_offset_ = 0;
-}
-
-void Connection::appendToWriteBuff(const std::string &data) {
-	write_buff_.append(data);
-	std::ostringstream msg;
-	msg << "Connection: WRITE BUFFER -> " <<  write_buff_; 
-	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+bool Connection::wantsWrite() const {
+	return !write_buff_.empty();
 }
 
 void Connection::disconnect() {
@@ -92,10 +49,99 @@ void Connection::disconnect() {
 	closed_ = true;
 }
 
-bool Connection::wantsWrite() const {
-	return write_offset_ < write_buff_.size();
+// System I/0
+ssize_t Connection::readFromFd() {
+	// Conncetion already closed
+	if (fd_ == -1) {
+		std::ostringstream msg;
+		msg << "Connection: fd already closed -> fd = " << fd_; 
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+
+		// return IO_ERROR
+		return -1;
+	}
+
+	char	temp[BUFFLEN];
+	ssize_t read_bytes = recv(fd_, temp, BUFFLEN, 0);
+	
+	// Normal receive
+	if (read_bytes > 0) {
+		read_buff_.append(temp, read_bytes);
+
+		std::ostringstream msg;
+		msg << "Connection: RECEIVED -> ";
+		msg.write(temp, read_bytes);
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+	}
+
+	// Client dissconnection
+	if (read_bytes == 0) {
+		std::ostringstream msg;
+		msg << "Connection: client disconnected -> fd = " << fd_; 
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+
+		// return IO_CLOSING;
+		return 0;
+	}
+	return read_bytes;
 }
 
-bool Connection::isClosed() const {
-	return closed_;
+ssize_t Connection::writeToFd() {
+	const char *temp = write_buff_.data();
+	ssize_t write_len = BUFFLEN;
+
+	// Adjust sending buffer length
+	if (write_buff_.size() < BUFFLEN) {
+		write_len = write_buff_.size(); 
+	}
+
+	// Sending
+	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
+
+	// Consume sent bytes from the buffer
+	if (sent_bytes > 0) {
+		std::string sent(temp, sent_bytes);
+		
+		write_buff_.consume(sent_bytes);
+
+		std::ostringstream msg;
+		msg << "Connection: SENT -> " <<  sent; 
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+	}
+
+	return sent_bytes;
 }
+
+// Read buffer
+const char *Connection::readData() {
+	return read_buff_.data();
+}
+
+size_t	Connection::readSize() {
+	return read_buff_.size();
+}
+
+void Connection::consume(size_t n) {
+	read_buff_.consume(n);
+}
+
+// Write buffer
+void Connection::appendToWrite(const std::string &data) {
+	write_buff_.append(data);
+	
+	std::ostringstream msg;
+	msg << "Connection: WRITE BUFFER -> ";
+	msg.write(write_buff_.data(), write_buff_.size());
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+}
+
+void Connection::appendToWrite(const char *data, size_t n) {
+	write_buff_.append(data, n);
+	
+	std::ostringstream msg;
+	msg << "Connection: WRITE BUFFER -> "; 
+	msg.write(write_buff_.data(), write_buff_.size());
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+}
+
+
