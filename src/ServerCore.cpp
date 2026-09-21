@@ -2,6 +2,7 @@
 // ----------------------------------------------------------------------------
 
 #include <cstring>
+#include <fcntl.h>
 #include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -117,12 +118,18 @@ int ServerCore::handleSocketEvent(int fd) {
 				continue;
 			}
 
+			// Sets connection socket as nonblocking
+			if (fcntl(conn_fd, F_SETFL, O_NONBLOCK) < 0) {
+				ft_log::global().debug("ServerCore: set connection as nonblocking failed", __FILE__, __LINE__);
+				close(conn_fd);
+				continue;
+			}
+
 			// Adds connection to epoll monitoring
 			struct epoll_event	event;
 			memset(&event, 0, sizeof(event));
 			event.events = EPOLLIN;
 			event.data.fd = conn_fd;
-			// TODO: poner en modo no bloqueante
 			if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
 				ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
 				close(conn_fd);
