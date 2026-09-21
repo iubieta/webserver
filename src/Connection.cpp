@@ -8,7 +8,9 @@
 #include <sstream>
 
 // Constructors ---------------------------------------------------------------
-Connection::Connection(int fd) : fd_(fd), closed_(false) {
+Connection::Connection(int fd) : fd_(fd), closed_(false), 
+	last_activity_(time(NULL))
+{
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
 	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
@@ -36,6 +38,10 @@ bool Connection::isClosed() const {
 
 bool Connection::wantsWrite() const {
 	return !write_buff_.empty();
+}
+
+time_t Connection::getLastActivity() const {
+	return last_activity_;
 }
 
 void Connection::disconnect() {
@@ -68,16 +74,21 @@ ssize_t Connection::readFromFd() {
 	if (read_bytes > 0) {
 		read_buff_.append(temp, read_bytes);
 
+		// Update last activity time
+		last_activity_ = time(NULL);
+
 		std::ostringstream msg;
 		msg << "Connection: RECEIVED -> ";
 		msg.write(temp, read_bytes);
+		msg << " (Last Activity: " << last_activity_ << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 
 	// Client dissconnection
 	if (read_bytes == 0) {
 		std::ostringstream msg;
-		msg << "Connection: client disconnected -> fd = " << fd_; 
+		msg << "Connection: client disconnected "
+			<< " (Last Activity: " << last_activity_ << ")";
 		ft_log::global().error(msg.str(), __FILE__, __LINE__);
 
 		// return IO_CLOSING;
@@ -97,6 +108,9 @@ ssize_t Connection::writeToFd() {
 
 	// Sending
 	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
+	
+	// Update last activity time
+	last_activity_ = time(NULL);
 
 	// Consume sent bytes from the buffer
 	if (sent_bytes > 0) {
@@ -106,6 +120,7 @@ ssize_t Connection::writeToFd() {
 
 		std::ostringstream msg;
 		msg << "Connection: SENT -> " <<  sent; 
+		msg << " (Last Activity: " << last_activity_ << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 

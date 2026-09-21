@@ -36,6 +36,7 @@ public:
 	int			getFd() const;
 	bool		isClosed() const;	// Client closed the connection
 	bool		wantsWrite() const;	// There is data on the write buffer
+	time_t		getLastActivity() const;
 	void		disconnect();
 	
 	// System I/O
