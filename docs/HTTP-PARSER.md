@@ -42,6 +42,58 @@ manner:
     stops parsing, and sets the corresponding status code (e.g., 400 Bad 
     Request).
 
+# Request-target
+
+The request line (*request-line*) has the syntax `method SP target SP version 
+CRLF`. The **request-target** identifies the target resource on which the 
+client wishes to perform the action.
+
+There are several ways to parse the request-target; the methods to be used for 
+the web server are as follows:
+
+##  `origin-form`
+
+It is the most common format and the standard used on the Web when a client 
+communicates **directly with the origin server**
+
+* **Syntx:** `origin-form = absolute-path [ "?" query ]`.
+* **Structure:** It contains only the absolute path that begins with a slash 
+`/` (`absolute-path`) and, optionally, the query parameters (`query string`) 
+that follow the `?` character. **It does not include** the scheme (`http://`) 
+or the domain name.
+
+**Examples**:
+
+1.  `GET /mypage.html HTTP/1.1`
+  * path: `/mypage.html`
+  * query : **(empty)**
+
+2. `GET /api/upload?user=juan&amp;type=pdf HTTP/1.1`
+  * path: `/api/upload`
+  * query: `user=juan&amp;type=pdf`
+
+## 2\. `absolute-form`
+
+This is the format in which the client sends the **complete, integrated URI**, 
+including the protocol scheme (`http://` or `https://`) and the host or domain 
+name.
+
+
+**Syntax:** `absolute-form = absolute-URI`.
+
+**When is it used?**: 
+
+It is generated automatically when the client makes requests through a 
+**proxy server**. However, the specification requires that normal origin 
+servers **must accept** the absolute form for compatibility and robustness 
+reasons.
+
+**Examples**:
+
+* `GET http://www.example.org/pub/WWW/TheProject.html HTTP/1.1`
+* `GET http://proxy.local:8080/index.html HTTP/1.1`
+* `POST https://api.servicio.com/v1/data?token=xyz HTTP/1.1`
+
 # diagram
 
                      ┌───────────────────────────┐
@@ -85,3 +137,34 @@ manner:
 | Ex: name=John&age=30                              |
 +---------------------------------------------------+
 ```
+
+# State Management in the HTTP Parser
+
+```
+```text
+  [ Raw Network Buffer ]
+            │
+            ▼
+┌───────────────────────┐
+│  STATE_REQUEST_LINE   │ ──(Syntax Error)──┐
+└───────────┬───────────┘                   │
+            │ (\r\n)                        │
+            ▼                               ▼
+┌───────────────────────┐           ┌───────────────┐
+│     STATE_HEADERS     │ ──(Error)─►│  STATE_ERROR  │
+└───────────┬───────────┘           └───────────────┘
+            │ (\r\n\r\n)                    ▲
+            ▼                               │
+┌───────────────────────┐                   │
+│      STATE_BODY       │ ──(Too Large)─────┘
+└───────────┬───────────┘
+            │ (Done / 0\r\n\r\n)
+            ▼
+┌───────────────────────┐
+│    STATE_COMPLETE     │ ──► [ Business Logic ]
+└───────────────────────┘
+```
+
+```
+
+---
