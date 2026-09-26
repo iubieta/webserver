@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
+#include <stdexcept>
 #include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -19,7 +20,7 @@ ServerCore::ServerCore(std::vector<ServerConfig> configs) : configs_(configs) {
 	epoll_fd_ = epoll_create(1);
 	if (epoll_fd_ < 0) {
 		ft_log::global().critical("ServerCore: Epoll creation failed", __FILE__, __LINE__);
-		// TODO: exit??
+		throw std::runtime_error("epoll creation failed");
 	}
 }
 
