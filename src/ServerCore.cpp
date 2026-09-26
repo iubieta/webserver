@@ -188,7 +188,9 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 			response << "SERVER: " << read_bytes << " bytes received\n";
 			conns_[fd]->appendToWrite(response.str());
 			event.events = EPOLLIN | EPOLLOUT;
-			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
+			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+				ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
+			}
 		}
 		return read_bytes;
 	}
@@ -204,7 +206,9 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		// If buffer is empty after sending uncheck the output flag
 		if (!conns_[fd]->wantsWrite()) {
 			event.events = EPOLLIN;
-			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
+			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+				ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
+			}
 		}
 		return sent_bytes;
 	}
