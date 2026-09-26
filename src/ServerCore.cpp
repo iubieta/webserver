@@ -166,9 +166,9 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 	int fd = event.data.fd;
 
 	// Connection errors
-	if (event.events & (EPOLLERR | EPOLLHUP)) {
+	if (event.events & EPOLLERR) {
 		std::ostringstream msg;
-		msg << "ServerCore: connecton error (fd: " << event.data.fd << ")";
+		msg << "ServerCore: connection error (fd: " << event.data.fd << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		cleanConnection(fd);
 		return -1;
@@ -203,6 +203,15 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		return read_bytes;
 	}
 
+	// Client disconnected
+	if (event.events & EPOLLHUP) {
+		std::ostringstream msg;
+		msg << "ServerCore: client closed connection(fd: " << event.data.fd << ")";
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		cleanConnection(fd);
+		return 0;
+	}
+
 	// Outputs
 	if (event.events & EPOLLOUT) {
 		std::ostringstream msg;
@@ -220,7 +229,7 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		}
 		return sent_bytes;
 	}
-	return 0;
+	return -1;
 }
 
 // Epoll error handling
