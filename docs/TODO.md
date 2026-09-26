@@ -11,11 +11,11 @@
 - [x] modificar orden de socks_.push y epoll_ctl en initSocket()
 - [x] cerrar epoll_fd cuando se llame el destructor
 - [x] poner sockets de conexiones (accept) en modo no bloquente
-- [ ] Distincion de errores en recv y send en modo no bloqueante
+- [ ] Distincion de errores en recv y send en modo no bloqueante    !!
 - [ ] Investigar sobre SIGPIPE en errores de send
 - [ ] Comprobar eficiencia a la hora de aceptar clientes
 - [x] checkear retorno de setup en caso de error
-- [ ] Cerrar el programa cuando se necesario
+- [ ] Cerrar el programa cuando sea necesario    !!
     - [ ] epoll_wait fail
 
 ## [ListeningSocket.cpp](/src/ListeningSocket.cpp)
