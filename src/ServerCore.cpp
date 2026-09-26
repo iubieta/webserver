@@ -56,6 +56,7 @@ void ServerCore::initSockets() {
 		event.data.fd = ls->getFd();
 		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
 			logEpollError();
+			delete ls;
 			continue;
 		}
 		// Add the socket to server socket vector
