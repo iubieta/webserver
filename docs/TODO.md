@@ -6,7 +6,7 @@
 - [ ] Añadir enum de estados
 
 ## [ServerCore.cpp](/src/ServerCore.cpp)
-- [ ] Revisar todos los posibles errores de epoll_ctl con errno
+- [x] Revisar todos los posibles errores de epoll_ctl con errno     !!
 - [x] Destruir puntero de ls si falla el setup
 - [x] modificar orden de socks_.push y epoll_ctl en initSocket()
 - [x] cerrar epoll_fd cuando se llame el destructor
