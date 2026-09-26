@@ -36,7 +36,7 @@ ServerCore::~ServerCore() {
 
 // Socket init based on server config
 void ServerCore::initSockets() {
-	ft_log::global().debug("ServerCores: initializing server sockets", __FILE__, __LINE__);
+	ft_log::global().debug("ServerCore: initializing server sockets", __FILE__, __LINE__);
 
 	std::vector<ServerConfig>::iterator it;
 	std::vector<ServerConfig>::iterator ite = configs_.end();
