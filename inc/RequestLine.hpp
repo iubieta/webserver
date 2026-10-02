@@ -15,7 +15,11 @@ class RequestLine
 	std::string request_;
 
 	protected:
+
+	static bool isCharacterInvalid(char c);
 	int tokenLine(const std::string &line);
+	bool isValidMethod(const std::string &method) const;
+	bool isVaildVersion(const std::string &version) const;
 	
 	public:
 

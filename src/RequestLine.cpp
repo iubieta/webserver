@@ -35,6 +35,16 @@ RequestLine &RequestLine::operator=(const RequestLine &other)
 
 RequestLine::~RequestLine(){}
 
+
+bool RequestLine::isCharacterInvalid(char c)
+{
+	if (c == '\t' || c == '\n' || c == '\r' || 
+		(c >= 33 && c <= 47) || ( c >= 58 && c <= 64)
+		|| (c >= 123 && c <= 126))
+		return 1;
+	return 0;
+}
+
 int RequestLine::tokenLine(const std::string &line)
 {
 	size_t i;
@@ -48,7 +58,7 @@ int RequestLine::tokenLine(const std::string &line)
 		return -1;
 	}
 	
-	if (line[0] == ' ' || line[0] == '	')
+	if (line[0] == ' ' || isCharacterInvalid(line[0]))
 	{
 		ft_log::global().info(
 			"RequestLine: Invalid first character", __FILE__, __LINE__);
@@ -89,6 +99,32 @@ int RequestLine::tokenLine(const std::string &line)
 
 	return 0;
 	
+}
+
+bool RequestLine::isValidMethod(const std::string &method) const
+{
+	size_t i;
+
+	i = 0;
+	while (i < method.size())
+	{
+		if(isCharacterInvalid(method[i]))
+			return 0;
+		i++;
+	}
+	return 1;
+}
+
+bool RequestLine::isVaildVersion(const std::string &version) const
+{
+	if (version.size() != 8)
+		return 0;
+	if (version[0] != 'H' || version[1] != 'T' || version[2] != 'T' ||
+		version[3] != 'P' || version[4] != '/' || version[6] != '.')
+		return 0;
+	if (version[5] < 49 || version[5] > 57 || version[7] < 49 || version[7] > 59)
+		return 0;
+	return 1;
 }
 
 void RequestLine::setMethod(const std::string &method)
