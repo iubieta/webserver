@@ -8,12 +8,15 @@ class RequestLine
 {
 	private:
 
-	std::string request_;
 	std::string method_;
 	std::string path_;
 	std::string query_;
 	std::string version_;
+	std::string request_;
 
+	protected:
+	int tokenLine(const std::string &line);
+	
 	public:
 
 	RequestLine();
@@ -21,7 +24,7 @@ class RequestLine
 	RequestLine &operator=(const RequestLine &other);
 	virtual ~RequestLine();
  
-	virtual void requestParser(const std::string &buffer) = 0;
+	virtual int requestLine(const std::string &buffer) = 0;
 	//void setRequest(const std::string &request);
 	void setMethod(const std::string  &method);
 	void setPath(const std::string &path);
@@ -31,7 +34,6 @@ class RequestLine
 	const std::string &getMethod() const;
 	const std::string &getPath() const;
 	const std::string &getVersion() const;
-
 
 };
 
