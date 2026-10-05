@@ -4,15 +4,17 @@
 #ifndef RESPONSE_HPP
 #define RESPONSE_HPP
 
-#include "http_status_codes.h"
+#include "http_status_codes.hpp"
 #include <map>
 #include <string>
+
+#define HTTP_V1_1 "HTTP/1.1"
+
 class Response 
 {
 	private:
 		std::string		version_;
 		e_status_code	status_;
-		std::string		status_msg_;
 	
 		std::map<std::string, std::string>	headers_;
 		
@@ -32,7 +34,7 @@ class Response
 		void setStatus(e_status_code status);
 		void setStatusMsg(const std::string &status_msg);
 
-		void addHeader(const std::string key, const std::string &value);
+		void addHeader(const std::string &key, const std::string &value);
 		void setHeaders(const std::map<std::string, std::string> &headers);
 
 		void appendBody(const std::string &str);
@@ -40,8 +42,7 @@ class Response
 
 		// Getters
 		const std::string &getVersion() const;
-		const std::string &getStatus() const;
-		const std::string &getStatusMsg() const;
+		const e_status_code getStatus() const;
 	
 		const std::string &getHeader(const std::string &key) const;
 		const std::map<std::string, std::string> &getHeaders() const;
