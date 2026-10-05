@@ -33,6 +33,8 @@ private:
 	int		handleSocketEvent(int fd);
 	int 	handleConnectionEvent(struct epoll_event &ev);
 
+	int		logEpollError() const;
+
 
 public:
 	ServerCore(std::vector<ServerConfig> configs);

@@ -1,8 +1,10 @@
 // ServerCore.hpp
 // ----------------------------------------------------------------------------
 
+#include <cerrno>
 #include <cstring>
 #include <fcntl.h>
+#include <stdexcept>
 #include <string>
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -18,7 +20,7 @@ ServerCore::ServerCore(std::vector<ServerConfig> configs) : configs_(configs) {
 	epoll_fd_ = epoll_create(1);
 	if (epoll_fd_ < 0) {
 		ft_log::global().critical("ServerCore: Epoll creation failed", __FILE__, __LINE__);
-		// TODO: exit??
+		throw std::runtime_error("epoll creation failed");
 	}
 }
 
@@ -30,9 +32,11 @@ ServerCore::~ServerCore() {
 
 // Private Methods ------------------------------------------------------------
 
+
+
 // Socket init based on server config
 void ServerCore::initSockets() {
-	ft_log::global().debug("ServerCores: initializing server sockets", __FILE__, __LINE__);
+	ft_log::global().debug("ServerCore: initializing server sockets", __FILE__, __LINE__);
 
 	std::vector<ServerConfig>::iterator it;
 	std::vector<ServerConfig>::iterator ite = configs_.end();
@@ -51,7 +55,8 @@ void ServerCore::initSockets() {
 		event.events = EPOLLIN;
 		event.data.fd = ls->getFd();
 		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-			ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
+			logEpollError();
+			delete ls;
 			continue;
 		}
 		// Add the socket to server socket vector
@@ -70,9 +75,7 @@ void ServerCore::cleanConnection(int fd) {
 
 	// Delete the connection fd from epoll monitoring
 	if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL) < 0) {
-		msg.str() = "";
-		msg << "ServerCore: epoll_ctl failed" << fd << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		logEpollError();
 	}
 	
 	// Clean the connection
@@ -131,9 +134,11 @@ int ServerCore::handleSocketEvent(int fd) {
 			event.events = EPOLLIN;
 			event.data.fd = conn_fd;
 			if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-				ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
-				close(conn_fd);
-				continue;
+				// If the fail is not caused by fd repetition close it
+				if (logEpollError() != EEXIST) {
+					close(conn_fd);
+				}
+				break;
 			}
 			// Add connection to the server connection map
 			conns_[conn_fd] = new Connection(conn_fd);
@@ -144,12 +149,15 @@ int ServerCore::handleSocketEvent(int fd) {
 			conns_[conn_fd]->appendToWrite(response.str());
 			event.events = EPOLLIN | EPOLLOUT;
 			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
-				ft_log::global().warning("ServerCore: epoll ctl failed", __FILE__, __LINE__);
+				logEpollError();
 			}
 
 			return (fd);
 		}
 	}
+	std::ostringstream msg;
+	msg << "ServerCore: failed to stablish connection (socket fd: " << fd << ")";
+	ft_log::global().error(msg.str(), __FILE__, __LINE__);
 	return -1;
 }
 
@@ -158,9 +166,9 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 	int fd = event.data.fd;
 
 	// Connection errors
-	if (event.events & (EPOLLERR | EPOLLHUP)) {
+	if (event.events & EPOLLERR) {
 		std::ostringstream msg;
-		msg << "ServerCore: connecton error (fd: " << event.data.fd << ")";
+		msg << "ServerCore: connection error (fd: " << event.data.fd << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		cleanConnection(fd);
 		return -1;
@@ -188,9 +196,20 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 			response << "SERVER: " << read_bytes << " bytes received\n";
 			conns_[fd]->appendToWrite(response.str());
 			event.events = EPOLLIN | EPOLLOUT;
-			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
+			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+				logEpollError();
+			}
 		}
 		return read_bytes;
+	}
+
+	// Client disconnected
+	if (event.events & EPOLLHUP) {
+		std::ostringstream msg;
+		msg << "ServerCore: client closed connection(fd: " << event.data.fd << ")";
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		cleanConnection(fd);
+		return 0;
 	}
 
 	// Outputs
@@ -204,11 +223,50 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		// If buffer is empty after sending uncheck the output flag
 		if (!conns_[fd]->wantsWrite()) {
 			event.events = EPOLLIN;
-			epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event);
+			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+				logEpollError();
+			}
 		}
 		return sent_bytes;
 	}
-	return 0;
+	return -1;
+}
+
+// Epoll error handling
+int	ServerCore::logEpollError() const {
+	int err = errno;
+	// Warnings: system fails or similar
+	if (err == ENOMEM) {
+		ft_log::global().warning("ServerCore: epoll_ctl failed,	no memory left on the device (ENOMEM)");
+		return 0;
+	}
+	if (err == ENOSPC) {
+		ft_log::global().warning("ServerCore: epoll_ctl failed,	max_users_watches limit reachede (ENOSPC)");
+		return 0;
+	}
+	// Real errors: bad epoll_ctl usage
+	if (err == EBADF) {
+		ft_log::global().error("ServerCore: epoll_ctl failed, not valid fd specified (EBADFD)");
+		return EBADF;
+	}
+	if (err == EEXIST) {
+		ft_log::global().error("ServerCore: epoll_ctl failed, fd is already on the epoll list (EEXIST)");
+		return EEXIST;
+	}
+	if (err == EINVAL) {
+		ft_log::global().error("ServerCore: epoll_ctl failed, invalid epoll operation tried (EINVAL)");
+		return EINVAL;
+	}
+	if (err == ENOENT) {
+		ft_log::global().error("ServerCore: epoll_ctl failed, tried to modify a non-registered fd (ENOENT)");
+		return ENOENT;
+	}
+	if (err == EPERM) {
+		ft_log::global().warning("ServerCore: epoll_ctl failed,	target fd doesnt support epoll (EPERM)");
+		return EPERM;
+	}
+	ft_log::global().critical("ServerCore: epoll_ctl failed, UNKNOWN ERROR");
+	return -1;
 }
 
 // Public Methods -------------------------------------------------------------
