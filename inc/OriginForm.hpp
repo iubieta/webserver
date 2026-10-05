@@ -9,6 +9,7 @@ class OriginForm: public RequestLine
 	public:
 
 	int requestLine(const std::string &buffer);
+	void requestTarget(const std::string &target);
 	~OriginForm();
 };
 
