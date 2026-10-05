@@ -2,11 +2,10 @@
 // ----------------------------------------------------------------------------
 
 #include <map>
-#include <shared_mutex>
 #include <string>
 #ifndef REQUEST_HPP
 
-#include "http_status_codes.h"
+#include "http_status_codes.hpp"
 
 class Request 
 {
@@ -39,7 +38,7 @@ class Request
 		void setQuery(const std::string &query);
 		void setVersion(const std::string &version);
 	
-		void addHeader(const std::string key, const std::string &value);
+		void addHeader(const std::string &key, const std::string &value);
 		void setHeaders(const std::map<std::string, std::string> &headers);
 	
 		void appendBody(const std::string &str);
