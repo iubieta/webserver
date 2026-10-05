@@ -2,7 +2,6 @@
 // ----------------------------------------------------------------------------
 
 #include <map>
-#include <shared_mutex>
 #include <string>
 #ifndef REQUEST_HPP
 
