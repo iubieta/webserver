@@ -1,7 +1,8 @@
-#ifndef REQUEST_LINE
-#define REQUEST_LINE
+#ifndef REQUEST_LINE_HPP
+#define REQUEST_LINE_HPP
 
 #include <string>
+#include <vector>
 
 
 class RequestLine
@@ -29,9 +30,11 @@ class RequestLine
 
 	RequestLine();
 	virtual ~RequestLine();
+
+	static int tokenLine(const std::string &line, std::vector<std::string> &token);
  
-	virtual int requestLine(const std::string &buffer) = 0;
-	//void setRequest(const std::string &request);
+	virtual int requestLine(std::vector<std::string> &token) = 0;
+	void setRequest(const std::string &request);
 	void setMethod(const std::string  &method);
 	void setPath(const std::string &path);
 	void setVersion(const std::string &version);

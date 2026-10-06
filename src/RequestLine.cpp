@@ -51,12 +51,11 @@ bool RequestLine::isCharacterInvalid(char c)
 	return (true);
 }
 
-int RequestLine::tokenLine(const std::string &line)
+int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &token)
 {
 	size_t i;
 	size_t start;
 	std::string temp;
-	std::vector<std::string> token;
 
 	if(line.empty())
 	{
@@ -94,18 +93,6 @@ int RequestLine::tokenLine(const std::string &line)
 			i++;
 		
 	}
-
-	if (token.size() != 3)
-	{
-		ft_log::global().info(
-			"Requestline: incorrect token number", __FILE__, __LINE__);
-		return (-1);
-	}
-
-	method_= token[0];
-	request_ = token[1];
-	version_ = token[2];
-
 	return 0;
 	
 }
@@ -141,6 +128,11 @@ bool RequestLine::isVaildVersion(const std::string &version) const
 void RequestLine::setMethod(const std::string &method)
 {
 	this->method_ = method;
+}
+
+void RequestLine::setRequest(const std::string &request)
+{
+	this->request_ = request;
 }
 
 void RequestLine::setPath(const std::string &path)

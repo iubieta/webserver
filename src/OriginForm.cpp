@@ -28,12 +28,17 @@ void OriginForm::requestTarget(const std::string &target)
 
 }
 
-int OriginForm::requestLine(const std::string &buffer)
+int OriginForm::requestLine(std::vector<std::string> &token)
 {
-	const std::string &tempRequest = getRequest();
+	if (token.empty())
+		return -1;
+	if (token.size() != 3)
+		return -1;
 
-	if(tokenLine(buffer) == -1)
-		return (-1);
+	setMethod(token[0]);
+	setRequest(token[1]);
+	setVersion(token[2]);
+
 	if (!isValidMethod(getMethod()))
 	{
 		ft_log::global().info(
@@ -49,14 +54,14 @@ int OriginForm::requestLine(const std::string &buffer)
 	}
 	
 	
-	if (tempRequest.empty() || tempRequest[0] != '/')
+	if (token[1].empty() || token[1][0] != '/')
 	{
 		ft_log::global().info(
 			"request: invalid target", __FILE__, __LINE__);
 		return (-1);
 	}
 
-	requestTarget(tempRequest);
+	requestTarget(token[1]);
 
 	// std::cout << "Method: "<< getMethod() << std::endl;
 	// std::cout << "target: "<< getPath() << std:: endl;
