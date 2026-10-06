@@ -9,13 +9,138 @@ server {
 	server_name nginx-lab.com;
 	root		/var/www;
 	index		index.html;
-	autoindex	on;
+	autoindex	off;
 }
 ```
 
 ## Tests
 
 ### GET Method
+
+#### TEST 1 - GET /redir_1
+```
+GET /redir_1 HTTP/1.1
+Host: localhost
+```
+Commands:
+```
+curl -v localhost:8080/redir_1
+```
+```
+printf 'GET /redir_1 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+```
+Response:
+- **Status** : 301 Moved Permanently
+- **Headers** : Server, Date, Content-Type, Conten-Length, **Location**, Connection
+- **Body** : 301 error page
+```
+HTTP/1.1 301 Moved Permanently
+Server: nginx/1.31.6
+Date: Tue, 06 Oct 2026 18:07:00 GMT
+Content-Type: text/html
+Content-Length: 169
+Location: http://localhost/permanent_redir
+Connection: keep-alive
+```
+> [!NOTE] 
+> For historical reasons, a user agent MAY change the request method from POST 
+> to GET for the subsequent request. If this behavior is undesired, 
+> the 308 (Permanent Redirect) status code can be used instead.
+
+#### TEST 2 - GET /redir_2
+```
+GET /redir_2 HTTP/1.1
+Host: localhost
+```
+Commands:
+```
+curl -v localhost:8080/redir_2
+```
+```
+printf 'GET /redir_2 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+```
+Response:
+- **Status** : 302 Moved Temporarily
+- **Headers** : Server, Date, Content-Type, Conten-Length, **Location**, Connection
+- **Body** : 302 error page
+```
+HTTP/1.1 302 Moved Temporarily
+Server: nginx/1.31.6
+Date: Tue, 06 Oct 2026 18:10:34 GMT
+Content-Type: text/html
+Content-Length: 145
+Location: http://localhost/temporary_redir
+Connection: keep-alive
+```
+> [!NOTE] 
+> For historical reasons, a user agent MAY change the request method from POST 
+> to GET for the subsequent request. If this behavior is undesired, 
+> the 307 (Temporary Redirect) status code can be used instead.
+
+#### TEST 3 - GET /redir_3
+```
+GET /redir_2 HTTP/1.1
+Host: localhost
+```
+Commands:
+```
+curl -v localhost:8080/redir_2
+```
+```
+printf 'GET /redir_2 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+```
+Response:
+- **Status** : 307 Temporary Redirect
+- **Headers** : Server, Date, Content-Type, Conten-Length, **Location**, Connection
+- **Body** : 307 error page
+```
+HTTP/1.1 307 Temporary Redirect
+Server: nginx/1.31.6
+Date: Tue, 06 Oct 2026 18:10:34 GMT
+Content-Type: text/html
+Content-Length: 145
+Location: http://localhost/temporary_redir
+Connection: keep-alive
+```
+
+#### TEST 4 - GET /redir_4
+```
+GET /redir_1 HTTP/1.1
+Host: localhost
+```
+Commands:
+```
+curl -v localhost:8080/redir_1
+```
+```
+printf 'GET /redir_1 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+```
+Response:
+- **Status** : 308 Permanent Redirect
+- **Headers** : Server, Date, Content-Type, Conten-Length, **Location**, Connection
+- **Body** : 308 error page
+```
+HTTP/1.1 308 Permanent Redirect
+Server: nginx/1.31.6
+Date: Tue, 06 Oct 2026 18:18:07 GMT
+Content-Type: text/html
+Content-Length: 171
+Location: http://localhost/permanent_redir
+Connection: keep-alive
+```
+
+#### TEST 5 - GET /redir_0
+```
+GET /redir_1 HTTP/1.1
+Host: localhost
+```
+Commands:
+```
+curl -v localhost:8080/redir_1
+```
+```
+printf 'GET /redir_1 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+```
 
 #### TEST 1 - GET /
 Request:
