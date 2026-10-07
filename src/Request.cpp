@@ -2,6 +2,7 @@
 // -----------------------------------------------------------------------------
 
 #include "../inc/Request.hpp"
+#include "../inc/log_global.hpp"
 #include <string>
 
 // Builders --------------------------------------------------------------------
@@ -32,7 +33,10 @@ Request& Request::operator=(const Request &other) {
 	return *this;
 }
 
-Request::~Request() {}
+Request::~Request() 
+{
+	ft_log::global().info("request destructor");
+}
 
 // Setters ---------------------------------------------------------------------
 void Request::setRequest(const std::string &request) {

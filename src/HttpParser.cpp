@@ -1,4 +1,5 @@
 #include "../inc/HttpParser.hpp"
+#include "../inc/log_global.hpp"
 #include <iostream>
 #include <vector>
 
@@ -12,7 +13,11 @@ HttpParser::HttpParser():
 HttpParser::~HttpParser()
 {
 	if (request_line_ != NULL)
+	{
 		delete request_line_;
+		ft_log::global().info("request line destructor");
+	}
+	ft_log::global().info("HTTP Parser destructor");	
 }
 
 void HttpParser::setState(e_status_code state)
@@ -35,7 +40,7 @@ const std::string &HttpParser::getBuffer() const
 	return read_buffer_;
 }
 
-e_status_code HttpParser::stateHandler(const std::string & buffer)
+e_status_code HttpParser::stateHandler(const std::string & buffer, Request &request)
 {
 	size_t pos;
 	std::string line;
@@ -61,13 +66,20 @@ e_status_code HttpParser::stateHandler(const std::string & buffer)
 			if (tokens[1][0] == '/')
 			{
 				request_line_ = new OriginForm();
+
 				if (request_line_ ->requestLine(tokens) == -1)
 					this->state_ = BAD_REQUEST;
+					
+				request.setMethod(request_line_->getMethod());
+				request.setPath(request_line_->getPath());
+				request.setQuery(request_line_->getQuery());
+				request.setVersion(request_line_->getVersion());
+				
 			}
-			// std::cout << "Method: "<< request_line_->getMethod() << std::endl;
-			// std::cout << "target: "<< request_line_->getPath() << std:: endl;
-			// std::cout << "query: " << request_line_->getQuery() << std::endl;
-			// std::cout << "version: "<< request_line_->getVersion() << std::endl;
+			std::cout << "Method: "<< request.getMethod() << std::endl;
+			std::cout << "target: "<< request.getPath() << std:: endl;
+			std::cout << "query: " << request.getQuery() << std::endl;
+			std::cout << "version: "<< request.getVersion() << std::endl;
 
 
 			this->state_ = ESTATE_HEADERS;
@@ -78,12 +90,13 @@ e_status_code HttpParser::stateHandler(const std::string & buffer)
 
 
 
-// int main()
-// {
-// 	HttpParser p;
+int main()
+{
+	Request r;
+	HttpParser p;
 
-// 	p.stateHandler("GET /index");
-// 	p.stateHandler("?=id HTTP/1.1\r\n");
+	p.stateHandler("GET /index", r);
+	p.stateHandler("?=id HTTP/1.1\r\n", r);
 
-// 	return 0;
-// }
+	return 0;
+}

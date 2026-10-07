@@ -3,6 +3,7 @@
 
 #include "http_status_codes.hpp"
 #include "OriginForm.hpp"
+#include "Request.hpp"
 #include <string>
 
 class HttpParser
@@ -12,6 +13,7 @@ class HttpParser
 	std::string read_buffer_;
 	e_status_code state_;
 	RequestLine *request_line_;
+
 
 	public:
 
@@ -25,7 +27,7 @@ class HttpParser
 	e_status_code getState() const;
 	const RequestLine *getRequestLine() const;
 	
-	e_status_code stateHandler(const std::string &buffer); 
+	e_status_code stateHandler(const std::string &buffer, Request &request); 
 
 };
 
