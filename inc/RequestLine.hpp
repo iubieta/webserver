@@ -33,7 +33,7 @@ class RequestLine
 
 	static int tokenLine(const std::string &line, std::vector<std::string> &token);
  
-	virtual int requestLine(std::vector<std::string> &token) = 0;
+	virtual int requestLine(const std::vector<std::string> &token) = 0;
 	void setRequest(const std::string &request);
 	void setMethod(const std::string  &method);
 	void setPath(const std::string &path);

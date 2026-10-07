@@ -93,8 +93,17 @@ int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &to
 			i++;
 		
 	}
+
+	if (token.size() != 3)
+	{
+		ft_log::global().info(
+			"RequestLine: incorrect token number",
+			__FILE__, __LINE__);
+
+		return -1;
+	}
+
 	return 0;
-	
 }
 
 bool RequestLine::isValidMethod(const std::string &method) const

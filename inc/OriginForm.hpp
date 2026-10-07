@@ -9,7 +9,7 @@ class OriginForm: public RequestLine
 
 	public:
 
-	int requestLine(std::vector<std::string> &token);
+	int requestLine(const std::vector<std::string> &token);
 	void requestTarget(const std::string &target);
 	~OriginForm();
 };

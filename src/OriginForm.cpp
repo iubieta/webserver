@@ -28,13 +28,11 @@ void OriginForm::requestTarget(const std::string &target)
 
 }
 
-int OriginForm::requestLine(std::vector<std::string> &token)
+int OriginForm::requestLine(const std::vector<std::string> &token)
 {
 	if (token.empty())
 		return -1;
-	if (token.size() != 3)
-		return -1;
-
+	
 	setMethod(token[0]);
 	setRequest(token[1]);
 	setVersion(token[2]);

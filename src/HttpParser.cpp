@@ -47,7 +47,11 @@ e_status_code HttpParser::stateHandler(const std::string & buffer, Request &requ
 	std::vector<std::string> tokens;
 
 	if (buffer.empty())
-		return BAD_REQUEST;
+	{
+		request.setStatus(BAD_REQUEST);
+		this->state_ = BAD_REQUEST;
+		return this->state_;
+	}
 
 	if (read_buffer_.empty())
 		read_buffer_ = buffer;
@@ -59,16 +63,36 @@ e_status_code HttpParser::stateHandler(const std::string & buffer, Request &requ
 	else
 	{
 		line = read_buffer_.substr(0, pos + 2);
-		read_buffer_ = read_buffer_.erase(0, pos + 2);
+		read_buffer_.erase(0, pos + 2);
 		if(this->state_ == ESTATE_LINE)
 		{
-			RequestLine::tokenLine(line, tokens);
+			if (RequestLine::tokenLine(line, tokens) == -1)
+			{
+				this->state_ = BAD_REQUEST;
+				request.setStatus(BAD_REQUEST);
+				return this->state_;
+			}
+
+			if (tokens[1].empty())
+			{
+				this->state_ = BAD_REQUEST;
+				request.setStatus(BAD_REQUEST);
+				return this->state_;
+			}
+
 			if (tokens[1][0] == '/')
 			{
+				if (request_line_ != NULL)
+					delete request_line_;
 				request_line_ = new OriginForm();
 
 				if (request_line_ ->requestLine(tokens) == -1)
+				{
 					this->state_ = BAD_REQUEST;
+					request.setStatus(BAD_REQUEST);
+					return this->state_;
+				}
+					
 					
 				request.setMethod(request_line_->getMethod());
 				request.setPath(request_line_->getPath());
@@ -76,27 +100,33 @@ e_status_code HttpParser::stateHandler(const std::string & buffer, Request &requ
 				request.setVersion(request_line_->getVersion());
 				
 			}
+			else
+			{
+				this->state_ = BAD_REQUEST;
+				request.setStatus(BAD_REQUEST);
+				return this->state_;
+			}
+
 			std::cout << "Method: "<< request.getMethod() << std::endl;
 			std::cout << "target: "<< request.getPath() << std:: endl;
 			std::cout << "query: " << request.getQuery() << std::endl;
 			std::cout << "version: "<< request.getVersion() << std::endl;
-
-
-			this->state_ = ESTATE_HEADERS;
 		}
+
+		
 	}
 	return this->state_;
 }
 
 
 
-int main()
-{
-	Request r;
-	HttpParser p;
+// int main()
+// {
+// 	Request r;
+// 	HttpParser p;
 
-	p.stateHandler("GET /index", r);
-	p.stateHandler("?=id HTTP/1.1\r\n", r);
+// 	p.stateHandler("GET /index", r);
+// 	p.stateHandler("?=id HTTP/1.1\r\n", r);
 
-	return 0;
-}
+// 	return 0;
+// }
