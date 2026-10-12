@@ -32,23 +32,23 @@ Then: response builder.
 
 ## Step 1 — RFC skim
 
-- [ ] RFC 9110, section 9 (methods): GET, HEAD, POST, DELETE.
-- [ ] RFC 9110, section 15 (status codes): skim classes, read the
+- [x] RFC 9110, section 9 (methods): GET, HEAD, POST, DELETE.
+- [x] RFC 9110, section 15 (status codes): skim classes, read the
       ones in your error list (301/302, 400, 403, 404, 405, 408, 413,
       500, 501, 505).
-- [ ] RFC 9112: message format (request line, headers, body framing).
+- [x] RFC 9112: message format (request line, headers, body framing).
 
 Skim only. Deep reading happens later, when a question sends you back.
 RFC 7230-7235 and 2616 are obsolete; 9110/9112 replace them.
 
 ## Step 2 — NGINX lab
 
-- [ ] Run NGINX in Docker (`nginx:stable`), config and `www/` mounted
+- [x] Run NGINX in Docker (`nginx:stable`), config and `www/` mounted
       as volumes so edits reload fast.
 - [ ] One config, several locations, one per behaviour to study:
       redirect, restricted methods, autoindex on, index file, custom
       `error_page`, a nested location (`/` and `/images`).
-- [ ] A `www/` tree with files, subdirs, a dir without index, a file
+- [x] A `www/` tree with files, subdirs, a dir without index, a file
       without read permission.
 
 Note: NGINX has no `methods`; its closest equivalent is `limit_except`.

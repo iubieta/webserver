@@ -102,18 +102,22 @@ Content-Length: 145
 Location: http://localhost/temporary_redir
 Connection: keep-alive
 ```
-
+> [!NOTE]
+> To see how the redirection method differs from a 301 or 302 status code use 
+> ```
+> curl -v -L -X POST --data "hola=1" <URL>
+> ``` 
 #### TEST 4 - GET /redir_4
 ```
-GET /redir_1 HTTP/1.1
+GET /redir_4 HTTP/1.1
 Host: localhost
 ```
 Commands:
 ```
-curl -v localhost:8080/redir_1
+curl -v localhost:8080/redir_4
 ```
 ```
-printf 'GET /redir_1 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
+printf 'GET /redir_4 HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc -q 1 localhost 8080 
 ```
 Response:
 - **Status** : 308 Permanent Redirect
@@ -128,6 +132,11 @@ Content-Length: 171
 Location: http://localhost/permanent_redir
 Connection: keep-alive
 ```
+> [!NOTE]
+> To see how the redirection method differs from a 301 or 302 status code use 
+> ```
+> curl -v -L -X POST --data "hola=1" <URL>
+> ``` 
 
 #### TEST 5 - GET /redir_0
 ```

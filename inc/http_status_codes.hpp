@@ -13,6 +13,9 @@ enum e_status_code {
 	ESTATE_BODY,
 	ESTATE_COMPLETE,
 
+	// Processing status
+	PROCESSING,
+
 	// Info
 	CONTINUE		= 100,
 	SWITCH_PROTOCOL	= 101,

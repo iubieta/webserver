@@ -13,8 +13,9 @@ class Request
 		std::string		request_;
 		e_status_code		status_;
 	
+		std::string		host_;
 		std::string		method_;
-		std::string		path_;
+		std::string		target_;
 		std::string		query_;
 		std::string		version_;
 	
@@ -34,6 +35,7 @@ class Request
 		void setStatus(e_status_code status);
 	
 		void setMethod(const std::string &method);
+		void setLocation(const std::string &location);
 		void setPath(const std::string &path);
 		void setQuery(const std::string &query);
 		void setVersion(const std::string &version);
@@ -50,6 +52,7 @@ class Request
 		const e_status_code getStatus() const;
 	
 		const std::string &getMethod() const;
+		const std::string &getLocation() const;
 		const std::string &getPath() const;
 		const std::string &getQuery() const;
 		const std::string &getVersion() const;
