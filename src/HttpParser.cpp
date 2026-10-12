@@ -7,7 +7,8 @@
 HttpParser::HttpParser():
 	read_buffer_(""),
 	state_(ESTATE_LINE),
-	request_line_(NULL)
+	request_line_(NULL),
+	headers_()
 	{}
 
 HttpParser::~HttpParser()
@@ -40,7 +41,7 @@ const std::string &HttpParser::getBuffer() const
 	return read_buffer_;
 }
 
-e_status_code HttpParser::stateHandler(const std::string & buffer, Request &request)
+e_status_code HttpParser::stateHandler(const std::string &buffer, Request &request)
 {
 	size_t pos;
 	std::string line;
@@ -93,24 +94,42 @@ e_status_code HttpParser::stateHandler(const std::string & buffer, Request &requ
 					return this->state_;
 				}
 					
-					
+				request.setRequest(request_line_->getRequest()); //target	
 				request.setMethod(request_line_->getMethod());
 				request.setPath(request_line_->getPath());
 				request.setQuery(request_line_->getQuery());
 				request.setVersion(request_line_->getVersion());
+
+				this->state_ = ESTATE_HEADERS;
 				
 			}
-			else
-			{
-				this->state_ = BAD_REQUEST;
-				request.setStatus(BAD_REQUEST);
-				return this->state_;
-			}
+			
 
 			std::cout << "Method: "<< request.getMethod() << std::endl;
 			std::cout << "target: "<< request.getPath() << std:: endl;
 			std::cout << "query: " << request.getQuery() << std::endl;
 			std::cout << "version: "<< request.getVersion() << std::endl;
+		}
+		else if(this->state_ == ESTATE_HEADERS)
+		{
+		
+				if (headers_.tokenHeader(line) == -1)
+				{
+					this -> state_ = BAD_REQUEST;
+					request.setStatus(BAD_REQUEST);
+					return this -> state_;
+				}
+				if (line == "\r\n")
+				{
+					request.setHeaders(headers_.getHeaders());
+					this -> state_ = ESTATE_BODY;
+				}
+		}
+		else
+		{
+			this->state_ = BAD_REQUEST;
+			request.setStatus(BAD_REQUEST);
+			return this->state_;
 		}
 
 		
@@ -118,15 +137,26 @@ e_status_code HttpParser::stateHandler(const std::string & buffer, Request &requ
 	return this->state_;
 }
 
+void print(const std::map<std::string, std::string> &Headers)
+{
+	std::map<std::string, std::string>::const_iterator it;
+	
+	for(it = Headers.begin(); it != Headers.end(); ++it)
+	{
+		std::cout<< it ->first << ":" << it ->second << std::endl;
+	}
+}
 
+int main()
+{
+	Request r;
+	HttpParser p;
 
-// int main()
-// {
-// 	Request r;
-// 	HttpParser p;
+	p.stateHandler("GET /index", r);
+	p.stateHandler("?=id HTTP/1.1\r\n", r);
+	p.stateHandler("host:localhost:8080\r\nconten-lenght:16\r\n\r\n", r);
 
-// 	p.stateHandler("GET /index", r);
-// 	p.stateHandler("?=id HTTP/1.1\r\n", r);
+	print(r.getHeaders());
 
-// 	return 0;
-// }
+	return 0;
+}

@@ -150,7 +150,7 @@ int Headers::tokenHeader(const std::string &line)
 	temp = line.substr(pos + 1);
 
 	start = 0;
-	while (start < temp.size() && 
+while (start < temp.size() && 
 		(temp[start] == ' ' || temp[start] == '\t'))
 		start++;
 	

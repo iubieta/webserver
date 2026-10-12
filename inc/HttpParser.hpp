@@ -4,6 +4,7 @@
 #include "http_status_codes.hpp"
 #include "OriginForm.hpp"
 #include "Request.hpp"
+#include "Headers.hpp"
 #include <string>
 
 class HttpParser
@@ -12,7 +13,9 @@ class HttpParser
 
 	std::string read_buffer_;
 	e_status_code state_;
-	RequestLine *request_line_;
+	RequestLine *request_line_; //abstract class
+	Headers headers_;
+
 
 	HttpParser(const HttpParser &other);
 	HttpParser &operator=(const HttpParser &other);

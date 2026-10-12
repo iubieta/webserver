@@ -64,7 +64,7 @@ void Request::setVersion(const std::string &version) {
 }
 
 void Request::addHeader(const std::string &key, const std::string &value) {
-	headers_.insert(std::pair(key, value));
+	headers_.insert(std::make_pair(key, value));
 }
 
 void Request::setHeaders(const std::map<std::string, std::string> &headers) {
