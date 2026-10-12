@@ -8,8 +8,6 @@
 #include <map>
 #include <string>
 
-#define HTTP_V1_1 "HTTP/1.1"
-
 class Response 
 {
 	private:

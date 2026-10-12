@@ -15,7 +15,7 @@ class Request
 	
 		std::string		host_;
 		std::string		method_;
-		std::string		target_;
+		std::string		path_;
 		std::string		query_;
 		std::string		version_;
 	
