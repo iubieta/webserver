@@ -27,31 +27,31 @@ class	LocationConfig
 		
 	public:
 
-	LocationConfig();
-	LocationConfig(const LocationConfig &other);
-	LocationConfig &operator=(const LocationConfig &other);
-	~LocationConfig();
+		LocationConfig();
+		LocationConfig(const LocationConfig &other);
+		LocationConfig &operator=(const LocationConfig &other);
+		~LocationConfig();
 
-	const std::string &getRoot() const;
-	bool getAutoindex() const;
-	size_t getClientMax() const;
-	const std::vector<std::string> &getIndexs() const;
-	const std::vector<std::string> &getMethods() const;
-	const std::string &getIndex(size_t index) const;
-	const std::string &getMethod(size_t index) const;
-	const std::string &getTarget() const;
+		bool operator==(const LocationConfig &other) const;
 
-	int setRoot(const std::string &root);
-	int setAutoindex(const std::string &autoindex);
-	int setAutoindex(bool autoindex);
-	int	setClientMax(const std::string &client_max);
-	int setClientMax(size_t clienMax);
-	void addIndex(const std::string &index);
-	int addMethod(const std::string &method);
-	int setVecIndex(const std::vector<std::string> &index);
-	int setTarget(const std::string &target);
+		const std::string &getRoot() const;
+		bool getAutoindex() const;
+		size_t getClientMax() const;
+		const std::vector<std::string> &getIndexs() const;
+		const std::vector<std::string> &getMethods() const;
+		const std::string &getIndex(size_t index) const;
+		const std::string &getMethod(size_t index) const;
+		const std::string &getTarget() const;
 
-
+		int setRoot(const std::string &root);
+		int setAutoindex(const std::string &autoindex);
+		int setAutoindex(bool autoindex);
+		int	setClientMax(const std::string &client_max);
+		int setClientMax(size_t clienMax);
+		void addIndex(const std::string &index);
+		int addMethod(const std::string &method);
+		int setVecIndex(const std::vector<std::string> &index);
+		int setTarget(const std::string &target);
 };
 
 #endif // !SERVER_CONFIG_HPP

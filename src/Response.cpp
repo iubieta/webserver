@@ -36,9 +36,9 @@ void Response::setStatus(e_status_code status) {
 	status_ = status;
 }
 
-void Response::addHeader(const std::string &key, const std::string &value) {
-	headers_.insert(std::pair(key, value));
-}
+// void Response::addHeader(const std::string &key, const std::string &value) {
+// 	headers_.insert(key, value);
+// }
 
 void Response::setHeaders(const std::map<std::string, std::string> &headers) {
 	headers_ = headers;

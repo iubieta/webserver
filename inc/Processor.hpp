@@ -6,7 +6,7 @@
 
 #include "../inc/ServerConfig.hpp"
 #include "../inc/Request.hpp"
-// #include "../inc/Decision.hpp"
+#include "../inc/Decision.hpp"
 #include "LocationConfig.hpp"
 #include "http_status_codes.hpp"
 #include <string>
@@ -23,6 +23,8 @@ class Processor {
 	
 		// Find config for the host
 		const ServerConfig *findConfig(const Request& req) const;
+		// Find mathcing location for the server
+		const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
 		// Check if location has a return
 		std::string redirTarget(const LocationConfig& cfg) const;
 		// Check if method is allowed
@@ -44,10 +46,10 @@ class Processor {
 		
 		// TESTING PRIVATE FUNCTIONS
 		// Find mathcing location for the server
-		const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
+		// const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
 
 		// REAL PUBLIC FUNCTIONS
-		// Decision procRequest(const Request& req);
+		Decision procRequest(const Request& req);
 };
 
 #endif // !PROCESSOR_HPP
