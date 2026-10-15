@@ -38,7 +38,7 @@ class Request
 		void setQuery(const std::string &query);
 		void setVersion(const std::string &version);
 	
-		void addHeader(const std::string &key, const std::string &value);
+		int addHeader(const std::string &key, const std::string &value);
 		void setHeaders(const std::map<std::string, std::string> &headers);
 	
 		void appendBody(const std::string &str);
@@ -54,7 +54,7 @@ class Request
 		const std::string &getQuery() const;
 		const std::string &getVersion() const;
 	
-		const std::string &getHeader(const std::string &key) const;
+		const std::string *getHeader(const std::string &key) const; //return NULL if key is not found
 		const std::map<std::string, std::string> &getHeaders() const;
 	
 		const std::string &getBody() const;

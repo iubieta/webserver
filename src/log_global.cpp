@@ -8,6 +8,7 @@
 namespace ft_log {
 	Logger& global() {
 		static Logger instance;
+		//instance.setConsoleLevel(DEBUG);
 		return instance;
 	}
 }

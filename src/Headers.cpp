@@ -5,14 +5,20 @@
 
 Headers::Headers():headers_() {}
 
-Headers::~Headers(){}
+Headers::~Headers()
+{
+	ft_log::global().debug
+	(
+		"Header destructor"
+	);
+}
 
 
 int Headers::addHeader(const std::string &key,const std::string &value)
 {
 	if (headers_.count(key) != 0)
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"Headers: repeated field",
 			__FILE__, __LINE__);
 
@@ -62,7 +68,7 @@ bool Headers::isInvalidKey(const std::string &key)
 	{
 		if (isInvalidKeyCharacter(key[i]))
 		{
-			ft_log::global().info(
+			ft_log::global().debug(
 				"Headers: invalid field name",
 				__FILE__, __LINE__);
 			return (true);
@@ -81,7 +87,7 @@ bool Headers::isInvalidValue(const std::string &value)
 	{
 		if (isInvalidValueCharacter(value[i]))
 		{
-			ft_log::global().info(
+			ft_log::global().debug(
 				"Headers: invalid field value",
 				__FILE__, __LINE__);
 			return (true);
@@ -121,7 +127,7 @@ int Headers::tokenHeader(const std::string &line)
 
 	if (line.empty())
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"Headers: empty string", __FILE__, __LINE__);
 		return -1;
 	}
@@ -130,7 +136,7 @@ int Headers::tokenHeader(const std::string &line)
 	if (pos < 2 || line[pos - 2] != '\r'
 					|| line[pos - 1] != '\n')
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"Headers: Incorrect line ending", __FILE__, __LINE__);
 		return -1;
 	}
@@ -139,18 +145,17 @@ int Headers::tokenHeader(const std::string &line)
 	pos = line.find(':');
 	if (pos == std::string::npos)
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"Headers: separator character not found", __FILE__, __LINE__
 		);
 		return -1;
 	}
 	
 	key = line.substr(0, pos);
-	
 	temp = line.substr(pos + 1);
 
 	start = 0;
-while (start < temp.size() && 
+	while (start < temp.size() && 
 		(temp[start] == ' ' || temp[start] == '\t'))
 		start++;
 	

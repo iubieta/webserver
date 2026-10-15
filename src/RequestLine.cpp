@@ -33,7 +33,10 @@ RequestLine &RequestLine::operator=(const RequestLine &other)
 	return *this;
 }
 
-RequestLine::~RequestLine(){}
+RequestLine::~RequestLine()
+{
+	ft_log::global().debug("request line destructor");
+}
 
 
 bool RequestLine::isCharacterInvalid(char c)
@@ -59,14 +62,14 @@ int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &to
 
 	if(line.empty())
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"RequestLine: empty string", __FILE__, __LINE__);
 		return -1;
 	}
 	
 	if (isCharacterInvalid(line[0]))
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"RequestLine: Invalid first character", __FILE__, __LINE__);
 		return -1;
 	}
@@ -75,7 +78,7 @@ int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &to
 	if (i < 2 || line[i - 2] != '\r'
 					|| line[i - 1] != '\n')
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"Requestline: Incorrect line ending", __FILE__, __LINE__);
 		return -1;
 	}
@@ -96,7 +99,7 @@ int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &to
 
 	if (token.size() != 3)
 	{
-		ft_log::global().info(
+		ft_log::global().debug(
 			"RequestLine: incorrect token number",
 			__FILE__, __LINE__);
 

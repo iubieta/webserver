@@ -15,13 +15,13 @@
 // Canonichal form ------------------------------------------------------------
 Logger::Logger() : 
 	file_level_(DEBUG),
-	console_(true), console_level_(INFO),
+	console_(true), console_level_(DEBUG),
 	timestamp_(true)
 {}
 
 Logger::Logger(const std::string &filepath) : 
 	file_level_(DEBUG), 
-	console_(true), console_level_(INFO),
+	console_(true), console_level_(DEBUG),
 	timestamp_(true)
 {
 	log_file_.open(filepath.c_str(), std::ios::app);

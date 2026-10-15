@@ -35,7 +35,7 @@ Request& Request::operator=(const Request &other) {
 
 Request::~Request() 
 {
-	ft_log::global().info("request destructor");
+	ft_log::global().debug("Api request destructor");
 }
 
 // Setters ---------------------------------------------------------------------
@@ -63,8 +63,18 @@ void Request::setVersion(const std::string &version) {
 	version_ = version;
 }
 
-void Request::addHeader(const std::string &key, const std::string &value) {
+int Request::addHeader(const std::string &key, const std::string &value) 
+{
+	if (headers_.count(key) != 0)
+	{
+		ft_log::global().debug(
+			"Headers: repeated field",
+			__FILE__, __LINE__);
+
+		return (-1);
+	}
 	headers_.insert(std::make_pair(key, value));
+	return (0);
 }
 
 void Request::setHeaders(const std::map<std::string, std::string> &headers) {
@@ -104,8 +114,13 @@ const std::string &Request::getVersion() const {
 	return version_;
 }
 
-const std::string &Request::getHeader(const std::string &key) const {
-	return headers_.at(key);
+const std::string *Request::getHeader(const std::string &key) const 
+{
+	std::map<std::string, std::string>::const_iterator it = headers_.find(key);
+
+	if (it != headers_.end())
+		return &(it->second);
+	return NULL;
 }
 
 const std::map<std::string, std::string> &Request::getHeaders() const {

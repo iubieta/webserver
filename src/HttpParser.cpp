@@ -16,9 +16,8 @@ HttpParser::~HttpParser()
 	if (request_line_ != NULL)
 	{
 		delete request_line_;
-		ft_log::global().info("request line destructor");
 	}
-	ft_log::global().info("HTTP Parser destructor");	
+	ft_log::global().debug("HTTP Parser destructor");	
 }
 
 void HttpParser::setState(e_status_code state)
@@ -120,6 +119,15 @@ e_status_code HttpParser::stateHandler(const std::string &buffer, Request &reque
 			{
 				if (line == "\r\n")
 				{
+					if (headers_.getHeader("host") == NULL)
+					{
+						ft_log::global().debug(
+							"The host is missing from the request"
+						);
+						request.setStatus(BAD_REQUEST);
+						this->state_ = BAD_REQUEST;
+						return (this->state_);
+					}
 					request.setHeaders(headers_.getHeaders());
 					this -> state_ = ESTATE_BODY;
 					return (this->state_);
@@ -177,6 +185,8 @@ int main()
 	"host:localhost:8080\r\n"
 	"content-length:0\r\n\r\n",
 	r);
+
+	
 
 	print(r.getHeaders());
 
