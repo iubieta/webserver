@@ -25,16 +25,24 @@ class Processor {
 		const ServerConfig *findConfig(const Request& req) const;
 		// Find mathcing location for the server
 		const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
-		// Check if location has a return
-		std::string redirTarget(const LocationConfig& cfg) const;
-		// Check if method is allowed
-		bool methodIsAllowed(const Request& req, const LocationConfig& cfg) const;
-		// Check content-length
-		bool checkContentLength(const Request& req, const LocationConfig& cfg) const;
+
 		// Resolve path
 		std::string resolvePath(const Request& req, const LocationConfig& cfg) const;
+		std::string decodePath(const std::string& path) const;
+		std::string normalizePath(const std::string& path) const;
+
+		// Check if location has a return
+		std::string redirTarget(const LocationConfig& cfg) const;
+
+		// Check if method is allowed
+		bool methodIsAllowed(const Request& req, const LocationConfig& cfg) const;
+
+		// Check content-length
+		bool checkContentLength(const Request& req, const LocationConfig& cfg) const;
+
 		// Resolve error page path
 		std::string findErrorPage(e_status_code code, const LocationConfig& cfg) const;
+
 		// Define handler for the request
 		// TODO: define a handler list
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;

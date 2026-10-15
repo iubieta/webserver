@@ -232,7 +232,37 @@ static void setBasicConfig(ServerConfig& cfg) {
 // }
 
 
-void testRootIndex()
+void testGetRootWhithoutLocations()
+{
+	
+	// TODO: should every cfg has at least one location?
+	std::vector<ServerConfig> cfgs;
+	ServerConfig cfg;
+	
+	setBasicConfig(cfg);
+	cfgs.push_back(cfg);
+
+	Request		req;
+
+	req.setRequest("GET /");
+	req.setStatus(ESTATE_COMPLETE);
+	req.setMethod("GET");
+	req.setPath("/");
+	req.setPath("");
+	req.setQuery("");
+	req.setVersion(HTTP_V1_1);
+
+	Decision	res;
+	res.setStatus(FORBIDDEN);
+	res.setHandler(ERROR_PAGE);
+
+	Processor	proc(cfgs);
+	Decision	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), res.getStatus());
+	ASSERT_EQ(my_res.getHandler(), res.getHandler());
+}
+
+void testGetRootWhithLocations()
 {
 	
 	// TODO: should every cfg has at least one location?
