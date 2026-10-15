@@ -9,7 +9,7 @@
 
 // Constructors ---------------------------------------------------------------
 Connection::Connection(int fd) : fd_(fd), closed_(false), 
-	last_activity_(time(NULL))
+	last_activity_(time(NULL)), parser_(), request_()
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
@@ -56,7 +56,12 @@ void Connection::disconnect() {
 }
 
 // System I/0
-ssize_t Connection::readFromFd() {
+ssize_t Connection::readFromFd() 
+{
+	char	temp[BUFFLEN];
+	ssize_t read_bytes;
+	e_status_code	state;
+
 	// Conncetion already closed
 	if (fd_ == -1) {
 		std::ostringstream msg;
@@ -67,13 +72,14 @@ ssize_t Connection::readFromFd() {
 		return -1;
 	}
 
-	char	temp[BUFFLEN];
-	ssize_t read_bytes = recv(fd_, temp, BUFFLEN, 0);
+	
+	read_bytes = recv(fd_, temp, BUFFLEN, 0);
 	
 	// Normal receive
-	if (read_bytes > 0) {
+	if (read_bytes > 0) 
+	{
 		read_buff_.append(temp, read_bytes);
-
+		state = parser_.stateHandler(read_buff_, request_);
 		// Update last activity time
 		last_activity_ = time(NULL);
 

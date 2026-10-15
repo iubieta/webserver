@@ -9,6 +9,8 @@
 #include <sys/types.h>
 
 #include "../inc/Buffer.hpp"
+#include "../inc/HttpParser.hpp"
+#include "../inc/Request.hpp"
 
 #define BUFFLEN 32768 // 32 KB
 
@@ -24,6 +26,8 @@ private:
 	Buffer		read_buff_;
 	Buffer		write_buff_;
 	time_t		last_activity_;
+	HttpParser  parser_;
+	Request     request_;
 
 	Connection(const Connection &other);
 	Connection& operator=(const Connection &other);

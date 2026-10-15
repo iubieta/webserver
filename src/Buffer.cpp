@@ -46,10 +46,27 @@ void Buffer::append(const char *str, size_t n) {
 	data_.append(str, n);
 }
 
-void Buffer::consume(size_t n) {
+void Buffer::consume(size_t n) 
+{
 	offset_ += n;
-	if (offset_ >= data_.size()) {
+	if (offset_ >= data_.size()) 
+	{
 		data_ = "";
 		offset_ = 0;
 	}
+}
+
+size_t Buffer::find(const std::string &delimiter) const
+{
+	size_t	absolute_pos;
+
+	absolute_pos = data_.find(delimiter, offset_);
+	if (absolute_pos == std::string::npos)
+		return (std::string::npos);
+	return (absolute_pos - offset_);
+}
+
+std::string Buffer::substr(size_t pos, size_t n) const
+{
+	return (data_.substr(offset_ + pos, n));
 }
