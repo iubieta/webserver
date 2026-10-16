@@ -30,9 +30,7 @@ e_status_code HttpParser::getState() const
 }
 
 
-e_status_code HttpParser::stateHandler(
-	Buffer &buffer,
-	Request &request)
+e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 {
 	size_t						pos;
 	std::string					line;
@@ -87,6 +85,21 @@ e_status_code HttpParser::stateHandler(
 			{
 				this->state_ = BAD_REQUEST;
 				request.setStatus(BAD_REQUEST);
+				return (this->state_);
+			}
+
+			if(!request_line_->isImplementedMethod(request_line_->getMethod()))
+			{
+				this->state_ = NOT_IMPLEMENTED;
+				request.setStatus(NOT_IMPLEMENTED);
+				ft_log::global().debug("Not implemented method");
+				return (this->state_);
+			}
+			if(!request_line_->isSupportedVersion(request_line_->getVersion()))
+			{
+				this->state_ = VERSION_NOT_SUPPORTED;
+				request.setStatus(VERSION_NOT_SUPPORTED);
+				ft_log::global().debug("Version not supported");
 				return (this->state_);
 			}
 
@@ -147,7 +160,7 @@ e_status_code HttpParser::stateHandler(
 // 	buffer.append("GET /index");
 // 	parser.stateHandler(buffer, request);
 
-// 	buffer.append("?=id HTTP/1.1\r\n");
+// 	buffer.append("?=id HTTP/2.1\r\n");
 // 	parser.stateHandler(buffer, request);
 
 // 	buffer.append("content-t");

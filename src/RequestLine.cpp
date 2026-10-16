@@ -125,6 +125,13 @@ bool RequestLine::isValidMethod(const std::string &method) const
 	return (true);
 }
 
+bool RequestLine::isImplementedMethod(const std::string &method) const
+{
+	if (method == "GET" || method == "POST" || method == "DELETE")
+		return true;
+	return false;
+}
+
 bool RequestLine::isVaildVersion(const std::string &version) const
 {
 	if (version.size() != 8)
@@ -135,6 +142,13 @@ bool RequestLine::isVaildVersion(const std::string &version) const
 	if (version[5] < '0' || version[5] > '9' || version[7] < '0' || version[7] > '9')
 		return false;
 	return true;
+}
+
+bool RequestLine::isSupportedVersion(const std::string &version) const
+{
+	if (version == "HTTP/1.1")
+		return true;
+	return false;
 }
 
 void RequestLine::setMethod(const std::string &method)
