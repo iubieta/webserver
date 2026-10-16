@@ -3,14 +3,11 @@
 #include <cctype>
 #include <iostream>
 
-Headers::Headers():headers_() {}
+Headers::Headers():headers_(), bytes_header(0) {}
 
 Headers::~Headers()
 {
-	ft_log::global().debug
-	(
-		"Header destructor"
-	);
+	ft_log::global().debug("Header destructor");
 }
 
 
@@ -115,6 +112,17 @@ const std::string *Headers::getHeader(const std::string &key) const
 const std::map<std::string, std::string> &Headers::getHeaders() const
 {
 	return headers_;
+}
+
+size_t Headers::addBytesHeader(size_t bytes)
+{
+	bytes_header += bytes;
+	return bytes_header;
+}
+
+size_t Headers::getBytesHeader() const
+{
+	return bytes_header;
 }
 
 int Headers::tokenHeader(const std::string &line)

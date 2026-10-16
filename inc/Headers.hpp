@@ -4,12 +4,17 @@
 #include <map>
 #include <string>
 
+# define MAX_HEADER_LINE_SIZE 8192
+# define MAX_HEADER_SIZE 32768
+# define MAX_HEADER_COUNT 100
+
 
 class Headers
 {
 	private:
 
 	std::map<std::string, std::string> headers_;
+	size_t bytes_header;
 
 	Headers(const Headers &other);
 	Headers &operator=(const Headers &other);
@@ -31,7 +36,8 @@ class Headers
 
 	const std::string *getHeader(const std::string &key) const;
 	const std::map<std::string, std::string> &getHeaders() const;
-
+	size_t addBytesHeader(size_t bytes);
+	size_t getBytesHeader() const;
 	
 
 };

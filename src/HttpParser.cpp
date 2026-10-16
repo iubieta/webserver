@@ -51,7 +51,23 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 			{
 				this->state_ = URI_TOO_LONG;
 				request.setStatus(URI_TOO_LONG);
-
+				ft_log::global().debug("URI too large");
+				return (this->state_);
+			}
+			if (this->state_ == ESTATE_HEADERS && bytes > MAX_HEADER_LINE_SIZE)
+			{
+				this->state_ = HEADERS_TOO_LARGE;
+				request.setStatus(HEADERS_TOO_LARGE);
+				ft_log::global().debug("Headers too large");
+				return (this->state_);
+			}
+			if (this->state_ == ESTATE_HEADERS && 
+				headers_.getBytesHeader() + bytes > MAX_HEADER_SIZE)
+			{
+				this->state_ = HEADERS_TOO_LARGE;
+				request.setStatus(HEADERS_TOO_LARGE);
+				ft_log::global().debug("Headers too large");
+				return (this->state_);
 			}
 			return (this->state_);
 		}
@@ -61,11 +77,20 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 		{
 			this->state_ = URI_TOO_LONG;
 			request.setStatus(URI_TOO_LONG);
+			ft_log::global().debug("URI too large");
 			return (this->state_);
 		}
+		if (this->state_ == ESTATE_HEADERS && bytes > MAX_HEADER_LINE_SIZE)
+		{
+			this->state_ = HEADERS_TOO_LARGE;
+			request.setStatus(HEADERS_TOO_LARGE);
+			ft_log::global().debug("Headers too large");
+			return (this->state_);
+		}
+			
 
-		line = buffer.substr(0, pos + 2);
-		buffer.consume(pos + 2);
+		line = buffer.substr(0, bytes);
+		buffer.consume(bytes);
 
 		if (this->state_ == ESTATE_LINE)
 		{
@@ -131,6 +156,15 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 		}
 		else if (this->state_ == ESTATE_HEADERS)
 		{
+	
+			if (headers_.addBytesHeader(line.size()) > MAX_HEADER_SIZE)
+			{
+				this->state_ = HEADERS_TOO_LARGE;
+				request.setStatus(HEADERS_TOO_LARGE);
+				ft_log::global().debug("Header too large");
+				return (this->state_);
+			}
+
 			if (line == "\r\n")
 			{
 				if (headers_.getHeader("host") == NULL)
@@ -153,6 +187,15 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 				request.setStatus(BAD_REQUEST);
 				return (this->state_);
 			}
+			else if(headers_.getHeaders().size() > MAX_HEADER_COUNT)
+			{
+
+				this->state_ = HEADERS_TOO_LARGE;
+				ft_log::global().debug("Header too large");
+				request.setStatus(HEADERS_TOO_LARGE);
+				return (this->state_);
+			}
+
 		}
 	}
 
@@ -175,10 +218,10 @@ int main()
 	HttpParser	parser;
 	Buffer		buffer;
 
-	buffer.append("GET /hastwtdvxvxhywgxwyxbzkbxxxxxxxxxxqwgkxWGLANXJAHUHCaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaindex");
+	buffer.append("GET /index");
 	parser.stateHandler(buffer, request);
 
-	buffer.append("QEFOHUHEUFHRUHFRUFUROSOKOO,OOVRDS33WZ,<OCKJHAXTFZZZZZZZZZZZZZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA?=id HTTP/2.1\r\n");
+	buffer.append("AAA?=id HTTP/1.1\r\n");
 	parser.stateHandler(buffer, request);
 
 	buffer.append("content-t");
