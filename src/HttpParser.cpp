@@ -33,18 +33,36 @@ e_status_code HttpParser::getState() const
 e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 {
 	size_t						pos;
+	size_t						bytes;
 	std::string					line;
 	std::vector<std::string>	tokens;
+	
 
 	if (buffer.empty())
 		return (this->state_);
 
-	while (this->state_ == ESTATE_LINE
-		|| this->state_ == ESTATE_HEADERS)
+	while (this->state_ == ESTATE_LINE || this->state_ == ESTATE_HEADERS)
 	{
 		pos = buffer.find("\r\n");
 		if (pos == std::string::npos)
+		{
+			bytes = buffer.size();
+			if (this->state_ == ESTATE_LINE && bytes > MAX_REQUEST_LINE_SIZE)
+			{
+				this->state_ = URI_TOO_LONG;
+				request.setStatus(URI_TOO_LONG);
+
+			}
 			return (this->state_);
+		}
+		
+		bytes = pos + 2;
+		if (this->state_ == ESTATE_LINE && bytes > MAX_REQUEST_LINE_SIZE)
+		{
+			this->state_ = URI_TOO_LONG;
+			request.setStatus(URI_TOO_LONG);
+			return (this->state_);
+		}
 
 		line = buffer.substr(0, pos + 2);
 		buffer.consume(pos + 2);
@@ -141,56 +159,56 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 	return (this->state_);
 }
 
-// void print(const std::map<std::string, std::string> &Headers)
-// {
-// 	std::map<std::string, std::string>::const_iterator it;
+void print(const std::map<std::string, std::string> &Headers)
+{
+	std::map<std::string, std::string>::const_iterator it;
 	
-// 	for(it = Headers.begin(); it != Headers.end(); ++it)
-// 	{
-// 		std::cout<< it ->first << ":" << it ->second << std::endl;
-// 	}
-// }
+	for(it = Headers.begin(); it != Headers.end(); ++it)
+	{
+		std::cout<< it ->first << ":" << it ->second << std::endl;
+	}
+}
 
-// int main()
-// {
-// 	Request		request;
-// 	HttpParser	parser;
-// 	Buffer		buffer;
+int main()
+{
+	Request		request;
+	HttpParser	parser;
+	Buffer		buffer;
 
-// 	buffer.append("GET /index");
-// 	parser.stateHandler(buffer, request);
+	buffer.append("GET /hastwtdvxvxhywgxwyxbzkbxxxxxxxxxxqwgkxWGLANXJAHUHCaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaindex");
+	parser.stateHandler(buffer, request);
 
-// 	buffer.append("?=id HTTP/2.1\r\n");
-// 	parser.stateHandler(buffer, request);
+	buffer.append("QEFOHUHEUFHRUHFRUFUROSOKOO,OOVRDS33WZ,<OCKJHAXTFZZZZZZZZZZZZZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA?=id HTTP/2.1\r\n");
+	parser.stateHandler(buffer, request);
 
-// 	buffer.append("content-t");
-// 	parser.stateHandler(buffer, request);
+	buffer.append("content-t");
+	parser.stateHandler(buffer, request);
 
-// 	buffer.append("ype:  text/plain\r\n");
-// 	parser.stateHandler(buffer, request);
+	buffer.append("ype:  text/plain\r\n");
+	parser.stateHandler(buffer, request);
 
-// 	buffer.append(
-// 		"host:localhost:8080\r\n"
-// 		"content-length:0\r\n"
-// 		"\r\n");
-// 	parser.stateHandler(buffer, request);
+	buffer.append(
+		"host:localhost:8080\r\n"
+		"content-length:0\r\n"
+		"\r\n");
+	parser.stateHandler(buffer, request);
 
-// 	print(request.getHeaders());
+	print(request.getHeaders());
 
-// 	std::cout << "Method: "
-// 		<< request.getMethod() << std::endl;
-// 	std::cout << "Target: "
-// 		<< request.getRequest() << std::endl;
-// 	std::cout << "Path: "
-// 		<< request.getPath() << std::endl;
-// 	std::cout << "Query: "
-// 		<< request.getQuery() << std::endl;
-// 	std::cout << "Version: "
-// 		<< request.getVersion() << std::endl;
-// 	std::cout << "Pending bytes: "
-// 		<< buffer.size() << std::endl;
-// 	std::cout << "Parser state: "
-// 		<< parser.getState() << std::endl;
+	std::cout << "Method: "
+		<< request.getMethod() << std::endl;
+	std::cout << "Target: "
+		<< request.getRequest() << std::endl;
+	std::cout << "Path: "
+		<< request.getPath() << std::endl;
+	std::cout << "Query: "
+		<< request.getQuery() << std::endl;
+	std::cout << "Version: "
+		<< request.getVersion() << std::endl;
+	std::cout << "Pending bytes: "
+		<< buffer.size() << std::endl;
+	std::cout << "Parser state: "
+		<< parser.getState() << std::endl;
 
-// 	return (0);
-// }
+	return (0);
+}

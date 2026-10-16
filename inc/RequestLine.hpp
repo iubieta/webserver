@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+# define MAX_REQUEST_LINE_SIZE 8192
 
 
 class RequestLine
@@ -45,6 +46,9 @@ class RequestLine
 	const std::string &getPath() const;
 	const std::string &getVersion() const;
 	const std::string &getQuery() const;
+
+	bool isImplementedMethod(const std::string &method) const;
+	bool isSupportedVersion(const std::string &version) const;
 
 };
 
