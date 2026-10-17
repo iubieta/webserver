@@ -28,8 +28,6 @@ class Processor {
 
 		// Resolve path
 		std::string resolvePath(const Request& req, const LocationConfig& cfg) const;
-		std::string decodePath(const std::string& path) const;
-		std::string normalizePath(const std::string& path) const;
 
 		// Check if location has a return
 		std::string redirTarget(const LocationConfig& cfg) const;
@@ -49,12 +47,18 @@ class Processor {
 
 
 	public:
+		
 		Processor(const std::vector<ServerConfig >& cfgs);
 		~Processor();
 		
+		// Constructor without config for testing
+		Processor();
+
 		// TESTING PRIVATE FUNCTIONS
 		// Find mathcing location for the server
 		// const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
+		std::string decodePath(const std::string& path) const;
+		std::string normalizePath(const std::string& path) const;
 
 		// REAL PUBLIC FUNCTIONS
 		Decision procRequest(const Request& req);

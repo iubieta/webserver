@@ -15,6 +15,12 @@ static void setBasicConfig(ServerConfig& cfg) {
 	cfg.setAutoindex("off");
 }
 
+const Processor *initBasicProcessor() {
+	const std::vector<ServerConfig> *cfgs = new const std::vector<ServerConfig>;
+	const Processor* p = new Processor(*cfgs);
+	
+	return p;
+}
 // void testDifferentLocations()
 // {
 // 	LocationConfig loc_1;
@@ -231,10 +237,36 @@ static void setBasicConfig(ServerConfig& cfg) {
 // 	ASSERT_EQ((*found_location == loc_5), true);
 // }
 
+void testDecodePath() {
+	const Processor* p = initBasicProcessor();
+
+	ASSERT_EQ(p->decodePath("/hola%20mundo"), "/hola mundo");
+	ASSERT_EQ(p->decodePath("/espa%C3%B1a"), "/espa\xC3\xB1" "a");
+	ASSERT_EQ(p->decodePath("/sin/codificar"), "/sin/codificar");
+	ASSERT_EQ(p->decodePath("/%41%42%43"), "/ABC");
+	ASSERT_EQ(p->decodePath("/%4a%4A"), "/JJ");                      // minúsculas y mayúsculas
+	ASSERT_EQ(p->decodePath("/%zz"),"/%zz");                        // hex inválido
+	ASSERT_EQ(p->decodePath("/fin%"),"/fin%");                      // % al final
+	ASSERT_EQ(p->decodePath("/fin%4"), "/fin%4");                    // incompleto
+	ASSERT_EQ(p->decodePath("%2E%2E/x"), "../x");                    // genera .. (se trata luego)
+}
+
+void testNormalizePath() {
+	const Processor* p = initBasicProcessor();
+	ASSERT_EQ(p->normalizePath("/a/b/c"), "/a/b/c");
+	ASSERT_EQ(p->normalizePath("/a/./b//c"), "/a/b/c");       // . y barras dobles
+	ASSERT_EQ(p->normalizePath("/a/b/../c"), "/a/c");          // retroceso
+	ASSERT_EQ(p->normalizePath("/a/b/../../c"), "/c");         // varios retrocesos
+	ASSERT_EQ(p->normalizePath("/a/b/../.."), "/");            // vuelve a la raíz
+	ASSERT_EQ(p->normalizePath("/"), "/");
+	ASSERT_EQ(p->normalizePath(""), "/");
+	ASSERT_EQ(p->normalizePath("/.."), "");                              // sale de la raíz
+	ASSERT_EQ(p->normalizePath("/a/../../etc/passwd"), "");              // sale de la raíz
+	ASSERT_EQ(p->normalizePath("/a/..b/c"), "/a/..b/c");       // "..b" es un nom
+}
 
 void testGetRootWhithoutLocations()
 {
-	
 	// TODO: should every cfg has at least one location?
 	std::vector<ServerConfig> cfgs;
 	ServerConfig cfg;
@@ -264,8 +296,6 @@ void testGetRootWhithoutLocations()
 
 void testGetRootWhithLocations()
 {
-	
-	// TODO: should every cfg has at least one location?
 	std::vector<ServerConfig> cfgs;
 	ServerConfig cfg;
 	
@@ -297,6 +327,9 @@ int main() {
 	// Tester::runTest("Longest Location Match 1", testLocationLongestMatch_1);
 	// Tester::runTest("Longest Location Match 2", testLocationLongestMatch_2);
 	// Tester::runTest("Longest Location Match 3", testLocationLongestMatch_3);
-	Tester::runTest("GET /", testRootIndex);
+	Tester::runTest("GET /", testGetRootWhithoutLocations);
+	Tester::runTest("GET /", testGetRootWhithLocations);
+	Tester::runTest("Path decoder", testDecodePath);
+	Tester::runTest("Path normalizer", testNormalizePath);
 	Tester::report();
 }

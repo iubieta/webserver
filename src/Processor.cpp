@@ -18,7 +18,7 @@ Processor::Processor(const std::vector<ServerConfig>& cfgs):
 	cfgs_(cfgs)
 {}
 
-Processor::~Processor() {};
+Processor::~Processor() {}
 
 // Private methods -------------------------------------------------------------
 
@@ -58,7 +58,9 @@ const LocationConfig* Processor::findLocation(const Request& req, const ServerCo
 // PATH
 // Resolves the whole path to useful one
 std::string Processor::resolvePath(const Request& req, const LocationConfig& cfg) const
-{}
+{
+	return "";
+}
 
 // Replaces %XX codification with XX hexadecimal value char
 std::string Processor::decodePath(const std::string& path) const
@@ -98,7 +100,7 @@ std::string Processor::normalizePath(const std::string& path) const
 		stack.push_back(segment);
 	}
 	
-	std::string new_path;
+	std::string new_path = "/";
 	for (size_t i = 0; i < stack.size(); ++i) {
 		new_path += stack[i];
 		if (i + 1 < stack.size())
