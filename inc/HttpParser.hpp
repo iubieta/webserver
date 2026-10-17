@@ -19,7 +19,8 @@ class HttpParser
 
 	HttpParser(const HttpParser &other);
 	HttpParser &operator=(const HttpParser &other);
-
+	e_status_code reportStatusCode(e_status_code code, const std::string &log,
+		Request &request);
 
 	public:
 
