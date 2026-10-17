@@ -47,7 +47,7 @@ class Request
 	
 		// Getters
 		const std::string &getRequest() const;
-		const e_status_code getStatus() const;
+		e_status_code getStatus() const;
 	
 		const std::string &getMethod() const;
 		const std::string &getPath() const;

@@ -94,7 +94,7 @@ const std::string &Request::getRequest() const {
 	return request_;
 }
 
-const e_status_code Request::getStatus() const {
+e_status_code Request::getStatus() const {
 	return status_;
 }
 

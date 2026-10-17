@@ -15,6 +15,7 @@ static const TestEntry g_tests[] = {
 	{ "logger" , logger_tests },
 	{ "config" , config_tests },
 	{ "buffer" , buffer_tests },
+	{"httpParser", test_httpParser}
 };
 
 static size_t g_count = sizeof(g_tests) / sizeof(TestEntry);

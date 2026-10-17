@@ -10,7 +10,7 @@
 
 #include "../inc/Buffer.hpp"
 #include "../inc/HttpParser.hpp"
-#include "../inc/Request.hpp"
+//#include "../inc/Request.hpp"
 
 #define BUFFLEN 32768 // 32 KB
 

@@ -80,6 +80,10 @@ ssize_t Connection::readFromFd()
 	{
 		read_buff_.append(temp, read_bytes);
 		state = parser_.stateHandler(read_buff_, request_);
+		if (state > 0)
+		{
+			
+		}
 		// Update last activity time
 		last_activity_ = time(NULL);
 
