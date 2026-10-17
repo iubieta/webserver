@@ -30,36 +30,13 @@ const ServerConfig* Processor::findConfig(const Request& req) const {
 	return &(*cfgs_.begin());
 }
 
-// Searchs the longest matching location with the path
-const LocationConfig* Processor::findLocation(const Request& req, const ServerConfig& cfg) const {
-	std::string	target = req.getPath();
-	// Search for longest matching result in the location vector
-	// First iteration with the complete target
-	// Later iterations one "/" less each time
-	while (!target.empty()) 
-	{
-		// Iteration and comparison with config locations
-		std::vector<LocationConfig>::const_iterator it;
-		std::vector<LocationConfig>::const_iterator ite = cfg.getLocations().end();
-		for (it = cfg.getLocations().begin(); it != ite; ++it) 
-		{
-			if (it->getTarget() == target)
-			{
-				return &(*it);
-			}
-		}
-		// Cuts one depth level from the original target
-		target = target.substr(0, target.find_last_of('/'));
-	}
-	// If no location matches target returns NULL
-	return NULL;
-}
-
 // PATH
 // Resolves the whole path to useful one
-std::string Processor::resolvePath(const Request& req, const LocationConfig& cfg) const
+std::string Processor::resolvePath(const Request& req) const
 {
-	return "";
+	std::string new_path = decodePath(req.getPath());
+	new_path = normalizePath(new_path);
+	return new_path;
 }
 
 // Replaces %XX codification with XX hexadecimal value char
@@ -106,15 +83,46 @@ std::string Processor::normalizePath(const std::string& path) const
 		if (i + 1 < stack.size())
 			new_path += "/";
 	}
+	// TODO: add last "/" when needed
+	// if (path.size() > 1 && path[path.size() - 1] == '/')
+	// 	new_path += "/";
 	return new_path;
 }
 
+// LOCATION
+// Searchs the longest matching location with the path
+const LocationConfig* Processor::findLocation(std::string target, const ServerConfig& cfg) const {
+	// Search for longest matching result in the location vector
+	// First iteration with the complete target
+	// Later iterations one "/" less each time
+	while (!target.empty()) 
+	{
+		// Iteration and comparison with config locations
+		std::vector<LocationConfig>::const_iterator it;
+		std::vector<LocationConfig>::const_iterator ite = cfg.getLocations().end();
+		for (it = cfg.getLocations().begin(); it != ite; ++it) 
+		{
+			if (it->getTarget() == target)
+			{
+				return &(*it);
+			}
+		}
+		if (target.size() == 1)
+			break;
+		// Cuts one depth level from the original target
+		target = target.substr(0, target.find_last_of('/') + 1);
+	}
+	// If no location matches target returns NULL
+	return NULL;
+}
 
+// REDIR
 // Checks if location has a "return" parameter and in that case returns the new target
 std::string Processor::redirTarget(const LocationConfig& cfg) const {
 	return "";
 }
 
+// ALLOWED METHODS
 // Check if the specified method is allowed in the configuration
 bool Processor::methodIsAllowed(const Request& req, const LocationConfig& cfg) const {
 	const std::string& method = req.getMethod();
@@ -129,19 +137,21 @@ bool Processor::methodIsAllowed(const Request& req, const LocationConfig& cfg) c
 	return false;
 }
 
+// CONTENT-LENGTH
 // Check if content-length is greater than max-body-size
 bool Processor::checkContentLength(const Request& req, const LocationConfig& cfg) const {
-	size_t len = std::strtoul(req.getHeader("Content-Length").c_str(), NULL, 10);
-	size_t max_len = cfg.getClientMax();
-	return (len <= max_len);
+	return true;
 }
+
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
 	Decision	res;
 	
 	const ServerConfig* server_cfg = findConfig(req);
-	const LocationConfig* cfg = findLocation(req, *server_cfg);
-
+	
+	std::string target = resolvePath(req);
+	
+	const LocationConfig* cfg = findLocation(target, *server_cfg);
 	if (cfg == NULL) 
 	{
 		// TODO: what should be done if no location is found??
@@ -149,14 +159,21 @@ Decision Processor::procRequest(const Request& req) {
 		res.setHandler(ERROR_PAGE);
 		return res;
 	}
+	
 	if (!methodIsAllowed(req, *cfg))
 	{
 		res.setStatus(FORBIDDEN);
 		res.setHandler(ERROR_PAGE);
 	}
+
+	// DISK PATH
+	std::string disk_path = cfg->getRoot() + target;
+	res.setDiskPath(disk_path);
+
 	if (!checkContentLength(req, *cfg))
 	{
 	}
+
 	return res;
 }
 

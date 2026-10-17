@@ -24,10 +24,12 @@ class Processor {
 		// Find config for the host
 		const ServerConfig *findConfig(const Request& req) const;
 		// Find mathcing location for the server
-		const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
+		const LocationConfig *findLocation(std::string target, const ServerConfig& cfg) const;
 
 		// Resolve path
-		std::string resolvePath(const Request& req, const LocationConfig& cfg) const;
+		std::string resolvePath(const Request& req) const;
+		std::string decodePath(const std::string& path) const;
+		std::string normalizePath(const std::string& path) const;
 
 		// Check if location has a return
 		std::string redirTarget(const LocationConfig& cfg) const;
@@ -57,8 +59,8 @@ class Processor {
 		// TESTING PRIVATE FUNCTIONS
 		// Find mathcing location for the server
 		// const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
-		std::string decodePath(const std::string& path) const;
-		std::string normalizePath(const std::string& path) const;
+		// std::string decodePath(const std::string& path) const;
+		// std::string normalizePath(const std::string& path) const;
 
 		// REAL PUBLIC FUNCTIONS
 		Decision procRequest(const Request& req);

@@ -21,6 +21,34 @@ const Processor *initBasicProcessor() {
 	
 	return p;
 }
+// void testDecodePath() {
+// 	const Processor* p = initBasicProcessor();
+// 
+// 	ASSERT_EQ(p->decodePath("/hola%20mundo"), "/hola mundo");
+// 	ASSERT_EQ(p->decodePath("/espa%C3%B1a"), "/espa\xC3\xB1" "a");
+// 	ASSERT_EQ(p->decodePath("/sin/codificar"), "/sin/codificar");
+// 	ASSERT_EQ(p->decodePath("/%41%42%43"), "/ABC");
+// 	ASSERT_EQ(p->decodePath("/%4a%4A"), "/JJ");                      // minúsculas y mayúsculas
+// 	ASSERT_EQ(p->decodePath("/%zz"),"/%zz");                        // hex inválido
+// 	ASSERT_EQ(p->decodePath("/fin%"),"/fin%");                      // % al final
+// 	ASSERT_EQ(p->decodePath("/fin%4"), "/fin%4");                    // incompleto
+// 	ASSERT_EQ(p->decodePath("%2E%2E/x"), "../x");                    // genera .. (se trata luego)
+// }
+// 
+// void testNormalizePath() {
+// 	const Processor* p = initBasicProcessor();
+// 	ASSERT_EQ(p->normalizePath("/a/b/c"), "/a/b/c");
+// 	ASSERT_EQ(p->normalizePath("/a/./b//c"), "/a/b/c");       // . y barras dobles
+// 	ASSERT_EQ(p->normalizePath("/a/b/../c"), "/a/c");          // retroceso
+// 	ASSERT_EQ(p->normalizePath("/a/b/../../c"), "/c");         // varios retrocesos
+// 	ASSERT_EQ(p->normalizePath("/a/b/../.."), "/");            // vuelve a la raíz
+// 	ASSERT_EQ(p->normalizePath("/"), "/");
+// 	ASSERT_EQ(p->normalizePath(""), "/");
+// 	ASSERT_EQ(p->normalizePath("/.."), "");                              // sale de la raíz
+// 	ASSERT_EQ(p->normalizePath("/a/../../etc/passwd"), "");              // sale de la raíz
+// 	ASSERT_EQ(p->normalizePath("/a/..b/c"), "/a/..b/c");       // "..b" es un nom
+// }
+
 // void testDifferentLocations()
 // {
 // 	LocationConfig loc_1;
@@ -237,33 +265,6 @@ const Processor *initBasicProcessor() {
 // 	ASSERT_EQ((*found_location == loc_5), true);
 // }
 
-void testDecodePath() {
-	const Processor* p = initBasicProcessor();
-
-	ASSERT_EQ(p->decodePath("/hola%20mundo"), "/hola mundo");
-	ASSERT_EQ(p->decodePath("/espa%C3%B1a"), "/espa\xC3\xB1" "a");
-	ASSERT_EQ(p->decodePath("/sin/codificar"), "/sin/codificar");
-	ASSERT_EQ(p->decodePath("/%41%42%43"), "/ABC");
-	ASSERT_EQ(p->decodePath("/%4a%4A"), "/JJ");                      // minúsculas y mayúsculas
-	ASSERT_EQ(p->decodePath("/%zz"),"/%zz");                        // hex inválido
-	ASSERT_EQ(p->decodePath("/fin%"),"/fin%");                      // % al final
-	ASSERT_EQ(p->decodePath("/fin%4"), "/fin%4");                    // incompleto
-	ASSERT_EQ(p->decodePath("%2E%2E/x"), "../x");                    // genera .. (se trata luego)
-}
-
-void testNormalizePath() {
-	const Processor* p = initBasicProcessor();
-	ASSERT_EQ(p->normalizePath("/a/b/c"), "/a/b/c");
-	ASSERT_EQ(p->normalizePath("/a/./b//c"), "/a/b/c");       // . y barras dobles
-	ASSERT_EQ(p->normalizePath("/a/b/../c"), "/a/c");          // retroceso
-	ASSERT_EQ(p->normalizePath("/a/b/../../c"), "/c");         // varios retrocesos
-	ASSERT_EQ(p->normalizePath("/a/b/../.."), "/");            // vuelve a la raíz
-	ASSERT_EQ(p->normalizePath("/"), "/");
-	ASSERT_EQ(p->normalizePath(""), "/");
-	ASSERT_EQ(p->normalizePath("/.."), "");                              // sale de la raíz
-	ASSERT_EQ(p->normalizePath("/a/../../etc/passwd"), "");              // sale de la raíz
-	ASSERT_EQ(p->normalizePath("/a/..b/c"), "/a/..b/c");       // "..b" es un nom
-}
 
 void testGetRootWhithoutLocations()
 {
@@ -284,22 +285,28 @@ void testGetRootWhithoutLocations()
 	req.setQuery("");
 	req.setVersion(HTTP_V1_1);
 
-	Decision	res;
-	res.setStatus(FORBIDDEN);
-	res.setHandler(ERROR_PAGE);
-
 	Processor	proc(cfgs);
 	Decision	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), res.getStatus());
-	ASSERT_EQ(my_res.getHandler(), res.getHandler());
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
 }
 
 void testGetRootWhithLocations()
 {
-	std::vector<ServerConfig> cfgs;
-	ServerConfig cfg;
+	LocationConfig loc_1;
+	loc_1.setTarget("/one");
+	LocationConfig loc_2;
+	loc_2.setTarget("/one/two");
+	LocationConfig loc_3;
+	loc_3.setTarget("/one/two/three");
 	
+	ServerConfig cfg;
 	setBasicConfig(cfg);
+	cfg.addLocation(loc_1);
+	cfg.addLocation(loc_2);
+	cfg.addLocation(loc_3);
+	
+	std::vector<ServerConfig> cfgs;
 	cfgs.push_back(cfg);
 
 	Request		req;
@@ -312,14 +319,105 @@ void testGetRootWhithLocations()
 	req.setQuery("");
 	req.setVersion(HTTP_V1_1);
 
-	Decision	res;
-	res.setStatus(FORBIDDEN);
-	res.setHandler(ERROR_PAGE);
+	Processor	proc(cfgs);
+	Decision	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
+}
+
+void testAllowedMethods() {
+	LocationConfig loc;
+	loc.setTarget("/");
+	
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Request		req;
+
+	req.setRequest("GET /");
+	req.setStatus(ESTATE_COMPLETE);
+	req.setMethod("GET");
+	req.setPath("/");
+	req.setPath("");
+	req.setQuery("");
+	req.setVersion(HTTP_V1_1);
 
 	Processor	proc(cfgs);
 	Decision	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), res.getStatus());
-	ASSERT_EQ(my_res.getHandler(), res.getHandler());
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
+	
+	loc.addMethod("GET");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), OK);
+
+	req.setMethod("HEAD");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+
+	loc.addMethod("HEAD");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), OK);
+	
+	req.setMethod("POST");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+
+	loc.addMethod("POST");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), OK);
+	
+	req.setMethod("DELETE");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
+
+	loc.addMethod("DELETE");
+	my_res = proc.procRequest(req);
+	ASSERT_EQ(my_res.getStatus(), OK);
+}
+
+void testDiskPath() {
+	LocationConfig loc;
+	loc.setRoot("/var/www");
+	loc.setTarget("/");
+	
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Request		req;
+	req.setRequest("GET /");
+	req.setStatus(ESTATE_COMPLETE);
+	req.setMethod("GET");
+	req.setPath("/");
+	req.setQuery("");
+	req.setVersion(HTTP_V1_1);
+
+	Processor p(cfgs);
+	Decision res;
+
+	req.setPath("/");
+	res = p.procRequest(req);
+	ASSERT_EQ(res.getDiskPath(), "/var/www/");
+
+	req.setPath("/images");
+	res = p.procRequest(req);
+	ASSERT_EQ(res.getDiskPath(), "/var/www/images");
+	
+	req.setPath("/images/");
+	res = p.procRequest(req);
+	ASSERT_EQ(res.getDiskPath(), "/var/www/images/");
+	
+	req.setPath("/images/img1.jpeg");
+	res = p.procRequest(req);
+	ASSERT_EQ(res.getDiskPath(), "/var/www/images/img.jpeg");
 }
 
 int main() {
@@ -327,9 +425,11 @@ int main() {
 	// Tester::runTest("Longest Location Match 1", testLocationLongestMatch_1);
 	// Tester::runTest("Longest Location Match 2", testLocationLongestMatch_2);
 	// Tester::runTest("Longest Location Match 3", testLocationLongestMatch_3);
-	Tester::runTest("GET /", testGetRootWhithoutLocations);
-	Tester::runTest("GET /", testGetRootWhithLocations);
-	Tester::runTest("Path decoder", testDecodePath);
-	Tester::runTest("Path normalizer", testNormalizePath);
+	// Tester::runTest("Path decoder", testDecodePath);
+	// Tester::runTest("Path normalizer", testNormalizePath);
+	Tester::runTest("GET / w/o location", testGetRootWhithoutLocations);
+	Tester::runTest("GET / with location", testGetRootWhithLocations);
+	Tester::runTest("Allowed methods", testGetRootWhithLocations);
+	Tester::runTest("Disk path", testDiskPath);
 	Tester::report();
 }
