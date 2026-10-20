@@ -15,12 +15,18 @@ class HttpParser
 	e_status_code state_;
 	RequestLine *request_line_; //abstract class
 	Headers headers_;
+	std::string body_;
+	size_t remaining_body_bytes_;
+	bool body_initialized_;
 
 
 	HttpParser(const HttpParser &other);
 	HttpParser &operator=(const HttpParser &other);
 	e_status_code reportStatusCode(e_status_code code, const std::string &log,
 		Request &request);
+	bool valueExist(const std::string &key);
+	bool isValidValue(const std::string &key);
+	e_status_code	bodyHandler(Buffer &buffer, Request &request);
 
 	public:
 
@@ -32,6 +38,8 @@ class HttpParser
 	const std::string &getBuffer() const;
 	e_status_code getState() const;
 	e_status_code	stateHandler(Buffer &buffer, Request &request);
+	
+	const std::string &getBody() const;
 
 };
 #endif
