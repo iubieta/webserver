@@ -252,7 +252,7 @@ void successfulRequestByChunks()
 	buffer.append("pe: text/plain\r\nConnection: close\r\n\r\n");
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_BODY);
+	ASSERT_EQ(status, ESTATE_COMPLETE);
 	ASSERT_EQ(request.getMethod(), std::string("GET"));
 	ASSERT_EQ(request.getRequest(),
 		std::string("/index.html?name=yuliano"));

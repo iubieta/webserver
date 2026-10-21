@@ -243,61 +243,61 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 	return (this->state_);
 }
 
-void print(const std::map<std::string, std::string> &Headers)
-{
-	std::map<std::string, std::string>::const_iterator it;
+// void print(const std::map<std::string, std::string> &Headers)
+// {
+// 	std::map<std::string, std::string>::const_iterator it;
 	
-	for(it = Headers.begin(); it != Headers.end(); ++it)
-	{
-		std::cout<< it ->first << ":" << it ->second << std::endl;
-	}
-}
+// 	for(it = Headers.begin(); it != Headers.end(); ++it)
+// 	{
+// 		std::cout<< it ->first << ":" << it ->second << std::endl;
+// 	}
+// }
 
-int main()
-{
-	Request		request;
-	HttpParser	parser;
-	Buffer		buffer;
+// int main()
+// {
+// 	Request		request;
+// 	HttpParser	parser;
+// 	Buffer		buffer;
 
-	buffer.append("GET /index HTTP/1.1\r\n");
-	parser.stateHandler(buffer, request);
+// 	buffer.append("GET /index HTTP/1.1\r\n");
+// 	parser.stateHandler(buffer, request);
 
-	//buffer.append("AAA?=id HTTP/1.1\r\n");
-	//parser.stateHandler(buffer, request);
+// 	//buffer.append("AAA?=id HTTP/1.1\r\n");
+// 	//parser.stateHandler(buffer, request);
 
-	buffer.append("content-t");
-	parser.stateHandler(buffer, request);
+// 	buffer.append("content-t");
+// 	parser.stateHandler(buffer, request);
 
-	buffer.append("ype:  text/plain\r\n");
-	parser.stateHandler(buffer, request);
+// 	buffer.append("ype:  text/plain\r\n");
+// 	parser.stateHandler(buffer, request);
 
-	buffer.append(
-		"host:localhost:8080\r\n"
-		"content-length:11\r\n"
-		"\r\n");
-	parser.stateHandler(buffer, request);
+// 	buffer.append(
+// 		"host:localhost:8080\r\n"
+// 		"content-length:11\r\n"
+// 		"\r\n");
+// 	parser.stateHandler(buffer, request);
 	
-	buffer.append("hello");
-	parser.stateHandler(buffer, request);
-	buffer.append(" world/GET");
-	parser.stateHandler(buffer, request);
-	print(request.getHeaders());
+// 	buffer.append("hello");
+// 	parser.stateHandler(buffer, request);
+// 	buffer.append(" world/GET");
+// 	parser.stateHandler(buffer, request);
+// 	print(request.getHeaders());
 
-	// std::cout << "Method: "
-	// 	<< request.getMethod() << std::endl;
-	// std::cout << "Target: "
-	// 	<< request.getRequest() << std::endl;
-	// std::cout << "Path: "
-	// 	<< request.getPath() << std::endl;
-	// std::cout << "Query: "
-	// 	<< request.getQuery() << std::endl;
-	// std::cout << "Version: "
-	// 	<< request.getVersion() << std::endl;
-	// std::cout << "Pending bytes: "
-	// 	<< buffer.size() << std::endl;
-	std::cout << "Parser state: "
-		<< parser.getState() << std::endl;
-	std::cout<< "body: "<<request.getBody() << std::endl;
+// 	// std::cout << "Method: "
+// 	// 	<< request.getMethod() << std::endl;
+// 	// std::cout << "Target: "
+// 	// 	<< request.getRequest() << std::endl;
+// 	// std::cout << "Path: "
+// 	// 	<< request.getPath() << std::endl;
+// 	// std::cout << "Query: "
+// 	// 	<< request.getQuery() << std::endl;
+// 	// std::cout << "Version: "
+// 	// 	<< request.getVersion() << std::endl;
+// 	// std::cout << "Pending bytes: "
+// 	// 	<< buffer.size() << std::endl;
+// 	std::cout << "Parser state: "
+// 		<< parser.getState() << std::endl;
+// 	std::cout<< "body: "<<request.getBody() << std::endl;
 
-	return (0);
-}
+// 	return (0);
+// }
