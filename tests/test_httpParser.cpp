@@ -230,38 +230,6 @@ void incompleteRequestLine()
 	ASSERT_EQ(request.getVersion(), std::string("HTTP/1.1"));
 }
 
-void successfulRequestByChunks()
-{
-	Request			request;
-	HttpParser		parser;
-	Buffer			buffer;
-	e_status_code	status;
-
-	buffer.append("GET /ind");
-	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_LINE);
-
-	buffer.append("ex.html?name=yuliano HTTP/1.1\r\nHo");
-	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_HEADERS);
-
-	buffer.append("st: localhost:8080\r\nContent-Ty");
-	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_HEADERS);
-
-	buffer.append("pe: text/plain\r\nConnection: close\r\n\r\n");
-	status = parser.stateHandler(buffer, request);
-
-	ASSERT_EQ(status, ESTATE_COMPLETE);
-	ASSERT_EQ(request.getMethod(), std::string("GET"));
-	ASSERT_EQ(request.getRequest(),
-		std::string("/index.html?name=yuliano"));
-	ASSERT_EQ(request.getPath(), std::string("/index.html"));
-	ASSERT_EQ(request.getQuery(), std::string("name=yuliano"));
-	ASSERT_EQ(request.getVersion(), std::string("HTTP/1.1"));
-
-	print(request.getHeaders());
-}
 
 void	test_httpParser()
 {
@@ -273,7 +241,5 @@ void	test_httpParser()
 	Tester::runTest("Total headers too large", totalHeadersTooLarge);
 	Tester::runTest("Too many headers", tooManyHeaders);
 	Tester::runTest("Incomplete request line", incompleteRequestLine);
-	Tester::runTest("Successful request by chunks",
-		successfulRequestByChunks);
 	Tester::report();
 }

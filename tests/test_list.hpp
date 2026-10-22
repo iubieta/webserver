@@ -9,5 +9,6 @@ void	config_tests();
 void	buffer_tests();
 void 	test_httpParser();
 void	test_httpParserBody();
+void	test_chunk();
 
 #endif // !TESTLIST_HPP
