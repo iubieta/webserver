@@ -26,14 +26,18 @@ class HttpParser
 		Request &request);
 	bool valueExist(const std::string &key);
 	bool isValidValue(const std::string &key);
+	bool isCorrectTransferEncoding();
 	e_status_code	bodyHandler(Buffer &buffer, Request &request);
-
+	e_status_code	bodyChunkHandler(Buffer &buffer, Request &request);
+	
 	public:
 
 	HttpParser();
 	~HttpParser();
 
 	void setState(e_status_code state);
+	static bool hexadecimalToDecimal(const std::string &value, size_t &decimal);
+
 
 	const std::string &getBuffer() const;
 	e_status_code getState() const;

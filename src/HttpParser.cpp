@@ -3,6 +3,11 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
+#include <cstdlib> 
+#include <limits> 
+#include <climits>
+#include <cerrno>
+
 
 
 HttpParser::HttpParser():
@@ -64,6 +69,57 @@ bool HttpParser::isValidValue(const std::string &key)
 	return (true);
 }
 
+bool HttpParser::isCorrectTransferEncoding()
+{
+	const std::string *value;
+	std::string temp;
+
+	value = headers_.getHeader("transfer-encoding");
+	if (value == NULL || value->empty())
+		return false;
+	temp = *value;
+	Headers::normalize(temp);
+	if (temp != "chunked")
+		return false;
+	return true;
+}
+
+bool HttpParser::hexadecimalToDecimal(const std::string &value, size_t &decimal)
+{
+	char *endptr;
+	unsigned long numb;
+	size_t i;
+
+	if (value.empty())
+		return (false);
+
+	i = 0;
+	while (i < value.size())
+	{
+		if (!((value[i] >= '0' && value[i] <= '9')
+			|| (value[i] >= 'a' && value[i] <= 'f')
+			|| (value[i] >= 'A' && value[i] <= 'F')))
+			return (false);
+		++i;
+	}
+
+	errno = 0; 
+    numb = std::strtoul(value.c_str(), &endptr, 16);
+    
+    if (endptr == value.c_str() || *endptr != '\0')
+        return false;
+        
+    if (errno == ERANGE)
+        return false;
+        
+    if (numb > std::numeric_limits<size_t>::max())
+        return false;
+        
+    decimal = static_cast<size_t>(numb);
+    return true;
+}
+
+
 e_status_code HttpParser::reportStatusCode(e_status_code code, 
 	const std::string &log, Request &request)
 {
@@ -123,6 +179,69 @@ e_status_code HttpParser::bodyHandler(Buffer &buffer, Request &request)
 		return this->state_;
 	}
 	return (this->state_);
+}
+
+e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
+{
+	size_t pos;
+	std::string value;
+
+
+	while(this->state_ == ESTATE_BODY || this->state_ == CHUNK_DATA 
+		|| this->state_ == CHUNK_END)
+	{
+		if (this->state_ == ESTATE_BODY)
+		{
+			pos = buffer.find("\r\n");
+			if (pos == std::string::npos)
+				return this->state_;
+			else
+			{
+				value = buffer.substr(0, pos);
+				buffer.consume(pos + 2);
+				if (!hexadecimalToDecimal(value, remaining_body_bytes_))
+					return reportStatusCode(BAD_REQUEST, "Invalid chunk size",
+						request);
+	
+			}
+			if (remaining_body_bytes_ > 0)
+				this->state_ = CHUNK_DATA;
+			else if (remaining_body_bytes_ == 0)
+				this->state_ = CHUNK_END;
+		}
+		if (this->state_ == CHUNK_DATA)
+		{
+			if (buffer.size() < remaining_body_bytes_)
+				return (this->state_);
+
+			if (buffer.size() - remaining_body_bytes_ < 2)
+				return (this->state_);
+
+			if (buffer.substr(remaining_body_bytes_, 2) != "\r\n")
+				return (reportStatusCode(BAD_REQUEST,
+					"Invalid chunk terminator", request));
+
+			body_ += buffer.substr(0, remaining_body_bytes_);
+			buffer.consume(remaining_body_bytes_ + 2);
+			this->state_ = ESTATE_BODY;
+		}
+		if (this->state_ == CHUNK_END)
+		{
+			if (buffer.size() < 2)
+				return this->state_;
+			if (buffer.substr(0, 2) != "\r\n")
+				return (reportStatusCode(BAD_REQUEST,
+					"Invalid chunk terminator", request));
+
+			buffer.consume(2);
+			request.setBody(body_);
+			this->state_ = ESTATE_COMPLETE;
+		}
+	}
+
+	
+	return this->state_;
+	
 }
 
 e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
@@ -219,10 +338,17 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 				if(valueExist("content-length") && valueExist("transfer-encoding"))
 					return reportStatusCode(BAD_REQUEST, 
 						"Conflict between Content-Length and Transfer-Encoding", request);		
-				if(valueExist("content-length")) 
-						this->state_ = ESTATE_BODY;
+				if(valueExist("transfer-encoding"))
+				{
+					if (!isCorrectTransferEncoding())
+						return reportStatusCode(NOT_IMPLEMENTED,
+							"encoding type not implemented", request);
+					this->state_ = ESTATE_BODY;
+				}
+				else if(valueExist("content-length"))
+					this->state_ = ESTATE_BODY;
 				else
-						this->state_ = ESTATE_COMPLETE;
+					this->state_ = ESTATE_COMPLETE;
 
 				request.setHeaders(headers_.getHeaders());
 				break;
@@ -237,8 +363,13 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 
 		}
 	}
-	if (this->state_ == ESTATE_BODY)
+	if (this->state_ == ESTATE_BODY && valueExist("content-length"))
 		this->state_= bodyHandler(buffer, request);
+	else if(valueExist("transfer-encoding") && (this->state_ == ESTATE_BODY
+		|| this->state_ == CHUNK_DATA || this->state_ == CHUNK_END))
+	{
+		this->state_ = bodyChunkHandler(buffer, request);
+	}
 
 	return (this->state_);
 }
@@ -259,29 +390,29 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 // 	HttpParser	parser;
 // 	Buffer		buffer;
 
-// 	buffer.append("GET /index HTTP/1.1\r\n");
+// 	buffer.append("POST /index HTTP/1.1\r\n");
 // 	parser.stateHandler(buffer, request);
 
 // 	//buffer.append("AAA?=id HTTP/1.1\r\n");
 // 	//parser.stateHandler(buffer, request);
 
-// 	buffer.append("content-t");
-// 	parser.stateHandler(buffer, request);
+// 	// buffer.append("content-t");
+// 	// parser.stateHandler(buffer, request);
 
-// 	buffer.append("ype:  text/plain\r\n");
-// 	parser.stateHandler(buffer, request);
+// 	// buffer.append("ype:  text/plain\r\n");
+// 	// parser.stateHandler(buffer, request);
 
 // 	buffer.append(
 // 		"host:localhost:8080\r\n"
-// 		"content-length:11\r\n"
+// 		"transfer-encoding: chunked\r\n"
 // 		"\r\n");
 // 	parser.stateHandler(buffer, request);
 	
-// 	buffer.append("hello");
+// 	buffer.append("5\r\nhe\nlo\r\n0\r\n\r\n");
 // 	parser.stateHandler(buffer, request);
-// 	buffer.append(" world/GET");
-// 	parser.stateHandler(buffer, request);
-// 	print(request.getHeaders());
+// 	// buffer.append(" world/GET");
+// 	// parser.stateHandler(buffer, request);
+// 	// print(request.getHeaders());
 
 // 	// std::cout << "Method: "
 // 	// 	<< request.getMethod() << std::endl;

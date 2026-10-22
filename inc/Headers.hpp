@@ -23,8 +23,8 @@ class Headers
 	static bool isInvalidValueCharacter(char c);
 	static bool isInvalidKey(const std::string &key);
 	static bool isInvalidValue(const std::string &value);
-	void normalize(std::string &key);
 	
+
 	public : 
 
 	Headers();
@@ -32,6 +32,7 @@ class Headers
 
 	int tokenHeader(const std::string &line);
 	int addHeader(const std::string &key, const std::string &value);
+	static void normalize(std::string &str);
 	//void setHeader(const std::string &key);
 
 	const std::string *getHeader(const std::string &key) const;

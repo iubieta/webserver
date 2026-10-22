@@ -12,6 +12,8 @@ enum e_status_code {
 	ESTATE_HEADERS,
 	ESTATE_BODY,
 	ESTATE_COMPLETE,
+	CHUNK_DATA,
+	CHUNK_END,
 
 	// Info
 	CONTINUE		= 100,
