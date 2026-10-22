@@ -347,6 +347,9 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 				}
 				else if(valueExist("content-length"))
 					this->state_ = ESTATE_BODY;
+				else if(request.getMethod() == "POST")
+					return (reportStatusCode(LENGTH_REQUIRED,
+						"Length required", request));
 				else
 					this->state_ = ESTATE_COMPLETE;
 
