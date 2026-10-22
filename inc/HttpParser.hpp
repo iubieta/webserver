@@ -18,6 +18,8 @@ class HttpParser
 	std::string body_;
 	size_t remaining_body_bytes_;
 	bool body_initialized_;
+	size_t max_body_size_;
+	size_t chunk_size_;
 
 
 	HttpParser(const HttpParser &other);
@@ -44,6 +46,8 @@ class HttpParser
 	e_status_code	stateHandler(Buffer &buffer, Request &request);
 	
 	const std::string &getBody() const;
+	size_t	getMaxbodySize() const;
+	void	setMaxbodySize(size_t max_body);
 
 };
 #endif

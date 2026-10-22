@@ -16,7 +16,9 @@ HttpParser::HttpParser():
 	headers_(),
 	body_(""),
 	remaining_body_bytes_(0),
-	body_initialized_(false)
+	body_initialized_(false),
+	max_body_size_(1048576),
+	chunk_size_(0)
 	{}
 
 HttpParser::~HttpParser()
@@ -41,6 +43,16 @@ e_status_code HttpParser::getState() const
 const std::string &HttpParser::getBody() const
 {
 	return body_;
+}
+
+size_t HttpParser::getMaxbodySize() const
+{
+	return max_body_size_;
+}
+
+void HttpParser::setMaxbodySize(size_t max_body)
+{
+	this->max_body_size_ = max_body;
 }
 
 bool HttpParser::valueExist(const std::string &key)
@@ -150,6 +162,9 @@ e_status_code HttpParser::bodyHandler(Buffer &buffer, Request &request)
 			return reportStatusCode(BAD_REQUEST, "number too large",
 				request);
 		remaining_body_bytes_ = value;
+		if (remaining_body_bytes_ > max_body_size_)
+				return reportStatusCode(PAYLOAD_TOO_LARGE, "Payload too large",
+				request);
 		body_initialized_ = true;
 		if (remaining_body_bytes_ == 0)
 		{
@@ -185,8 +200,7 @@ e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 {
 	size_t pos;
 	std::string value;
-
-
+	
 	while(this->state_ == ESTATE_BODY || this->state_ == CHUNK_DATA 
 		|| this->state_ == CHUNK_END)
 	{
@@ -199,30 +213,39 @@ e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 			{
 				value = buffer.substr(0, pos);
 				buffer.consume(pos + 2);
-				if (!hexadecimalToDecimal(value, remaining_body_bytes_))
+				if (!hexadecimalToDecimal(value, chunk_size_))
 					return reportStatusCode(BAD_REQUEST, "Invalid chunk size",
 						request);
 	
 			}
-			if (remaining_body_bytes_ > 0)
-				this->state_ = CHUNK_DATA;
-			else if (remaining_body_bytes_ == 0)
+			if (chunk_size_ == 0)
 				this->state_ = CHUNK_END;
+			else if (chunk_size_ > 0)
+			{
+				if (remaining_body_bytes_ > max_body_size_
+					|| chunk_size_ > max_body_size_ - remaining_body_bytes_)
+					return (reportStatusCode(PAYLOAD_TOO_LARGE,
+						"Payload too large", request));
+
+				remaining_body_bytes_ += chunk_size_;
+				this->state_ = CHUNK_DATA;
+
+			}
 		}
 		if (this->state_ == CHUNK_DATA)
 		{
-			if (buffer.size() < remaining_body_bytes_)
+			if (buffer.size() < chunk_size_)
 				return (this->state_);
 
-			if (buffer.size() - remaining_body_bytes_ < 2)
+			if (buffer.size() - chunk_size_ < 2)
 				return (this->state_);
 
-			if (buffer.substr(remaining_body_bytes_, 2) != "\r\n")
+			if (buffer.substr(chunk_size_, 2) != "\r\n")
 				return (reportStatusCode(BAD_REQUEST,
 					"Invalid chunk terminator", request));
 
-			body_ += buffer.substr(0, remaining_body_bytes_);
-			buffer.consume(remaining_body_bytes_ + 2);
+			body_ += buffer.substr(0, chunk_size_);
+			buffer.consume(chunk_size_+ 2);
 			this->state_ = ESTATE_BODY;
 		}
 		if (this->state_ == CHUNK_END)
