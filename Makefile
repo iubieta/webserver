@@ -14,7 +14,7 @@ SRCS	:= 	main.cpp \
 			Logger.cpp log_global.cpp \
 			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp \
 			ListeningSocket.cpp Buffer.cpp Connection.cpp HttpParser.cpp \
-			Request.cpp RequestLine.cpp OriginForm.cpp Headers.cpp
+			Request.cpp RequestLine.cpp OriginForm.cpp Headers.cpp AbsoluteForm.cpp
 OBJS	:= $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS	:= $(OBJS:.o=.d)
 
@@ -27,7 +27,8 @@ TEST_SRCS	:= Tester.cpp test_main.cpp \
 			   logger_test.cpp  \
 			   config_parser_test.cpp \
 			   buffer_test.cpp test_httpParser.cpp \
-			   test_bodyParser.cpp test_chunkParser.cpp
+			   test_bodyParser.cpp test_chunkParser.cpp \
+			   test_requestParser.cpp
 TEST_OBJS	:= $(TEST_SRCS:%.cpp=$(OBJ_DIR)/tests/%.o)
 DEPS		+= $(TEST_OBJS:.o=.d)
 

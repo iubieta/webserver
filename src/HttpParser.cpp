@@ -137,7 +137,7 @@ e_status_code HttpParser::reportStatusCode(e_status_code code,
 {
 	this->state_ = code;
 	request.setStatus(code);
-	ft_log::global().debug(log);
+	ft_log::global().info(log);
 	return (code);
 }
 
