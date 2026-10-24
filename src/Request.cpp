@@ -10,7 +10,9 @@ Request::Request() :
 	request_(), status_(ESTATE_LINE), 
 	method_(), path_(), query_(), version_(),
 	headers_(),
-	body_()
+	body_(),
+	schema_(""),
+	authority_("")
 {}
 
 Request::Request(const Request &other) {
@@ -29,6 +31,8 @@ Request& Request::operator=(const Request &other) {
 
 		headers_	= other.headers_;
 		body_		= other.body_;
+		schema_     = other.schema_;
+		authority_	= other.authority_;
 	}
 	return *this;
 }
@@ -89,6 +93,16 @@ void Request::setBody(const std::string &body) {
 	body_ = body;
 }
 
+void Request::setSchema(const std::string &schema)
+{
+	schema_ = schema;
+}
+
+void Request::setAuthority(const std::string &authority)
+{
+	authority_ = authority;
+}
+
 // Getters ---------------------------------------------------------------------
 const std::string &Request::getRequest() const {
 	return request_;
@@ -112,6 +126,16 @@ const std::string &Request::getQuery() const {
 
 const std::string &Request::getVersion() const {
 	return version_;
+}
+
+const std::string &Request::getSchema() const
+{
+	return schema_;
+}
+
+const std::string &Request::getAuthority() const
+{
+	return authority_;
 }
 
 const std::string *Request::getHeader(const std::string &key) const 

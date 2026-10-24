@@ -4,6 +4,7 @@
 #include "http_status_codes.hpp"
 #include "Buffer.hpp"
 #include "OriginForm.hpp"
+#include "AbsoluteForm.hpp"
 #include "Request.hpp"
 #include "Headers.hpp"
 #include <string>
@@ -13,7 +14,7 @@ class HttpParser
 	private:
 
 	e_status_code state_;
-	RequestLine *request_line_; //abstract class
+	RequestLine *request_line_;
 	Headers headers_;
 	std::string body_;
 	size_t remaining_body_bytes_;

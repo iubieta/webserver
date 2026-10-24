@@ -316,16 +316,19 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 			if (tokens[1].empty())
 				return reportStatusCode(BAD_REQUEST, "Bad request", request);
 
-			if (tokens[1][0] != '/')
-				return reportStatusCode(BAD_REQUEST, "Bad request", request);
-
+			if (tokens[1].find('#') != std::string::npos)
+				return (reportStatusCode(BAD_REQUEST,
+					"Fragment is not allowed in request-target", request));
 			if (request_line_ != NULL)
 			{
 				delete request_line_;
 				request_line_ = NULL;
 			}
 			
-			request_line_ = new OriginForm();
+			if (tokens[1][0] == '/')
+				request_line_ = new OriginForm();
+			else
+				request_line_ = new AbsoluteForm();
 
 			if (request_line_->requestLine(tokens) == -1)
 				return reportStatusCode(BAD_REQUEST, "Bad request", request);
@@ -343,6 +346,9 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 			request.setPath(request_line_->getPath());
 			request.setQuery(request_line_->getQuery());
 			request.setVersion(request_line_->getVersion());
+			request.setSchema(request_line_->getSchema());
+			request.setAuthority(request_line_->getAuthority());
+
 
 			this->state_ = ESTATE_HEADERS;
 		}
@@ -412,49 +418,89 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 
 // int main()
 // {
-// 	Request		request;
-// 	HttpParser	parser;
-// 	Buffer		buffer;
+// 	// {
+// 	// 	HttpParser	parser;
+// 	// 	Request		request;
+// 	// 	Buffer		buffer;
 
-// 	buffer.append("POST /index HTTP/1.1\r\n");
-// 	parser.stateHandler(buffer, request);
+// 	// 	buffer.append("GET / HTTP/1.1\r\n");
+// 	// 	parser.stateHandler(buffer, request);
+// 	// 	std::cout << "raw_target: " << request.getRequest() << std::endl;
+// 	// 	std::cout << "Method: " << request.getMethod() << std::endl;
+// 	// 	std::cout << "schema: " << request.getSchema() << std::endl;
+// 	// 	std::cout << "authority: "<< request.getAuthority() << std::endl;
+// 	// 	std::cout << "Path: " << request.getPath() << std::endl;
+// 	// 	std::cout << "query: " << request.getQuery() << std::endl;
+// 	// 	std::cout << "state: " << parser.getState() << std::endl;
 
-// 	//buffer.append("AAA?=id HTTP/1.1\r\n");
-// 	//parser.stateHandler(buffer, request);
+// 	// }
 
-// 	// buffer.append("content-t");
-// 	// parser.stateHandler(buffer, request);
+// 	{
+// 		HttpParser	parser;
+// 		Request		request;
+// 		Buffer		buffer;
 
-// 	// buffer.append("ype:  text/plain\r\n");
-// 	// parser.stateHandler(buffer, request);
+// 		buffer.append("GET http://localhost:8080/index HTTP/1.1\r\n");
+// 		parser.stateHandler(buffer, request);
+// 		std::cout << "raw_target: " << request.getRequest() << std::endl;
+// 		std::cout << "Method: " << request.getMethod() << std::endl;
+// 		std::cout << "schema: " << request.getSchema() << std::endl;
+// 		std::cout << "authority: "<< request.getAuthority() << std::endl;
+// 		std::cout << "Path: " << request.getPath() << std::endl;
+// 		std::cout << "query: " << request.getQuery() << std::endl;
+// 		std::cout << "state: " << parser.getState() << std::endl;
 
-// 	buffer.append(
-// 		"host:localhost:8080\r\n"
-// 		"transfer-encoding: chunked\r\n"
-// 		"\r\n");
-// 	parser.stateHandler(buffer, request);
-	
-// 	buffer.append("5\r\nhe\nlo\r\n0\r\n\r\n");
-// 	parser.stateHandler(buffer, request);
-// 	// buffer.append(" world/GET");
-// 	// parser.stateHandler(buffer, request);
-// 	// print(request.getHeaders());
+// 	}
 
-// 	// std::cout << "Method: "
-// 	// 	<< request.getMethod() << std::endl;
-// 	// std::cout << "Target: "
-// 	// 	<< request.getRequest() << std::endl;
-// 	// std::cout << "Path: "
-// 	// 	<< request.getPath() << std::endl;
-// 	// std::cout << "Query: "
-// 	// 	<< request.getQuery() << std::endl;
-// 	// std::cout << "Version: "
-// 	// 	<< request.getVersion() << std::endl;
-// 	// std::cout << "Pending bytes: "
-// 	// 	<< buffer.size() << std::endl;
-// 	std::cout << "Parser state: "
-// 		<< parser.getState() << std::endl;
-// 	std::cout<< "body: "<<request.getBody() << std::endl;
+// 	{
+// 		HttpParser	parser;
+// 		Request		request;
+// 		Buffer		buffer;
+
+// 		buffer.append("GET http://localhost:8080/index?=id HTTP/1.1\r\n");
+// 		parser.stateHandler(buffer, request);
+// 		std::cout << "raw_target: " << request.getRequest() << std::endl;
+// 		std::cout << "Method: " << request.getMethod() << std::endl;
+// 		std::cout << "schema: " << request.getSchema() << std::endl;
+// 		std::cout << "authority: "<< request.getAuthority() << std::endl;
+// 		std::cout << "Path: " << request.getPath() << std::endl;
+// 		std::cout << "query: " << request.getQuery() << std::endl;
+// 		std::cout << "state: " << parser.getState() << std::endl;
+
+// 	}
+// 	{
+// 		HttpParser	parser;
+// 		Request		request;
+// 		Buffer		buffer;
+
+// 		buffer.append("GET http://localhost:8080?=id HTTP/1.1\r\n");
+// 		parser.stateHandler(buffer, request);
+// 		std::cout << "raw_target: " << request.getRequest() << std::endl;
+// 		std::cout << "Method: " << request.getMethod() << std::endl;
+// 		std::cout << "schema: " << request.getSchema() << std::endl;
+// 		std::cout << "authority: "<< request.getAuthority() << std::endl;
+// 		std::cout << "Path: " << request.getPath() << std::endl;
+// 		std::cout << "query: " << request.getQuery() << std::endl;
+// 		std::cout << "state: " << parser.getState() << std::endl;
+
+// 	}
+
+// 	{
+// 		HttpParser	parser;
+// 		Request		request;
+// 		Buffer		buffer;
+
+// 		buffer.append("GET http://localhost:8080 HTTP/1.1\r\n");
+// 		parser.stateHandler(buffer, request);
+// 		std::cout << "raw_target: " << request.getRequest() << std::endl;
+// 		std::cout << "Method: " << request.getMethod() << std::endl;
+// 		std::cout << "schema: " << request.getSchema() << std::endl;
+// 		std::cout << "authority: "<< request.getAuthority() << std::endl;
+// 		std::cout << "Path: " << request.getPath() << std::endl;
+// 		std::cout << "query: " << request.getQuery() << std::endl;
+// 		std::cout << "state: " << parser.getState() << std::endl;
+
+// 	}
 
 // 	return (0);
 // }

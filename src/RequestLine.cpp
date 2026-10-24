@@ -9,14 +9,19 @@ RequestLine::RequestLine():
 	path_(""),
 	query_(""),
 	version_(""),
-	request_(""){}
+	request_(""),
+	schema_(""),
+	authority_(""){}
 
 RequestLine::RequestLine(const RequestLine &other):
 	method_(other.method_),
 	path_(other.path_),
 	query_(other.query_),
 	version_(other.version_),
-	request_(other.request_){}
+	request_(other.request_),
+	schema_(other.schema_),
+	authority_(other.authority_)
+	{}
 
 RequestLine &RequestLine::operator=(const RequestLine &other)
 {
@@ -28,6 +33,8 @@ RequestLine &RequestLine::operator=(const RequestLine &other)
 		query_ = other.query_;
 		version_ = other.version_;
 		request_ = other.request_;
+		schema_ = other.schema_;
+		authority_ = other.authority_;
 	}
 
 	return *this;
@@ -176,6 +183,16 @@ void RequestLine::setVersion(const std::string &version)
 	this->version_ = version;
 }
 
+void RequestLine::setSchema(const std::string &schema)
+{
+	this->schema_ = schema;	
+}
+
+void RequestLine::setAuthority(const std::string &authority)
+{
+	this->authority_ = authority;
+}
+
 const std::string &RequestLine::getRequest() const
 {
 	return this->request_;
@@ -199,4 +216,14 @@ const std::string &RequestLine::getVersion() const
 const std::string &RequestLine::getQuery() const
 {
 	return this -> query_;
+}
+
+const std::string &RequestLine::getAuthority() const
+{
+	return this->authority_;
+}
+
+const std::string &RequestLine::getSchema() const
+{
+	return this->schema_;
 }

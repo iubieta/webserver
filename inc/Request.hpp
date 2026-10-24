@@ -21,6 +21,8 @@ class Request
 		std::map<std::string, std::string>	headers_;
 	
 		std::string		body_;
+		std::string		schema_;
+		std::string		authority_;
 	
 	public:
 		// Builders
@@ -37,6 +39,8 @@ class Request
 		void setPath(const std::string &path);
 		void setQuery(const std::string &query);
 		void setVersion(const std::string &version);
+		void setSchema(const std::string &schema);
+		void setAuthority(const std::string &authority);
 	
 		int addHeader(const std::string &key, const std::string &value);
 		void setHeaders(const std::map<std::string, std::string> &headers);
@@ -53,6 +57,8 @@ class Request
 		const std::string &getPath() const;
 		const std::string &getQuery() const;
 		const std::string &getVersion() const;
+		const std::string &getSchema() const;
+		const std::string &getAuthority() const;
 	
 		const std::string *getHeader(const std::string &key) const; //return NULL if key is not found
 		const std::map<std::string, std::string> &getHeaders() const;
