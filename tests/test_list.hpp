@@ -7,5 +7,6 @@
 void	logger_tests();
 void	config_tests();
 void	buffer_tests();
+void	processor_tests();
 
 #endif // !TESTLIST_HPP

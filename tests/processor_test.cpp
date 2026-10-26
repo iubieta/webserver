@@ -1,11 +1,14 @@
 // processor_test.cpp
 // -----------------------------------------------------------------------------
 
-#include "Tester.hpp"
-
-#include "../inc/Processor.hpp"
+#include <string>
 #include <vector>
 
+#include "Tester.hpp"
+#include "../inc/Processor.hpp"
+#include "../inc/path_utils.hpp"
+
+// Helpers ---------------------------------------------------------------------
 static void setBasicConfig(ServerConfig& cfg) {
 	cfg.setListen("80");
 	cfg.setHost("localhost");
@@ -15,421 +18,296 @@ static void setBasicConfig(ServerConfig& cfg) {
 	cfg.setAutoindex("off");
 }
 
-const Processor *initBasicProcessor() {
-	const std::vector<ServerConfig> *cfgs = new const std::vector<ServerConfig>;
-	const Processor* p = new Processor(*cfgs);
-	
-	return p;
-}
-// void testDecodePath() {
-// 	const Processor* p = initBasicProcessor();
-// 
-// 	ASSERT_EQ(p->decodePath("/hola%20mundo"), "/hola mundo");
-// 	ASSERT_EQ(p->decodePath("/espa%C3%B1a"), "/espa\xC3\xB1" "a");
-// 	ASSERT_EQ(p->decodePath("/sin/codificar"), "/sin/codificar");
-// 	ASSERT_EQ(p->decodePath("/%41%42%43"), "/ABC");
-// 	ASSERT_EQ(p->decodePath("/%4a%4A"), "/JJ");                      // minúsculas y mayúsculas
-// 	ASSERT_EQ(p->decodePath("/%zz"),"/%zz");                        // hex inválido
-// 	ASSERT_EQ(p->decodePath("/fin%"),"/fin%");                      // % al final
-// 	ASSERT_EQ(p->decodePath("/fin%4"), "/fin%4");                    // incompleto
-// 	ASSERT_EQ(p->decodePath("%2E%2E/x"), "../x");                    // genera .. (se trata luego)
-// }
-// 
-// void testNormalizePath() {
-// 	const Processor* p = initBasicProcessor();
-// 	ASSERT_EQ(p->normalizePath("/a/b/c"), "/a/b/c");
-// 	ASSERT_EQ(p->normalizePath("/a/./b//c"), "/a/b/c");       // . y barras dobles
-// 	ASSERT_EQ(p->normalizePath("/a/b/../c"), "/a/c");          // retroceso
-// 	ASSERT_EQ(p->normalizePath("/a/b/../../c"), "/c");         // varios retrocesos
-// 	ASSERT_EQ(p->normalizePath("/a/b/../.."), "/");            // vuelve a la raíz
-// 	ASSERT_EQ(p->normalizePath("/"), "/");
-// 	ASSERT_EQ(p->normalizePath(""), "/");
-// 	ASSERT_EQ(p->normalizePath("/.."), "");                              // sale de la raíz
-// 	ASSERT_EQ(p->normalizePath("/a/../../etc/passwd"), "");              // sale de la raíz
-// 	ASSERT_EQ(p->normalizePath("/a/..b/c"), "/a/..b/c");       // "..b" es un nom
-// }
-
-// void testDifferentLocations()
-// {
-// 	LocationConfig loc_1;
-// 	loc_1.setTarget("/one");
-// 	LocationConfig loc_2;
-// 	loc_2.setTarget("/two");
-// 	LocationConfig loc_3;
-// 	loc_3.setTarget("/three");
-// 	LocationConfig loc_4;
-// 	loc_4.setTarget("/four");
-// 	LocationConfig loc_5;
-// 	loc_5.setTarget("/five");
-// 
-// 	ServerConfig cfg;
-// 	setBasicConfig(cfg);
-// 	cfg.addLocation(loc_1);
-// 	cfg.addLocation(loc_2);
-// 	cfg.addLocation(loc_3);
-// 	cfg.addLocation(loc_4);
-// 	cfg.addLocation(loc_5);
-// 
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
-// 
-// 	Processor	proc(cfgs);
-// 	Request		req;
-// 	const LocationConfig	*found_location;
-// 
-// 	req.setPath("/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_1), true);
-// 
-// 	req.setPath("/two");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_2), true);
-// 
-// 	req.setPath("/three");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_3), true);
-// 
-// 	req.setPath("/four");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_4), true);
-// 
-// 	req.setPath("/five");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_5), true);
-// }
-// 
-// void testLocationLongestMatch_1()
-// {
-// 	LocationConfig loc_1;
-// 	loc_1.setTarget("/one");
-// 	LocationConfig loc_2;
-// 	loc_2.setTarget("/one/two");
-// 	LocationConfig loc_3;
-// 	loc_3.setTarget("/one/two/three");
-// 	LocationConfig loc_4;
-// 	loc_4.setTarget("/one/two/three/four");
-// 	LocationConfig loc_5;
-// 	loc_5.setTarget("/one/two/three/four/five");
-// 	
-// 	ServerConfig cfg;
-// 	setBasicConfig(cfg);
-// 	cfg.addLocation(loc_1);
-// 	cfg.addLocation(loc_2);
-// 	cfg.addLocation(loc_3);
-// 	cfg.addLocation(loc_4);
-// 	cfg.addLocation(loc_5);
-// 
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
-// 
-// 	Processor	proc(cfgs);
-// 	Request		req;
-// 	const LocationConfig	*found_location;
-// 
-// 	req.setPath("/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_1), true);
-// 	
-// 	req.setPath("/one/two");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_2), true);
-// 	
-// 	req.setPath("/one/two/three");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_3), true);
-// 	
-// 	req.setPath("/one/two/three/four");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_4), true);
-// 	
-// 	req.setPath("/one/two/three/four/five");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_5), true);
-// }
-// 
-// void testLocationLongestMatch_2()
-// {
-// 	LocationConfig loc_1;
-// 	loc_1.setTarget("/one");
-// 	LocationConfig loc_2;
-// 	loc_2.setTarget("/one/one");
-// 	LocationConfig loc_3;
-// 	loc_3.setTarget("/one/one/one");
-// 	LocationConfig loc_4;
-// 	loc_4.setTarget("/one/one/one/one");
-// 	LocationConfig loc_5;
-// 	loc_5.setTarget("/one/one/one/one/one");
-// 	
-// 	ServerConfig cfg;
-// 	setBasicConfig(cfg);
-// 	cfg.addLocation(loc_1);
-// 	cfg.addLocation(loc_2);
-// 	cfg.addLocation(loc_3);
-// 	cfg.addLocation(loc_4);
-// 	cfg.addLocation(loc_5);
-// 
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
-// 
-// 	Processor	proc(cfgs);
-// 	Request		req;
-// 	const LocationConfig	*found_location;
-// 
-// 	req.setPath("/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_1), true);
-// 	
-// 	req.setPath("/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_2), true);
-// 	
-// 	req.setPath("/one/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_3), true);
-// 	
-// 	req.setPath("/one/one/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_4), true);
-// 	
-// 	req.setPath("/one/one/one/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_5), true);
-// }
-// 
-// void testLocationLongestMatch_3()
-// {
-// 	LocationConfig loc_1;
-// 	loc_1.setTarget("/one/one/one/one/one");
-// 	LocationConfig loc_2;
-// 	loc_2.setTarget("/one/one/two/one/one");
-// 	LocationConfig loc_3;
-// 	loc_3.setTarget("/one/one/three/one/one");
-// 	LocationConfig loc_4;
-// 	loc_4.setTarget("/one/one/four/one/one");
-// 	LocationConfig loc_5;
-// 	loc_5.setTarget("/one/one/five/one/one");
-// 	
-// 	ServerConfig cfg;
-// 	setBasicConfig(cfg);
-// 	cfg.addLocation(loc_1);
-// 	cfg.addLocation(loc_2);
-// 	cfg.addLocation(loc_3);
-// 	cfg.addLocation(loc_4);
-// 	cfg.addLocation(loc_5);
-// 
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
-// 
-// 	Processor	proc(cfgs);
-// 	Request		req;
-// 	const LocationConfig	*found_location;
-// 
-// 	req.setPath("/one/one/one/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_1), true);
-// 	
-// 	req.setPath("/one/one/two/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_2), true);
-// 	
-// 	req.setPath("/one/one/three/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_3), true);
-// 	
-// 	req.setPath("/one/one/four/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_4), true);
-// 	
-// 	req.setPath("/one/one/five/one/one");
-// 	found_location = proc.findLocation(req, cfg);
-// 	ASSERT_EQ((found_location != NULL), true);
-// 	ASSERT_EQ((*found_location == loc_5), true);
-// }
-
-
-void testGetRootWhithoutLocations()
-{
-	// TODO: should every cfg has at least one location?
-	std::vector<ServerConfig> cfgs;
-	ServerConfig cfg;
-	
-	setBasicConfig(cfg);
-	cfgs.push_back(cfg);
-
-	Request		req;
-
-	req.setRequest("GET /");
-	req.setStatus(ESTATE_COMPLETE);
-	req.setMethod("GET");
-	req.setPath("/");
-	req.setPath("");
-	req.setQuery("");
-	req.setVersion(HTTP_V1_1);
-
-	Processor	proc(cfgs);
-	Decision	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
-}
-
-void testGetRootWhithLocations()
-{
-	LocationConfig loc_1;
-	loc_1.setTarget("/one");
-	LocationConfig loc_2;
-	loc_2.setTarget("/one/two");
-	LocationConfig loc_3;
-	loc_3.setTarget("/one/two/three");
-	
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc_1);
-	cfg.addLocation(loc_2);
-	cfg.addLocation(loc_3);
-	
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Request		req;
-
-	req.setRequest("GET /");
-	req.setStatus(ESTATE_COMPLETE);
-	req.setMethod("GET");
-	req.setPath("/");
-	req.setPath("");
-	req.setQuery("");
-	req.setVersion(HTTP_V1_1);
-
-	Processor	proc(cfgs);
-	Decision	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
-}
-
-void testAllowedMethods() {
+static LocationConfig makeLocation(const std::string& target) {
 	LocationConfig loc;
-	loc.setTarget("/");
-	
+	loc.setTarget(target);
+	return loc;
+}
+
+static Request makeRequest(const std::string& method, const std::string& path) {
+	Request req;
+	req.setRequest(method + " " + path);
+	req.setStatus(ESTATE_COMPLETE);
+	req.setMethod(method);
+	req.setPath(path);
+	req.setQuery("");
+	req.setVersion(HTTP_V1_1);
+	return req;
+}
+
+// Path utils ------------------------------------------------------------------
+static void testDecodePath() {
+	using PathUtils::decodePath;
+	ASSERT_EQ(decodePath("/hola%20mundo"), "/hola mundo");
+	ASSERT_EQ(decodePath("/espa%C3%B1a"), "/espa\xC3\xB1" "a");
+	ASSERT_EQ(decodePath("/sin/codificar"), "/sin/codificar");
+	ASSERT_EQ(decodePath("/%41%42%43"), "/ABC");
+	ASSERT_EQ(decodePath("/%4a%4A"), "/JJ");		// minúsculas y mayúsculas
+	ASSERT_EQ(decodePath("/%zz"), "/%zz");			// hex inválido
+	ASSERT_EQ(decodePath("/fin%"), "/fin%");		// % al final
+	ASSERT_EQ(decodePath("/fin%4"), "/fin%4");		// incompleto
+	ASSERT_EQ(decodePath("%2E%2E/x"), "../x");		// .. se trata luego
+}
+
+static void testNormalizePath() {
+	using PathUtils::normalizePath;
+	ASSERT_EQ(normalizePath("/a/b/c"), "/a/b/c");
+	ASSERT_EQ(normalizePath("/a/./b//c"), "/a/b/c");		// . y barras dobles
+	ASSERT_EQ(normalizePath("/a/b/../c"), "/a/c");			// retroceso
+	ASSERT_EQ(normalizePath("/a/b/../../c"), "/c");			// varios retrocesos
+	ASSERT_EQ(normalizePath("/a/b/../.."), "/");			// vuelve a la raíz
+	ASSERT_EQ(normalizePath("/"), "/");
+	ASSERT_EQ(normalizePath(""), "/");
+	ASSERT_EQ(normalizePath("/.."), "");					// sale de la raíz
+	ASSERT_EQ(normalizePath("/a/../../etc/passwd"), "");	// sale de la raíz
+	ASSERT_EQ(normalizePath("/a/..b/c"), "/a/..b/c");	// "..b" es nombre
+}
+
+// normalizePath keeps the trailing "/" (RFC 3986 5.2.4)
+static void testNormalizeTrailingSlash() {
+	using PathUtils::normalizePath;
+	ASSERT_EQ(normalizePath("/images/"), "/images/");
+	ASSERT_EQ(normalizePath("/a/b/../"), "/a/");
+	ASSERT_EQ(normalizePath("/a/b/.."), "/a/");		// RFC 3986 5.2.4
+	ASSERT_EQ(normalizePath("/a/."), "/a/");
+	ASSERT_EQ(normalizePath("/a/b"), "/a/b");			// sin barra, sigue sin
+	ASSERT_EQ(normalizePath("//"), "/");
+}
+
+// Locations -------------------------------------------------------------------
+static void testDifferentLocations() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/one"));
+	cfg.addLocation(makeLocation("/two"));
+	cfg.addLocation(makeLocation("/three"));
+
+	const LocationConfig *found;
+	found = PathUtils::findLocation("/one", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/one");
+	found = PathUtils::findLocation("/two", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/two");
+	found = PathUtils::findLocation("/three", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/three");
+	found = PathUtils::findLocation("/four", cfg);
+	ASSERT_EQ((found == NULL), true);
+}
+
+static void testLocationLongestMatch() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/one"));
+	cfg.addLocation(makeLocation("/one/two"));
+	cfg.addLocation(makeLocation("/one/two/three"));
+	cfg.addLocation(makeLocation("/one/one/one"));
+
+	const LocationConfig *found;
+	found = PathUtils::findLocation("/one/two", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/one/two");
+	found = PathUtils::findLocation("/one/two/three", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/one/two/three");
+	found = PathUtils::findLocation("/one/one/one", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/one/one/one");
+}
+
+// "/imagesfoo" must not match "/images"
+static void testLocationSegmentBoundary() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/"));
+	cfg.addLocation(makeLocation("/images"));
+
+	const LocationConfig *found;
+	found = PathUtils::findLocation("/imagesfoo", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/");
+}
+
+// Nested targets fall back to the longest location prefix
+static void testLocationNestedPrefix() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/"));
+	cfg.addLocation(makeLocation("/images"));
+	cfg.addLocation(makeLocation("/images/icons"));
+
+	const LocationConfig *found;
+	found = PathUtils::findLocation("/images/cat.png", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images");
+	found = PathUtils::findLocation("/images/icons/a/b.png", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images/icons");
+	found = PathUtils::findLocation("/images/", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images");
+	found = PathUtils::findLocation("/other/x", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/");
+}
+
+// Location written with trailing "/" in the config ("location /images/")
+static void testLocationTrailingSlash() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/"));
+	cfg.addLocation(makeLocation("/images/"));
+
+	const LocationConfig *found;
+	found = PathUtils::findLocation("/images/", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images/");
+	found = PathUtils::findLocation("/images/cat.png", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images/");
+	found = PathUtils::findLocation("/images/icons/a.png", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/images/");
+	found = PathUtils::findLocation("/imagesfoo", cfg);
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/");
+	found = PathUtils::findLocation("/images", cfg);		// like NGINX
+	ASSERT_EQ((found != NULL), true);
+	ASSERT_EQ(found->getTarget(), "/");
+}
+
+// Processor -------------------------------------------------------------------
+static void testGetRootWithoutLocations() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor	proc(cfgs);
+	Decision	res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+static void testGetRootWithLocations() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/one"));
+	cfg.addLocation(makeLocation("/one/two"));
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor	proc(cfgs);
+	Decision	res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+static void testPathEscapesRoot() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(makeLocation("/"));
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor	proc(cfgs);
+	Decision	res = proc.procRequest(makeRequest("GET", "/../etc/passwd"));
+	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
+	res = proc.procRequest(makeRequest("GET", "/%2E%2E/etc/passwd"));
+	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
+}
+
+// Returns the status of "method /" against a "/" location with "allowed"
+static e_status_code methodStatus(const std::string& method,
+	const std::string& allowed)
+{
+	LocationConfig loc = makeLocation("/");
+	if (!allowed.empty())
+		loc.addMethod(allowed);
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	
 	std::vector<ServerConfig> cfgs;
 	cfgs.push_back(cfg);
 
-	Request		req;
+	Processor proc(cfgs);
+	return proc.procRequest(makeRequest(method, "/")).getStatus();
+}
 
-	req.setRequest("GET /");
-	req.setStatus(ESTATE_COMPLETE);
-	req.setMethod("GET");
-	req.setPath("/");
-	req.setPath("");
-	req.setQuery("");
-	req.setVersion(HTTP_V1_1);
+static void testAllowedMethods() {
+	ASSERT_EQ(methodStatus("GET", ""), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("GET", "GET"), OK);
+	ASSERT_EQ(methodStatus("POST", "GET"), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("POST", "POST"), OK);
+	ASSERT_EQ(methodStatus("DELETE", "GET"), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("DELETE", "DELETE"), OK);
+}
 
-	Processor	proc(cfgs);
-	Decision	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-	ASSERT_EQ(my_res.getHandler(), ERROR_PAGE);
-	
+// 405 carries the allowed methods for the "Allow" header
+static void testMethodNotAllowedList() {
+	LocationConfig loc = makeLocation("/");
 	loc.addMethod("GET");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), OK);
-
-	req.setMethod("HEAD");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-
-	loc.addMethod("HEAD");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), OK);
-	
-	req.setMethod("POST");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-
 	loc.addMethod("POST");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), OK);
-	
-	req.setMethod("DELETE");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), FORBIDDEN);
-
-	loc.addMethod("DELETE");
-	my_res = proc.procRequest(req);
-	ASSERT_EQ(my_res.getStatus(), OK);
-}
-
-void testDiskPath() {
-	LocationConfig loc;
-	loc.setRoot("/var/www");
-	loc.setTarget("/");
-	
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	
 	std::vector<ServerConfig> cfgs;
 	cfgs.push_back(cfg);
 
-	Request		req;
-	req.setRequest("GET /");
-	req.setStatus(ESTATE_COMPLETE);
-	req.setMethod("GET");
-	req.setPath("/");
-	req.setQuery("");
-	req.setVersion(HTTP_V1_1);
-
-	Processor p(cfgs);
-	Decision res;
-
-	req.setPath("/");
-	res = p.procRequest(req);
-	ASSERT_EQ(res.getDiskPath(), "/var/www/");
-
-	req.setPath("/images");
-	res = p.procRequest(req);
-	ASSERT_EQ(res.getDiskPath(), "/var/www/images");
-	
-	req.setPath("/images/");
-	res = p.procRequest(req);
-	ASSERT_EQ(res.getDiskPath(), "/var/www/images/");
-	
-	req.setPath("/images/img1.jpeg");
-	res = p.procRequest(req);
-	ASSERT_EQ(res.getDiskPath(), "/var/www/images/img.jpeg");
+	Processor	proc(cfgs);
+	Decision	res = proc.procRequest(makeRequest("DELETE", "/"));
+	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getAllowedMethods().size(), 2u);
+	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
+	ASSERT_EQ(res.getAllowedMethods()[1], "POST");
 }
 
-int main() {
-	// Tester::runTest("Different Locations", testDifferentLocations);
-	// Tester::runTest("Longest Location Match 1", testLocationLongestMatch_1);
-	// Tester::runTest("Longest Location Match 2", testLocationLongestMatch_2);
-	// Tester::runTest("Longest Location Match 3", testLocationLongestMatch_3);
-	// Tester::runTest("Path decoder", testDecodePath);
-	// Tester::runTest("Path normalizer", testNormalizePath);
-	Tester::runTest("GET / w/o location", testGetRootWhithoutLocations);
-	Tester::runTest("GET / with location", testGetRootWhithLocations);
-	Tester::runTest("Allowed methods", testGetRootWhithLocations);
+static Decision diskPathDecision(const std::string& path) {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	return proc.procRequest(makeRequest("GET", path));
+}
+
+static void testDiskPath() {
+	ASSERT_EQ(diskPathDecision("/").getDiskPath(), "/var/www/");
+	ASSERT_EQ(diskPathDecision("/images").getDiskPath(), "/var/www/images");
+}
+
+// Disk path keeps the trailing "/" and nested segments
+static void testDiskPathNested() {
+	ASSERT_EQ(diskPathDecision("/images/").getDiskPath(), "/var/www/images/");
+	ASSERT_EQ(diskPathDecision("/images/img.jpeg").getDiskPath(),
+		"/var/www/images/img.jpeg");
+}
+
+void processor_tests() {
+	Tester::runTest("Path decoder", testDecodePath);
+	Tester::runTest("Path normalizer", testNormalizePath);
+	Tester::runTest("Trailing slash", testNormalizeTrailingSlash);
+	Tester::runTest("Nested prefix", testLocationNestedPrefix);
+	Tester::runTest("Disk path nested", testDiskPathNested);
+
+	Tester::runTest("Different locations", testDifferentLocations);
+	Tester::runTest("Longest location match", testLocationLongestMatch);
+	Tester::runTest("Location segment boundary", testLocationSegmentBoundary);
+	Tester::runTest("Location with trailing slash", testLocationTrailingSlash);
+	Tester::runTest("GET / w/o location", testGetRootWithoutLocations);
+	Tester::runTest("GET / with locations", testGetRootWithLocations);
+	Tester::runTest("Path escapes root", testPathEscapesRoot);
+	Tester::runTest("Allowed methods", testAllowedMethods);
+	Tester::runTest("405 allowed list", testMethodNotAllowedList);
 	Tester::runTest("Disk path", testDiskPath);
+	
+
 	Tester::report();
 }
