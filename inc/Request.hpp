@@ -1,9 +1,11 @@
 // Request.hpp
 // ----------------------------------------------------------------------------
 
+#ifndef REQUEST_HPP
+#define REQUEST_HPP
+
 #include <map>
 #include <string>
-#ifndef REQUEST_HPP
 
 #include "http_status_codes.hpp"
 
@@ -49,7 +51,7 @@ class Request
 	
 		// Getters
 		const std::string &getRequest() const;
-		const e_status_code getStatus() const;
+		e_status_code getStatus() const;
 	
 		const std::string &getMethod() const;
 		const std::string &getLocation() const;

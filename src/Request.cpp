@@ -60,7 +60,7 @@ void Request::setVersion(const std::string &version) {
 }
 
 void Request::addHeader(const std::string &key, const std::string &value) {
-	headers_.insert(std::pair(key, value));
+	headers_.insert(std::make_pair(key, value));
 }
 
 void Request::setHeaders(const std::map<std::string, std::string> &headers) {
@@ -80,7 +80,7 @@ const std::string &Request::getRequest() const {
 	return request_;
 }
 
-const e_status_code Request::getStatus() const {
+e_status_code Request::getStatus() const {
 	return status_;
 }
 
@@ -100,8 +100,13 @@ const std::string &Request::getVersion() const {
 	return version_;
 }
 
+// Returns an empty string if the header is not present
 const std::string &Request::getHeader(const std::string &key) const {
-	return headers_.at(key);
+	static const std::string empty;
+	std::map<std::string, std::string>::const_iterator it = headers_.find(key);
+	if (it == headers_.end())
+		return empty;
+	return it->second;
 }
 
 const std::map<std::string, std::string> &Request::getHeaders() const {
