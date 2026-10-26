@@ -36,24 +36,24 @@ void Decision::setHandler(e_handler handler) {
 	handler_ = handler;
 }
 
-void Decision::setDiskPath(std::string& disk_path) {
+void Decision::setDiskPath(const std::string& disk_path) {
 	disk_path_ = disk_path;
 }
 
-void Decision::setRedirURL(std::string& redir_url) {
+void Decision::setRedirURL(const std::string& redir_url) {
 	redir_url_ = redir_url;
 }
 
-void Decision::addAllowedMethod(std::string method) {
+void Decision::addAllowedMethod(const std::string& method) {
 	allowed_methods_.push_back(method);
 }
 
 // Getters ---------------------------------------------------------------------
-const e_status_code Decision::getStatus() const {
+e_status_code Decision::getStatus() const {
 	return status_;
 }
 
-const e_handler Decision::getHandler() const {
+e_handler Decision::getHandler() const {
 	return handler_;
 }
 
@@ -63,4 +63,8 @@ const std::string& Decision::getDiskPath() const {
 
 const std::string& Decision::getRedirURL() const {
 	return redir_url_;
+}
+
+const std::vector<std::string>& Decision::getAllowedMethods() const {
+	return allowed_methods_;
 }

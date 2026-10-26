@@ -42,17 +42,18 @@ class Decision {
 		void setStatus(e_status_code status);
 		void setHandler(e_handler handler);
 
-		void setDiskPath(std::string& disk_path);
-		void setRedirURL(std::string& redir_url);
+		void setDiskPath(const std::string& disk_path);
+		void setRedirURL(const std::string& redir_url);
 
-		void addAllowedMethod(std::string method);
+		void addAllowedMethod(const std::string& method);
 
 		// Getters
-		const e_status_code getStatus() const;
-		const e_handler getHandler() const;
+		e_status_code getStatus() const;
+		e_handler getHandler() const;
 	
 		const std::string &getDiskPath() const;
 		const std::string &getRedirURL() const;
+		const std::vector<std::string> &getAllowedMethods() const;
 
 
 };

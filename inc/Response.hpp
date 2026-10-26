@@ -40,7 +40,7 @@ class Response
 
 		// Getters
 		const std::string &getVersion() const;
-		const e_status_code getStatus() const;
+		e_status_code getStatus() const;
 	
 		const std::string &getHeader(const std::string &key) const;
 		const std::map<std::string, std::string> &getHeaders() const;

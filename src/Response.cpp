@@ -57,7 +57,7 @@ const std::string &Response::getVersion() const {
 	return version_;
 }
 
-const e_status_code Response::getStatus() const {
+e_status_code Response::getStatus() const {
 	return status_;
 }
 
