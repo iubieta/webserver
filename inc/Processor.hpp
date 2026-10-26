@@ -9,6 +9,7 @@
 #include "../inc/Decision.hpp"
 #include "LocationConfig.hpp"
 #include "http_status_codes.hpp"
+#include "path_utils.hpp"
 #include <string>
 #include <vector>
 
@@ -23,25 +24,24 @@ class Processor {
 	
 		// Find config for the host
 		const ServerConfig *findConfig(const Request& req) const;
-		// Find mathcing location for the server
-		const LocationConfig *findLocation(std::string target, const ServerConfig& cfg) const;
 
-		// Resolve path
+		// Resolve path (decode + normalize, see path_utils.hpp)
 		std::string resolvePath(const Request& req) const;
-		std::string decodePath(const std::string& path) const;
-		std::string normalizePath(const std::string& path) const;
 
 		// Check if location has a return
 		std::string redirTarget(const LocationConfig& cfg) const;
 
 		// Check if method is allowed
-		bool methodIsAllowed(const Request& req, const LocationConfig& cfg) const;
+		bool methodIsAllowed(const Request& req,
+			const LocationConfig& cfg) const;
 
 		// Check content-length
-		bool checkContentLength(const Request& req, const LocationConfig& cfg) const;
+		bool checkContentLength(const Request& req,
+			const LocationConfig& cfg) const;
 
 		// Resolve error page path
-		std::string findErrorPage(e_status_code code, const LocationConfig& cfg) const;
+		std::string findErrorPage(e_status_code code,
+			const LocationConfig& cfg) const;
 
 		// Define handler for the request
 		// TODO: define a handler list
@@ -52,17 +52,7 @@ class Processor {
 		
 		Processor(const std::vector<ServerConfig >& cfgs);
 		~Processor();
-		
-		// Constructor without config for testing
-		Processor();
 
-		// TESTING PRIVATE FUNCTIONS
-		// Find mathcing location for the server
-		// const LocationConfig *findLocation(const Request& req, const ServerConfig& cfg) const;
-		// std::string decodePath(const std::string& path) const;
-		// std::string normalizePath(const std::string& path) const;
-
-		// REAL PUBLIC FUNCTIONS
 		Decision procRequest(const Request& req);
 };
 
