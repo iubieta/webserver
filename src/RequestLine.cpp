@@ -1,6 +1,7 @@
 #include "../inc/RequestLine.hpp"
 #include "../inc/log_global.hpp"
 #include "../inc/Logger.hpp"
+#include "../inc/Headers.hpp"
 #include <iostream>
 #include <vector>
 
@@ -61,6 +62,79 @@ bool RequestLine::isCharacterInvalid(char c)
 	return (true);
 }
 
+bool RequestLine::isValidHexDig(const std::string &str)
+{
+	size_t	i;
+
+	if (str.size() != 2)
+		return (false);
+	i = 0;
+	while (i < 2)
+	{
+		if (!((str[i] >= '0' && str[i] <= '9')
+				|| (str[i] >= 'A' && str[i] <= 'F')
+				|| (str[i] >= 'a' && str[i] <= 'f')))
+			return (false);
+		++i;
+	}
+	return (true);
+}
+
+unsigned int RequestLine::hexPairToValue(const std::string &str)
+{
+	const std::string hex = "0123456789abcdef";
+	
+	size_t num1;
+	size_t num2;
+	unsigned int answer;
+
+	std::string temp = str.substr(0, 2);
+	Headers::normalize(temp);
+	num1 = hex.find(temp[0]);
+	num2 = hex.find(temp[1]);
+	
+	answer = num1*16 + num2;
+	return answer;
+}
+
+int RequestLine::decodePercentEncoding(
+	const std::string &old_str, std::string &new_str)
+{
+	unsigned int	dig;
+	size_t			i;
+	std::string		hex_pair;
+	std::string		decoded;
+	char			c;
+
+	i = 0;
+	while (i < old_str.size())
+	{
+		if (old_str[i] != '%')
+		{
+			decoded += old_str[i];
+			++i;
+		}
+		else
+		{
+			if (i + 2 >= old_str.size())
+				return (-1);
+
+			hex_pair = old_str.substr(i + 1, 2);
+			if (!isValidHexDig(hex_pair))
+				return (-1);
+
+			dig = hexPairToValue(hex_pair);
+			if (dig == 0 || dig == '/')
+				return (-1);
+
+			c = static_cast<char>(dig);
+			decoded += c;
+			i += 3;
+		}
+	}
+	new_str = decoded;
+	return (0);
+}
 int RequestLine::tokenLine(const std::string &line, std::vector<std::string> &token)
 {
 	size_t i;

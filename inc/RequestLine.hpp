@@ -27,6 +27,10 @@ class RequestLine
 	static bool isCharacterInvalid(char c);
 	bool isValidMethod(const std::string &method) const;
 	bool isVaildVersion(const std::string &version) const;
+	bool isValidHexDig(const std::string &str);
+	unsigned int hexPairToValue(const std::string &str);
+	int	decodePercentEncoding(
+	const std::string &old_str, std::string &new_str);
 	
 	public:
 

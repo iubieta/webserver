@@ -2,10 +2,14 @@
 #include "../inc/log_global.hpp"
 #include <iostream>
 
-void OriginForm::requestTarget(const std::string &target)
+int OriginForm::requestTarget(const std::string &target)
 {
-	size_t pos;
-	std::string temp;
+	size_t		pos;
+	std::string	temp;
+	std::string	old_path;
+	std::string	new_path;
+	std::string	old_query;
+	std::string	new_query;
 
 	temp = target;
 	setQuery("");
@@ -13,24 +17,40 @@ void OriginForm::requestTarget(const std::string &target)
 	if (temp.size() == 1)
 	{
 		setPath(temp);
-		return ;
+		return (0);
 	}
 
 	pos = temp.find('?');
 	if (pos != std::string::npos)
 	{
-		setPath(temp.substr(0, pos));
-		if (temp.substr(pos + 1).size() >= 1)
-			setQuery(temp.substr(pos + 1));
+		old_path = temp.substr(0, pos);
+		if (decodePercentEncoding(old_path, new_path) == -1)
+			return (-1);
+		setPath(new_path);
+
+		//Is there at least one character after '?'
+		if (pos + 1 < temp.size())
+		{
+			old_query = temp.substr(pos + 1);
+			if (decodePercentEncoding(old_query, new_query) == -1)
+				return (-1);
+			setQuery(new_query);
+		}
 	}
 	else
-		setPath(temp);
+	{
+		old_path = temp;
+		if (decodePercentEncoding(old_path, new_path) == -1)
+			return (-1);
+		setPath(new_path);
+	}
 
+	return (0);
 }
 
 int OriginForm::requestLine(const std::vector<std::string> &token)
 {
-	if (token.empty())
+	if (token.size() != 3)
 		return -1;
 	
 	setMethod(token[0]);
@@ -59,14 +79,8 @@ int OriginForm::requestLine(const std::vector<std::string> &token)
 		return (-1);
 	}
 
-	requestTarget(token[1]);
-
-	// std::cout << "Method: "<< getMethod() << std::endl;
-	// std::cout << "target: "<< getPath() << std:: endl;
-	// std::cout << "query: " << getQuery() << std::endl;
-	// std::cout << "version: "<< getVersion() << std::endl;
-
-
+	if (requestTarget(token[1]) == -1)
+		return -1;
 	return 0;
 }
 

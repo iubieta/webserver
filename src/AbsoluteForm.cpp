@@ -85,6 +85,10 @@ int AbsoluteForm::requestTarget(const std::string &target)
 	size_t end;
 	std::string temp;
 	std::string authority_temp;
+	std::string old_query;
+	std::string new_query;
+	std::string old_path;
+	std::string new_path;
 
 	if (target.empty())
 		return -1;
@@ -112,15 +116,25 @@ int AbsoluteForm::requestTarget(const std::string &target)
 		if (query_pos != std::string::npos) // '?' found
 		{
 			start = query_pos + 1; // after '?'
-			setQuery(temp.substr(start));
+			old_query = temp.substr(start);
+			if (decodePercentEncoding(old_query, new_query) == -1)
+				return -1;
+			setQuery(new_query);
 			start = authority_pos;
 			end = query_pos;
-			setPath(temp.substr(start, end - start));
+			old_path = temp.substr(start, end - start);
+			if(decodePercentEncoding(old_path, new_path) == -1)
+				return -1;
+			setPath(new_path);
 		}
 		else
 		{
+			
 			setQuery("");
-			setPath(temp.substr(authority_pos));
+			old_path = temp.substr(authority_pos);
+			if (decodePercentEncoding(old_path, new_path) == -1)
+				return -1;
+			setPath(new_path);
 
 		}
 			
@@ -136,7 +150,10 @@ int AbsoluteForm::requestTarget(const std::string &target)
 		if (!isValidAuthority(authority_temp))
 			return -1;
 		setAuthority(authority_temp);
-		setQuery(temp.substr(query_pos + 1));
+		old_query = temp.substr(query_pos + 1);
+		if(decodePercentEncoding(old_query, new_query) == -1)
+			return -1;
+		setQuery(new_query);
 		setPath("/");
 		
 	}
