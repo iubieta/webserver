@@ -18,7 +18,7 @@ static const  t_status_message status_messages[] =
 	{ BAD_REQUEST ,				"Bad Request" },
 	{ FORBIDDEN , 				"Forbidden" },
 	{ NOT_FOUND , 				"Not Found" },
-	{ METHOD_NOT_ALLOWED , 		"Mehtod Not Allowed" },
+	{ METHOD_NOT_ALLOWED , 		"Method Not Allowed" },
 	{ REQUEST_TIMEOUT , 		"Request Timeout" },
 	{ LENGTH_REQUIRED , 		"Length Required" },
 	{ PAYLOAD_TOO_LARGE , 		"Payload Too Large" },
