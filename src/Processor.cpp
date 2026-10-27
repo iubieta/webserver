@@ -98,6 +98,7 @@ Decision Processor::procRequest(const Request& req) {
 		res.setHandler(ERROR_PAGE);
 		return res;
 	}
+	res.setLocationConfig(cfg);
 
 	// 405 must carry the Allow header, so the builder needs the methods
 	if (!methodIsAllowed(req, *cfg))

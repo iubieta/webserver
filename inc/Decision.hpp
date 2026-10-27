@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+// Forward declarations to avoid circular includes
+class LocationConfig;
+
 // TODO: define a handler list
 enum e_handler {
 	UNPROCESSED,
@@ -29,13 +32,16 @@ class Decision {
 		std::string		redir_url_;
 	
 		std::vector<std::string>	allowed_methods_;
+
+		// Resolved context from Processor (pointer modifiable, pointed-to content const)
+		const LocationConfig* location_;
 	
 	public:
 		
 		// Builders
 		Decision();
 		Decision(const Decision &other);
-		Decision& operator=(const Decision &other);
+		Decision& operator=(const Decision& other);
 		~Decision();
 
 		// Setters
@@ -47,6 +53,8 @@ class Decision {
 
 		void addAllowedMethod(const std::string& method);
 
+		void setLocationConfig(const LocationConfig* locationConfig);
+
 		// Getters
 		e_status_code getStatus() const;
 		e_handler getHandler() const;
@@ -54,6 +62,8 @@ class Decision {
 		const std::string &getDiskPath() const;
 		const std::string &getRedirURL() const;
 		const std::vector<std::string> &getAllowedMethods() const;
+
+		const LocationConfig* getLocationConfig() const;
 
 
 };

@@ -7,8 +7,9 @@
 // Builders --------------------------------------------------------------------
 Decision::Decision() :
 	status_(OK),
-	handler_(UNPROCESSED)
-{};
+	handler_(UNPROCESSED),
+	location_(NULL)
+{}; 
 
 Decision::Decision(const Decision &other) {
 	*this = other;
@@ -21,6 +22,7 @@ Decision& Decision::operator=(const Decision& other) {
 		disk_path_			= other.disk_path_;
 		redir_url_			= other.redir_url_;
 		allowed_methods_	= other.allowed_methods_;
+		location_			= other.location_;
 	}
 	return *this;
 }
@@ -48,6 +50,10 @@ void Decision::addAllowedMethod(const std::string& method) {
 	allowed_methods_.push_back(method);
 }
 
+void Decision::setLocationConfig(const LocationConfig* locationConfig) {
+	location_ = locationConfig;
+}
+
 // Getters ---------------------------------------------------------------------
 e_status_code Decision::getStatus() const {
 	return status_;
@@ -67,4 +73,8 @@ const std::string& Decision::getRedirURL() const {
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {
 	return allowed_methods_;
+}
+
+const LocationConfig* Decision::getLocationConfig() const {
+	return location_;
 }
