@@ -225,6 +225,20 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (temp.empty())
 				return -1;
 			location.addIndex(temp);
+		}else if(token_[index] == "alias")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			if (!location.getRoot().empty() 
+				&& server.getRoot().empty())// no hay root en el bloque server
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.setAlias(temp) == -1)
+				return -1;
+			if (!location.getRoot().empty())
+				location.setRoot("");
 		}
 		else
 			return -1;

@@ -13,15 +13,14 @@
 class	LocationConfig 
 {
 	private:
-		//std::string					path;
 		std::string					target_;
 		std::string					root_;
 		bool						autoindex_;
 		std::vector<std::string>	allow_methods_;
 		std::vector<std::string>	index_;
 		size_t						client_max_body_size_;
+		std::string					alias_;
 		//std::string					return_;
-		//std::string					alias;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
 		
@@ -40,6 +39,7 @@ class	LocationConfig
 	const std::string &getIndex(size_t index) const;
 	const std::string &getMethod(size_t index) const;
 	const std::string &getTarget() const;
+	const std::string &getAlias() const;
 
 	int setRoot(const std::string &root);
 	int setAutoindex(const std::string &autoindex);
@@ -50,6 +50,7 @@ class	LocationConfig
 	int addMethod(const std::string &method);
 	int setVecIndex(const std::vector<std::string> &index);
 	int setTarget(const std::string &target);
+	int setAlias(const std::string &alias);
 
 
 };

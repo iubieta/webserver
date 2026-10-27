@@ -8,7 +8,9 @@ LocationConfig::LocationConfig()
 			  autoindex_(false),
 			  allow_methods_(),
 			  index_(),
-			  client_max_body_size_(0)
+			  client_max_body_size_(0),
+			  alias_("")
+
 {}
 
 LocationConfig::LocationConfig(const LocationConfig &other)
@@ -17,7 +19,8 @@ LocationConfig::LocationConfig(const LocationConfig &other)
 			  autoindex_(other.autoindex_),
 			  allow_methods_(other.allow_methods_),
 			  index_(other.index_),
-			  client_max_body_size_(other.client_max_body_size_)
+			  client_max_body_size_(other.client_max_body_size_),
+			  alias_(other.alias_)
 {}
 
 LocationConfig &LocationConfig::operator=(const LocationConfig &other)
@@ -30,6 +33,7 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 		allow_methods_ = other.allow_methods_;
 		index_ = other.index_;
 		client_max_body_size_ = other.client_max_body_size_;
+		alias_ = other.alias_;
 	}
 	return *this;
 }
@@ -74,6 +78,11 @@ const std::string &LocationConfig::getMethod(size_t index) const
 const std::string &LocationConfig::getTarget() const
 {
 	return target_;
+}
+
+const std::string &LocationConfig::getAlias() const
+{
+	return alias_;
 }
 
 int LocationConfig::setRoot(const std::string &root)
@@ -166,5 +175,17 @@ int LocationConfig::setTarget(const std::string &target)
 	if (target[0] != '/')
 		return -1;
 	target_ = target;
+	return 0;
+}
+
+int LocationConfig::setAlias(const std::string &alias)
+{
+	if (alias.empty())
+		return -1;
+	if (alias[0] != '/')
+		return -1;
+	if (alias[alias.size()] != '/')
+		return -1;
+	alias_ = alias;
 	return 0;
 }
