@@ -39,6 +39,7 @@ std::string Processor::resolvePath(const Request& req) const
 // REDIR
 // Checks if location has a "return" parameter and in that case returns the new target
 std::string Processor::redirTarget(const LocationConfig& cfg) const {
+	(void)cfg;
 	return "";
 }
 
