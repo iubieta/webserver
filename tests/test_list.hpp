@@ -10,5 +10,7 @@ void	buffer_tests();
 void 	test_httpParser();
 void	test_httpParserBody();
 void	test_chunk();
-void test_requestParser();
+void	test_requestParser();
+void	processor_tests();
+
 #endif // !TESTLIST_HPP

@@ -1,6 +1,7 @@
 #include "../inc/LocationConfig.hpp"
 #include <sstream>
 #include <limits>
+#include <strings.h>
 
 LocationConfig::LocationConfig()
 			: target_(""), 
@@ -43,6 +44,18 @@ LocationConfig::~LocationConfig() {}
 const std::string &LocationConfig::getRoot() const
 {
 	return root_;
+}
+
+// Operators
+bool LocationConfig::operator==(const LocationConfig& other) const {
+	if (target_ == other.target_ &&
+		root_ == other.root_ &&
+		autoindex_ == other.autoindex_ &&
+		allow_methods_ == other.allow_methods_ &&
+		index_ == other.index_ &&
+		client_max_body_size_ == other.client_max_body_size_ )
+		return true;
+	return false;
 }
 
 bool LocationConfig::getAutoindex() const

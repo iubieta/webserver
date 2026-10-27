@@ -6,6 +6,10 @@
 #define HTTP_STATUS_CODES_H
 
 #include <string>
+
+// HTTP versions
+#define HTTP_V1_1 "HTTP/1.1"
+
 enum e_status_code {
 	// Parsing status
 	ESTATE_LINE,
@@ -14,6 +18,9 @@ enum e_status_code {
 	ESTATE_COMPLETE,
 	CHUNK_DATA,
 	CHUNK_END,
+
+	// Processing status
+	PROCESSING,
 
 	// Info
 	CONTINUE		= 100,

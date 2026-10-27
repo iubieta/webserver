@@ -8,8 +8,6 @@
 #include <map>
 #include <string>
 
-#define HTTP_V1_1 "HTTP/1.1"
-
 class Response 
 {
 	private:
@@ -42,7 +40,7 @@ class Response
 
 		// Getters
 		const std::string &getVersion() const;
-		const e_status_code getStatus() const;
+		e_status_code getStatus() const;
 	
 		const std::string &getHeader(const std::string &key) const;
 		const std::map<std::string, std::string> &getHeaders() const;

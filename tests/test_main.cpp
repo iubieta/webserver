@@ -18,7 +18,8 @@ static const TestEntry g_tests[] = {
 	{"httpParser", test_httpParser},
 	{"httpParserBody", test_httpParserBody},
 	{"Test-chunk", test_chunk},
-	{"request-Parser", test_requestParser}
+	{"request-Parser", test_requestParser},
+	{ "processor" , processor_tests },
 };
 
 static size_t g_count = sizeof(g_tests) / sizeof(TestEntry);
