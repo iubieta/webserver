@@ -187,6 +187,7 @@ Decision Processor::procRequest(const Request& req) {
 				std::string index_file = disk_path + indexs[i];
 				if (stat(index_file.c_str(), &stat_buf) != -1 
 					&& S_ISREG(stat_buf.st_mode)) {
+					res.setDiskPath(index_file);
 					res.setStatus(OK);
 					res.setHandler(READ_FILE);
 					return res;
