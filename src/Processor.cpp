@@ -95,6 +95,7 @@ int methodSwitch(const std::string& method) {
 		return 2;
 	if (method == "DELETE")
 		return 3;
+	return 0;
 }
 
 // Public methods --------------------------------------------------------------
@@ -158,8 +159,8 @@ Decision Processor::procRequest(const Request& req) {
 	res.setDiskPath(disk_path);
 
 	// TODO: stat() -> file / directory / missing (PROCESSOR_PLAN step 6-7)
-	struct stat *stat_buf;
-	if (stat(disk_path.c_str(), stat_buf) == -1) 
+	struct stat stat_buf;
+	if (stat(disk_path.c_str(), &stat_buf) == -1) 
 	{
 		switch (errno) {
 			case EACCES: 
@@ -176,7 +177,7 @@ Decision Processor::procRequest(const Request& req) {
 			}
 		}
 	}
-	else if (S_ISDIR(stat_buf->st_mode)) 
+	else if (S_ISDIR(stat_buf.st_mode)) 
 	{
 		std::vector<std::string> indexs = cfg->getIndexs();
 		// If there is a definded index file search it and read it
@@ -184,8 +185,8 @@ Decision Processor::procRequest(const Request& req) {
 		{
 			for (size_t i = 0; i < indexs.size(); ++i) {
 				std::string index_file = disk_path + indexs[i];
-				if (stat(index_file.c_str(), stat_buf) != -1 
-					&& S_ISREG(stat_buf->st_mode)) {
+				if (stat(index_file.c_str(), &stat_buf) != -1 
+					&& S_ISREG(stat_buf.st_mode)) {
 					res.setStatus(OK);
 					res.setHandler(READ_FILE);
 					return res;
@@ -204,7 +205,7 @@ Decision Processor::procRequest(const Request& req) {
 			return res;
 		}
 	}
-	else if (S_ISREG(stat_buf->st_mode)) {
+	else if (S_ISREG(stat_buf.st_mode)) {
 		// TODO: make a method enum list
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET

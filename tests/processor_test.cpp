@@ -225,6 +225,7 @@ static e_status_code methodStatus(const std::string& method,
 	const std::string& allowed)
 {
 	LocationConfig loc = makeLocation("/");
+	loc.setAutoindex(true);
 	if (!allowed.empty())
 		loc.addMethod(allowed);
 	ServerConfig cfg;
