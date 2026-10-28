@@ -10,7 +10,12 @@ LocationConfig::LocationConfig()
 			  allow_methods_(),
 			  index_(),
 			  client_max_body_size_(0),
-			  alias_("")
+			  alias_(""),
+			  root_set_(false),
+			  alias_set_(false),
+			  autoindex_set_(false),
+			  client_max_body_set_(false)
+
 
 {}
 
@@ -21,7 +26,11 @@ LocationConfig::LocationConfig(const LocationConfig &other)
 			  allow_methods_(other.allow_methods_),
 			  index_(other.index_),
 			  client_max_body_size_(other.client_max_body_size_),
-			  alias_(other.alias_)
+			  alias_(other.alias_),
+			  root_set_(other.root_set_),
+			  alias_set_(other.alias_set_),
+			  autoindex_set_(other.autoindex_set_),
+			  client_max_body_set_(other.client_max_body_set_)
 {}
 
 LocationConfig &LocationConfig::operator=(const LocationConfig &other)
@@ -35,6 +44,10 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 		index_ = other.index_;
 		client_max_body_size_ = other.client_max_body_size_;
 		alias_ = other.alias_;
+		root_set_ = other.root_set_;
+		alias_set_ = other.alias_set_;
+		autoindex_set_ = other.autoindex_set_;
+		client_max_body_set_ = other.client_max_body_set_;
 	}
 	return *this;
 }
@@ -53,7 +66,12 @@ bool LocationConfig::operator==(const LocationConfig& other) const {
 		autoindex_ == other.autoindex_ &&
 		allow_methods_ == other.allow_methods_ &&
 		index_ == other.index_ &&
-		client_max_body_size_ == other.client_max_body_size_ )
+		client_max_body_size_ == other.client_max_body_size_ 
+		&& alias_ == other.alias_ &&
+		root_set_ == other.root_set_ &&
+		autoindex_set_ == other.autoindex_set_
+		&& client_max_body_set_ == other.client_max_body_set_
+		&& alias_set_ == other.alias_set_)
 		return true;
 	return false;
 }
@@ -197,8 +215,48 @@ int LocationConfig::setAlias(const std::string &alias)
 		return -1;
 	if (alias[0] != '/')
 		return -1;
-	if (alias[alias.size()] != '/')
+	if (alias[alias.size() - 1] != '/')
 		return -1;
 	alias_ = alias;
 	return 0;
+}
+
+bool LocationConfig::getRootSet() const
+{
+	return root_set_;
+}
+
+void LocationConfig::setRootSet(bool rootSet)
+{
+	root_set_ = rootSet;
+}
+
+bool LocationConfig::getAliasSet() const
+{
+	return alias_set_; 
+}
+
+void LocationConfig::setAliasSet(bool aliasSet)
+{
+	alias_set_ = aliasSet;
+}
+
+bool LocationConfig::getAutoindexSet() const
+{
+	return autoindex_set_;
+}
+
+void LocationConfig::setAutoindexSet(bool autoindexSet)
+{
+	autoindex_set_ = autoindexSet;
+}
+
+bool LocationConfig::getClientMaxbodySet() const
+{
+	return client_max_body_set_;
+}
+
+void LocationConfig::setClientMaxBodySet(bool clientMaxbodySet)
+{
+	client_max_body_set_ = clientMaxbodySet;
 }

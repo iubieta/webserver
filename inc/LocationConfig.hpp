@@ -20,6 +20,10 @@ class	LocationConfig
 		std::vector<std::string>	index_;
 		size_t						client_max_body_size_;
 		std::string					alias_;
+		bool						root_set_;
+		bool						alias_set_;
+		bool						autoindex_set_;
+		bool						client_max_body_set_;
 		//std::string					return_;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
@@ -42,6 +46,10 @@ class	LocationConfig
 		const std::string &getMethod(size_t index) const;
 		const std::string &getTarget() const;
 		const std::string &getAlias() const;
+		bool	getRootSet() const;
+		bool	getAliasSet() const;
+		bool	getAutoindexSet() const;
+		bool	getClientMaxbodySet() const;
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -53,6 +61,10 @@ class	LocationConfig
 		int setVecIndex(const std::vector<std::string> &index);
 		int setTarget(const std::string &target);
 		int setAlias(const std::string &alias) ;
+		void setRootSet(bool rootSet);
+		void setAliasSet(bool aliasSet);
+		void setAutoindexSet(bool autoindexSet);
+		void setClientMaxBodySet(bool clientMaxBodySet);
 };
 
 #endif // !SERVER_CONFIG_HPP

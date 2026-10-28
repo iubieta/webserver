@@ -38,6 +38,7 @@ class ServerConfig
         const std::string &getServerName() const;
         const std::string &getRoot() const;
         const std::vector<std::string> &getIndexs() const;
+        std::vector<LocationConfig> &getLocations();
         const std::vector<LocationConfig> &getLocations() const;
         const std::string &getIndex(size_t index) const;
         const LocationConfig &getLocation(size_t) const;

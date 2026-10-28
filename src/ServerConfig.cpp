@@ -84,6 +84,12 @@ const std::vector<LocationConfig> &ServerConfig::getLocations() const
 	return locations_;
 }
 
+std::vector<LocationConfig> &ServerConfig::getLocations()
+{
+	return locations_;
+}
+
+
 const std::string &ServerConfig::getIndex(size_t index) const
 {
 	return index_.at(index);
