@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include "../inc/Processor.hpp"
 
@@ -61,13 +62,27 @@ bool Processor::methodIsAllowed(const Request& req,
 
 // CONTENT-LENGTH
 // Check if content-length is greater than max-body-size
-bool Processor::checkContentLength(const Request& req,
+int Processor::checkContentLength(const Request& req,
 	const LocationConfig& cfg) const
 {
-	// TODO: compare body size with cfg.getClientMax() (0 = no limit)
 	(void)req;
 	(void)cfg;
-	return true;
+	// TODO: compare body size with cfg.getClientMax() (0 = no limit)
+	const std::string *content_len_str = req.getHeader("Content-Length");
+	// Whithout content-length header the body size must be checked later
+	if (content_len_str == NULL)
+		return 0;
+
+	std::stringstream stream(*content_len_str);
+	size_t	content_len;
+
+	if (!(stream >> content_len) || !stream.eof())
+		return 1;
+	
+	if (cfg.getClientMax() > 0 && content_len > cfg.getClientMax())
+		return 2;
+
+	return 0;
 }
 
 // Public methods --------------------------------------------------------------
@@ -111,9 +126,19 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 
-	if (!checkContentLength(req, *cfg))
-	{
-		// TODO: PAYLOAD_TOO_LARGE
+	switch (checkContentLength(req, *cfg)) {
+		case 1: 
+		{
+			res.setStatus(BAD_REQUEST);
+			res.setHandler(ERROR_PAGE);
+			return res;
+		}
+		case 2:
+		{
+			res.setStatus(PAYLOAD_TOO_LARGE);
+			res.setHandler(ERROR_PAGE);
+			return res;
+		}
 	}
 
 	// DISK PATH

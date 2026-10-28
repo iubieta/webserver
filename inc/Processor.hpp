@@ -36,7 +36,10 @@ class Processor {
 			const LocationConfig& cfg) const;
 
 		// Check content-length
-		bool checkContentLength(const Request& req,
+		// 0 => OK, continue
+		// 1 => Content-length data error
+		// 2 => Content-length greater than max body size
+		int checkContentLength(const Request& req,
 			const LocationConfig& cfg) const;
 
 		// Resolve error page path
