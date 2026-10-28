@@ -57,6 +57,7 @@ class Request
 		const std::string &getRequest() const;
 		e_status_code getStatus() const;
 	
+		// TODO: make a method enum list and change return type
 		const std::string &getMethod() const;
 		const std::string &getLocation() const;
 		const std::string &getPath() const;
@@ -65,6 +66,7 @@ class Request
 		const std::string &getSchema() const;
 		const std::string &getAuthority() const;
 	
+		// ASK: why pointer? we can use empty string
 		const std::string *getHeader(const std::string &key) const; //return NULL if key is not found
 		const std::map<std::string, std::string> &getHeaders() const;
 	
