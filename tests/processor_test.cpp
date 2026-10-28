@@ -5,6 +5,11 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #include "Tester.hpp"
 #include "../inc/Processor.hpp"
@@ -312,6 +317,32 @@ static Request makeRequestChunked(const std::string& method, const std::string& 
 	return req;
 }
 
+// FS helpers for stat tests ---------------------------------------------------
+static std::string makeTempRoot(const std::string& suffix) {
+	char tmpl[128];
+	std::strncpy(tmpl, "/tmp/webserv_test", sizeof(tmpl) - 1);
+	tmpl[sizeof(tmpl) - 1] = '\0';
+	char* d = mkdtemp(tmpl);
+	if (!d)
+		return std::string("");
+	std::string base(d);
+	(void)suffix;
+	return base;
+}
+
+static void writeEmptyFile(const std::string& path) {
+	FILE* f = std::fopen(path.c_str(), "w");
+	if (f)
+		std::fclose(f);
+}
+
+static void removeDirRecursive(const std::string& path) {
+	if (path.empty())
+		return;
+	std::string cmd = "rm -rf " + path;
+	std::system(cmd.c_str());
+}
+
 // Content-Length within limit -> no debe ser 413
 static void testContentLengthWithinLimit() {
 	LocationConfig loc = makeLocation("/");
@@ -442,6 +473,204 @@ static void testNoContentLengthNo413() {
 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
 }
 
+// stat() tests ---------------------------------------------------------------
+// Fichero regular legible -> READ_FILE
+static void testStatRegularFile() {
+	std::string root = makeTempRoot("statfile");
+	if (root.empty())
+		return;
+	std::string file = root + "/index.html";
+	writeEmptyFile(file);
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/index.html"));
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getDiskPath(), file);
+
+	removeDirRecursive(root);
+}
+
+// Fichero no existente -> 404
+static void testStatMissingFile() {
+	std::string root = makeTempRoot("statmiss");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/nope.html"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
+// Directorio sin permisos -> 403 (si el proceso puede detectar EACCES)
+static void testStatNoPermission() {
+	std::string root = makeTempRoot("statperm");
+	if (root.empty())
+		return;
+	std::string sub = root + "/secret";
+	if (mkdir(sub.c_str(), 0000) == 0) {
+		LocationConfig loc = makeLocation("/");
+		loc.setRoot(root);
+		loc.addMethod("GET");
+		ServerConfig cfg;
+		setBasicConfig(cfg);
+		cfg.addLocation(loc);
+		std::vector<ServerConfig> cfgs;
+		cfgs.push_back(cfg);
+
+		Processor proc(cfgs);
+		Decision res = proc.procRequest(makeRequest("GET", "/secret/"));
+		ASSERT_EQ(res.getStatus(), FORBIDDEN);
+		ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+		chmod(sub.c_str(), 0755);
+	}
+	removeDirRecursive(root);
+}
+
+// Directorio con index -> READ_FILE (index tiene prioridad)
+static void testStatDirWithIndex() {
+	std::string root = makeTempRoot("statidx");
+	if (root.empty())
+		return;
+	std::string index = root + "/index.html";
+	writeEmptyFile(index);
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addIndex("index.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getDiskPath(), index);
+
+	removeDirRecursive(root);
+}
+
+// Directorio sin index y autoindex on -> LIST_DIR
+static void testStatDirAutoindexOn() {
+	std::string root = makeTempRoot("statautoon");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.setAutoindex("on");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getHandler(), LIST_DIR);
+	ASSERT_EQ(res.getDiskPath(), root + "/");
+
+	removeDirRecursive(root);
+}
+
+// Directorio sin index y autoindex off -> 403
+static void testStatDirAutoindexOff() {
+	std::string root = makeTempRoot("statautooff");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.setAutoindex("off");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
+// Directorio con index definido pero ausente y autoindex on -> LIST_DIR (fallback)
+static void testStatDirIndexMissingAutoindexOnFallback() {
+	std::string root = makeTempRoot("statidxmiss");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addIndex("index.html"); // existe pero no creamos fichero
+	loc.setAutoindex("on");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getHandler(), LIST_DIR);
+
+	removeDirRecursive(root);
+}
+
+// Directorio con index definido pero ausente y autoindex off -> 403
+static void testStatDirIndexMissingAutoindexOffFallback() {
+	std::string root = makeTempRoot("statidxmiss2");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addIndex("index.html");
+	loc.setAutoindex("off");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
 void processor_tests() {
 	Tester::runTest("Path decoder", testDecodePath);
 	Tester::runTest("Path normalizer", testNormalizePath);
@@ -466,6 +695,14 @@ void processor_tests() {
 	Tester::runTest("Chunked ignored by processor", testContentLengthChunkedIgnoredByProcessor);
 	Tester::runTest("413 vs 405 priority (method not allowed)", testContentLengthMethodNotAllowedHasPriority);
 	Tester::runTest("No Content-Length -> no 413", testNoContentLengthNo413);
+	Tester::runTest("stat regular file -> READ_FILE", testStatRegularFile);
+	Tester::runTest("stat missing -> 404", testStatMissingFile);
+	Tester::runTest("stat no permission -> 403", testStatNoPermission);
+	Tester::runTest("stat dir with index -> READ_FILE", testStatDirWithIndex);
+	Tester::runTest("stat dir autoindex on -> LIST_DIR", testStatDirAutoindexOn);
+	Tester::runTest("stat dir autoindex off -> 403", testStatDirAutoindexOff);
+	Tester::runTest("stat dir index missing + autoindex on -> LIST_DIR", testStatDirIndexMissingAutoindexOnFallback);
+	Tester::runTest("stat dir index missing + autoindex off -> 403", testStatDirIndexMissingAutoindexOffFallback);
 
 	Tester::report();
 }
