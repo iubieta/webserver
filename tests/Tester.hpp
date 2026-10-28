@@ -37,16 +37,16 @@
 
 // TODO: raw bytes eq comparison
 
-#define ASSERT_NOT_EQ(actual, expected)							\
+#define ASSERT_NOT_EQ(actual, expected)						\
     do {                                                	\
         if ((actual) == (expected)) {                   	\
 			std::cerr										\
 				<< RED										\
 				<< __FILE__ << ":" << __LINE__ << " - "		\
-				<< "ASSERT_EQ(" << #actual					\
+				<< "ASSERT_NOT_EQ(" << #actual				\
 				<< ", "	<< #expected						\
 				<< ") Failed."								\
-				<< " Expected: \'" << expected				\
+				<< " Expected: different from \'" << expected\
 				<< "\' Received: \'" << actual	<< "\'"		\
 				<< RESET									\
 				<< std::endl;								\

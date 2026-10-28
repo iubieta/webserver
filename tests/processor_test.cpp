@@ -1,8 +1,10 @@
 // processor_test.cpp
 // -----------------------------------------------------------------------------
 
+#include <sstream>
 #include <string>
 #include <vector>
+#include <cstdlib>
 
 #include "Tester.hpp"
 #include "../inc/Processor.hpp"
@@ -84,16 +86,16 @@ static void testDifferentLocations() {
 
 	const LocationConfig *found;
 	found = PathUtils::findLocation("/one", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/one");
 	found = PathUtils::findLocation("/two", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/two");
 	found = PathUtils::findLocation("/three", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/three");
 	found = PathUtils::findLocation("/four", cfg);
-	ASSERT_EQ((found == NULL), true);
+	ASSERT_EQ(found, (const LocationConfig*)NULL);
 }
 
 static void testLocationLongestMatch() {
@@ -106,13 +108,13 @@ static void testLocationLongestMatch() {
 
 	const LocationConfig *found;
 	found = PathUtils::findLocation("/one/two", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/one/two");
 	found = PathUtils::findLocation("/one/two/three", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/one/two/three");
 	found = PathUtils::findLocation("/one/one/one", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/one/one/one");
 }
 
@@ -125,7 +127,7 @@ static void testLocationSegmentBoundary() {
 
 	const LocationConfig *found;
 	found = PathUtils::findLocation("/imagesfoo", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/");
 }
 
@@ -139,16 +141,16 @@ static void testLocationNestedPrefix() {
 
 	const LocationConfig *found;
 	found = PathUtils::findLocation("/images/cat.png", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images");
 	found = PathUtils::findLocation("/images/icons/a/b.png", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images/icons");
 	found = PathUtils::findLocation("/images/", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images");
 	found = PathUtils::findLocation("/other/x", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/");
 }
 
@@ -161,19 +163,19 @@ static void testLocationTrailingSlash() {
 
 	const LocationConfig *found;
 	found = PathUtils::findLocation("/images/", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images/");
 	found = PathUtils::findLocation("/images/cat.png", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images/");
 	found = PathUtils::findLocation("/images/icons/a.png", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/images/");
 	found = PathUtils::findLocation("/imagesfoo", cfg);
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/");
 	found = PathUtils::findLocation("/images", cfg);		// like NGINX
-	ASSERT_EQ((found != NULL), true);
+	ASSERT_NOT_EQ(found, (const LocationConfig*)NULL);
 	ASSERT_EQ(found->getTarget(), "/");
 }
 
@@ -290,6 +292,155 @@ static void testDiskPathNested() {
 		"/var/www/images/img.jpeg");
 }
 
+// Content-Length helpers ------------------------------------------------------
+static Request makeRequestWithCL(const std::string& method,
+								const std::string& path,
+								size_t contentLength)
+{
+	Request req = makeRequest(method, path);
+	std::stringstream iss;
+	iss << contentLength;
+	req.addHeader("Content-Length", iss.str());
+	return req;
+}
+
+static Request makeRequestChunked(const std::string& method, const std::string& path)
+{
+	Request req = makeRequest(method, path);
+	req.addHeader("Transfer-Encoding", "chunked");
+	return req;
+}
+
+// Content-Length within limit -> no debe ser 413
+static void testContentLengthWithinLimit() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("1024");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("POST", "/", 512);
+	Decision res = proc.procRequest(req);
+	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+}
+
+// Content-Length > limit -> 413 Payload Too Large, ERROR_PAGE
+static void testContentLengthExceedsLimit() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("10");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("POST", "/", 100);
+	Decision res = proc.procRequest(req);
+	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+// Igual al límite -> permitido (> , no >=)
+static void testContentLengthEqualsLimit() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("100");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("POST", "/", 100);
+	Decision res = proc.procRequest(req);
+	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+}
+
+// client_max_body_size 0 -> sin límite
+static void testContentLengthLimitZero() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("0");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("POST", "/", 999999);
+	Decision res = proc.procRequest(req);
+	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+}
+
+// Chunked: el processor NO debe rechazar por client_max_body_size
+static void testContentLengthChunkedIgnoredByProcessor() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("10");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestChunked("POST", "/");
+	Decision res = proc.procRequest(req);
+	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+}
+
+// Prioridad: método no permitido + Content-Length excesivo -> debe prevalecer 405 con Allow
+static void testContentLengthMethodNotAllowedHasPriority() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.setClientMax("10");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("DELETE", "/", 500);
+	Decision res = proc.procRequest(req);
+	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getAllowedMethods().size(), 1u);
+	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
+}
+
+// Sin Content-Length ni chunked -> no debe dar 413
+static void testNoContentLengthNo413() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.setClientMax("1");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequest("GET", "/");
+	Decision res = proc.procRequest(req);
+	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+}
+
 void processor_tests() {
 	Tester::runTest("Path decoder", testDecodePath);
 	Tester::runTest("Path normalizer", testNormalizePath);
@@ -307,7 +458,13 @@ void processor_tests() {
 	Tester::runTest("Allowed methods", testAllowedMethods);
 	Tester::runTest("405 allowed list", testMethodNotAllowedList);
 	Tester::runTest("Disk path", testDiskPath);
-	
+	Tester::runTest("Content-Length within limit", testContentLengthWithinLimit);
+	Tester::runTest("Content-Length equals limit allowed", testContentLengthEqualsLimit);
+	Tester::runTest("Content-Length exceeds limit -> 413", testContentLengthExceedsLimit);
+	Tester::runTest("client_max_body_size 0 = no limit", testContentLengthLimitZero);
+	Tester::runTest("Chunked ignored by processor", testContentLengthChunkedIgnoredByProcessor);
+	Tester::runTest("413 vs 405 priority (method not allowed)", testContentLengthMethodNotAllowedHasPriority);
+	Tester::runTest("No Content-Length -> no 413", testNoContentLengthNo413);
 
 	Tester::report();
 }

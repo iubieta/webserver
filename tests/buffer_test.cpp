@@ -22,7 +22,7 @@ void testData() {
 	buff.append("TEST");
 	ASSERT_EQ(buff.data(), std::string("TEST"));
 	const char *data_cp = buff.data();
-	ASSERT_EQ((data_cp == buff.data()), true);
+	ASSERT_EQ(data_cp, buff.data());
 	ASSERT_EQ(data_cp, std::string("TEST"));
 	// Constness
 	data_cp = "MOD";
@@ -40,25 +40,25 @@ void testCopy() {
 	Buffer	buff_cp = buff;
 	unsigned int ret = memcmp(buff.data(), buff_cp.data(), buff.size());
 	ASSERT_EQ(ret, 0);
-	ASSERT_EQ((buff.data() == buff_cp.data()), false);
+	ASSERT_NOT_EQ(buff.data(), buff_cp.data());
 
 	buff.append("TEST");
 	ret = memcmp(buff.data(), buff_cp.data(), buff.size());
 	ASSERT_NOT_EQ(ret, 0);
-	ASSERT_EQ((buff.data() == buff_cp.data()), false);
+	ASSERT_NOT_EQ(buff.data(), buff_cp.data());
 	buff_cp = buff;
 	ret = memcmp(buff.data(), buff_cp.data(), buff.size());
 	ASSERT_EQ(ret, 0);
-	ASSERT_EQ((buff.data() == buff_cp.data()), false);
+	ASSERT_NOT_EQ(buff.data(), buff_cp.data());
 
 	buff.consume(4);
 	ret = memcmp(buff.data(), buff_cp.data(), buff_cp.size());
 	ASSERT_NOT_EQ(ret, 0);
-	ASSERT_EQ((buff.data() == buff_cp.data()), false);
+	ASSERT_NOT_EQ(buff.data(), buff_cp.data());
 	buff_cp = buff;
 	ret = memcmp(buff.data(), buff_cp.data(), buff.size());
 	ASSERT_EQ(ret, 0);
-	ASSERT_EQ((buff.data() == buff_cp.data()), false);
+	ASSERT_NOT_EQ(buff.data(), buff_cp.data());
 }
 
 
