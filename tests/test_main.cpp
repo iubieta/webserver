@@ -14,6 +14,7 @@ struct	TestEntry {
 static const TestEntry g_tests[] = {
 	{ "logger" , logger_tests },
 	{ "config" , config_tests },
+	{"config-directive",config_directive_tests},
 	{ "buffer" , buffer_tests },
 	{"httpParser", test_httpParser},
 	{"httpParserBody", test_httpParserBody},

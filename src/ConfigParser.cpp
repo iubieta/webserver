@@ -423,3 +423,8 @@ int ConfigParse::normalizeConfigurationFile(ServerConfig &server)
 	}
 	return 0;
 }
+
+const std::vector<ServerConfig>	&ConfigParse::getServers() const
+{
+	return (server_);
+}

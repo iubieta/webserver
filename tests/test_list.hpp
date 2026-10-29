@@ -6,6 +6,7 @@
 
 void	logger_tests();
 void	config_tests();
+void	config_directive_tests();
 void	buffer_tests();
 void 	test_httpParser();
 void	test_httpParserBody();
