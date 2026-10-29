@@ -160,8 +160,7 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 
 	if (index >= token_.size() || token_[index] != "{")
 		return -1;
-
-
+	
 	index++;
 	while (index < token_.size() && token_[index] != "}")
 	{
@@ -184,7 +183,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
 				return -1;
-			if (location.getRootSet()|| location.getAliasSet())
+			if (location.getRootSet()|| location.getAliasSet() ||
+				location.getReturnSet())
 				return -1;
 			temp = clearSemicolon(token_[index]);
 			if (location.setRoot(temp) == -1)
@@ -232,7 +232,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
 				return -1;
-			if(location.getRootSet() || location.getAliasSet())
+			if(location.getRootSet() || location.getAliasSet() ||
+				location.getReturnSet())
 				return -1;
 			temp = location.getTarget();
 			if (temp[temp.size() - 1] != '/')
@@ -254,6 +255,22 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (location.setClientMax(temp) == -1)
 				return -1;
 			location.setClientMaxBodySet(true);
+		}else if(token_[index] == "return")
+		{
+			index++;
+			if (index >= token_.size() || endSemicolon(token_[index]))
+				return -1;
+			temp = token_[index];
+			index++;
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			if(location.getAliasSet() || location.getRootSet() ||
+				location.getReturnSet())
+				return -1;
+			if (location.setReturn(temp, clearSemicolon(token_[index])) == -1)
+				return -1;
+			location.setReturnSet(true);
+
 		}
 		else
 			return -1;
@@ -380,7 +397,9 @@ int ConfigParse::normalizeConfigurationFile(ServerConfig &server)
 	it = server.getLocations().begin();
 	for(; it != server.getLocations().end(); ++it)
 	{
-		if(!it->getAliasSet() && !it->getRootSet())
+		
+		if(!it->getAliasSet() && !it->getRootSet()
+			&& !it -> getReturnSet())
 		{
 			if(server.getRoot().empty())
 			{

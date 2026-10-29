@@ -10,6 +10,23 @@
 #include "vector"
 #include <sys/types.h>
 
+typedef	struct s_return
+{
+	int			code;
+	std::string	destination;
+	
+	s_return():code(0), 
+			destination("")
+	{}
+	
+	bool operator==(const s_return &other) const
+	{
+		return (code == other.code
+			&& destination == other.destination);
+	}
+
+}	t_return;
+
 class	LocationConfig 
 {
 	private:
@@ -24,6 +41,8 @@ class	LocationConfig
 		bool						alias_set_;
 		bool						autoindex_set_;
 		bool						client_max_body_set_;
+		t_return					return_;
+		bool						return_set_;
 		//std::string					return_;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
@@ -50,6 +69,8 @@ class	LocationConfig
 		bool	getAliasSet() const;
 		bool	getAutoindexSet() const;
 		bool	getClientMaxbodySet() const;
+		const t_return &getReturn() const;
+		bool	getReturnSet() const;
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -65,6 +86,9 @@ class	LocationConfig
 		void setAliasSet(bool aliasSet);
 		void setAutoindexSet(bool autoindexSet);
 		void setClientMaxBodySet(bool clientMaxBodySet);
+		int setReturn(const std::string &code, const std::string &destination);
+		int setReturn(int code, const std::string &destination);
+		void setReturnSet(bool returnSet);
 };
 
 #endif // !SERVER_CONFIG_HPP
