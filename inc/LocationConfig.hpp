@@ -10,13 +10,14 @@
 #include "vector"
 #include "map"
 #include <sys/types.h>
+#include "http_status_codes.hpp"
 
 typedef	struct s_return
 {
-	int			code;
+	e_status_code	code;
 	std::string	destination;
 	
-	s_return():code(0), 
+	s_return():code(TEMPORARY_REDIR), 
 			destination("")
 	{}
 	
@@ -44,9 +45,12 @@ class	LocationConfig
 		bool						client_max_body_set_;
 		t_return					return_;
 		bool						return_set_;
-		std::map<int, std::string>	error_page_;
+		std::map<e_status_code, std::string>	error_page_;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
+
+		int	toRedirectStatusCode(int number, e_status_code &status);
+		int	toErrorStatusCode(int number, e_status_code &status);
 		
 	public:
 
@@ -72,8 +76,8 @@ class	LocationConfig
 		bool	getClientMaxbodySet() const;
 		const t_return &getReturn() const;
 		bool	getReturnSet() const;
-		const	std::string *getErrorPage(int key) const;
-		const std::map<int, std::string> &getErrorPages() const;
+		const	std::string *getErrorPage(e_status_code key) const;
+		const std::map<e_status_code, std::string> &getErrorPages() const;
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -90,10 +94,10 @@ class	LocationConfig
 		void setAutoindexSet(bool autoindexSet);
 		void setClientMaxBodySet(bool clientMaxBodySet);
 		int setReturn(const std::string &code, const std::string &destination);
-		int setReturn(int code, const std::string &destination);
+		//int setReturn(e_status_code code, const std::string &destination);
 		void setReturnSet(bool returnSet);
 		int addErrorPage(const std::string &code, const std::string &page);
-		void setErrorPages(const std::map<int, std::string> &error_pages);
+		void setErrorPages(const std::map<e_status_code, std::string> &error_pages);
 };
 
 #endif // !SERVER_CONFIG_HPP

@@ -19,13 +19,13 @@ void	testServerErrorPages()
 	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
-	page = servers->at(0).getErrorPage(500);
+	page = servers->at(0).getErrorPage(INTERNAL_ERROR);
 	ASSERT_EQ(page != NULL, true);
 	ASSERT_EQ(*page, std::string("/errors/50x.html"));
-	page = servers->at(0).getErrorPage(502);
+	page = servers->at(0).getErrorPage(BAD_GATEWAY);
 	ASSERT_EQ(page != NULL, true);
 	ASSERT_EQ(*page, std::string("/errors/50x.html"));
-	page = servers->at(0).getErrorPage(503);
+	page = servers->at(0).getErrorPage(SERVICE_UNAVAILABLE);
 	ASSERT_EQ(page != NULL, true);
 	ASSERT_EQ(*page, std::string("/errors/50x.html"));
 }
@@ -42,11 +42,11 @@ void	testLocationErrorPage()
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
-	page = location->getErrorPage(403);
+	page = location->getErrorPage(FORBIDDEN);
 	ASSERT_EQ(page != NULL, true);
 	ASSERT_EQ(*page, std::string("/errors/private.html"));
-	ASSERT_EQ(location->getErrorPage(404) == NULL, true);
-	ASSERT_EQ(servers->at(0).getErrorPage(403) == NULL, true);
+	ASSERT_EQ(location->getErrorPage(NOT_FOUND) == NULL, true);
+	ASSERT_EQ(servers->at(0).getErrorPage(FORBIDDEN) == NULL, true);
 }
 
 void	testErrorPageInheritance()
@@ -61,7 +61,7 @@ void	testErrorPageInheritance()
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
-	page = location->getErrorPage(404);
+	page = location->getErrorPage(NOT_FOUND);
 	ASSERT_EQ(page != NULL, true);
 	ASSERT_EQ(*page, std::string("/errors/404.html"));
 }

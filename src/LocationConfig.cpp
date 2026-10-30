@@ -171,36 +171,77 @@ int LocationConfig::setClientMax(size_t clientMax)
 	return 0;
 }
 
+int	LocationConfig::toRedirectStatusCode(int number, e_status_code &status)
+{
+	switch (number)
+	{
+		case MOVED_PERMANENTLY:
+		case FOUND:
+		case TEMPORARY_REDIR:
+		case PERMANENT_REDIR:
+			status = static_cast<e_status_code>(number);
+			return (0);
+		default:
+			return (-1);
+	}
+}
+
+int	LocationConfig::toErrorStatusCode(int number, e_status_code &status)
+{
+	switch (number)
+	{
+		case BAD_REQUEST:
+		case FORBIDDEN:
+		case NOT_FOUND:
+		case METHOD_NOT_ALLOWED:
+		case REQUEST_TIMEOUT:
+		case LENGTH_REQUIRED:
+		case PAYLOAD_TOO_LARGE:
+		case URI_TOO_LONG:
+		case UNSUPPORTED_MEDIA_TYPE:
+		case HEADERS_TOO_LARGE:
+		case INTERNAL_ERROR:
+		case NOT_IMPLEMENTED:
+		case BAD_GATEWAY:
+		case SERVICE_UNAVAILABLE:
+		case VERSION_NOT_SUPPORTED:
+			status = static_cast<e_status_code>(number);
+			return (0);
+		default:
+			return (-1);
+	}
+}
+
 int	LocationConfig::setReturn(const std::string &code,
 		const std::string &destination)
 {
 	std::stringstream	ss(code);
 	int					code_num;
 	char				leftover;
+	e_status_code		status;
 
 	if (code.empty() || destination.empty())
 		return (-1);
 	if (!(ss >> code_num) || (ss >> leftover))
 		return (-1);
-	if (code_num != 301 && code_num != 302
-		&& code_num != 303 && code_num != 307
-		&& code_num != 308)
-		return (-1);
+	if (toRedirectStatusCode(code_num, status) == -1)
+		return -1;
 	if (destination[0] != '/'
 		&& destination.find("http://") != 0
 		&& destination.find("https://") != 0)
 		return (-1);
-	return_.code = code_num;
+	return_.code = status;
 	return_.destination = destination;
 	return (0);
 }
 
-int LocationConfig::setReturn(int code, const std::string &destination)
-{
-	return_.code = code;
-	return_.destination = destination;
-	return 0;
-}
+//This function needs to be validated.
+// int LocationConfig::setReturn(e_status_code code, const std::string &destination)
+// {
+// 	return_.code = code;
+// 	return_.destination = destination;
+// 	return 0;
+// }
 
 void LocationConfig::setReturnSet(bool returnSet)
 {
@@ -325,16 +366,16 @@ void LocationConfig::setClientMaxBodySet(bool clientMaxbodySet)
 	client_max_body_set_ = clientMaxbodySet;
 }
 
-const std::string *LocationConfig::getErrorPage(int key) const
+const std::string *LocationConfig::getErrorPage(e_status_code key) const
 {
-	std::map<int, std::string>::const_iterator it = error_page_.find(key);
+	std::map<e_status_code, std::string>::const_iterator it = error_page_.find(key);
 
 	if (it != error_page_.end())	
 		return &(it->second);
 	return NULL;
 }
 
-const std::map<int, std::string> &LocationConfig::getErrorPages() const
+const std::map<e_status_code, std::string> &LocationConfig::getErrorPages() const
 {
 	return error_page_;
 }
@@ -344,6 +385,7 @@ int LocationConfig::addErrorPage(const std::string &code, const std::string &pag
     std::stringstream ss(code);
     char letfover;
     int code_;
+	e_status_code status;
 
     if (code.empty() || page.empty())
         return -1;
@@ -351,21 +393,22 @@ int LocationConfig::addErrorPage(const std::string &code, const std::string &pag
         return -1;
     if (!(ss >> code_) || (ss >> letfover))
         return -1;
-    if (!(code_ >= 400 && code_ <= 599))
-        return -1;
+    if(toErrorStatusCode(code_, status) == -1)
+		return -1;
+	
     if (page[0] != '/')
         return -1;
     
-    if (error_page_.count(code_) != 0)
+    if (error_page_.count(status) != 0)
 	{
 		std::cerr<<"error page: repeated field\n";
         return (-1);
 	}
-	error_page_.insert(std::make_pair(code_, page));
+	error_page_.insert(std::make_pair(status, page));
 	return (0);
 }
 
-void LocationConfig::setErrorPages(const std::map<int, std::string> &error_pages)
+void LocationConfig::setErrorPages(const std::map<e_status_code, std::string> &error_pages)
 {
 	error_page_ = error_pages;
 }

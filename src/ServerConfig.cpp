@@ -104,16 +104,42 @@ const LocationConfig &ServerConfig::getLocation(size_t index) const
 	return locations_.at(index);
 }
 
-const std::string *ServerConfig::getErrorPage(int key) const
+int	ServerConfig::toErrorStatusCode(int number, e_status_code &status)
 {
-    std::map<int, std::string>::const_iterator it = error_page_.find(key);
+	switch (number)
+	{
+		case BAD_REQUEST:
+		case FORBIDDEN:
+		case NOT_FOUND:
+		case METHOD_NOT_ALLOWED:
+		case REQUEST_TIMEOUT:
+		case LENGTH_REQUIRED:
+		case PAYLOAD_TOO_LARGE:
+		case URI_TOO_LONG:
+		case UNSUPPORTED_MEDIA_TYPE:
+		case HEADERS_TOO_LARGE:
+		case INTERNAL_ERROR:
+		case NOT_IMPLEMENTED:
+        case BAD_GATEWAY:
+		case SERVICE_UNAVAILABLE:
+		case VERSION_NOT_SUPPORTED:
+			status = static_cast<e_status_code>(number);
+			return (0);
+		default:
+			return (-1);
+	}
+}
+
+const std::string *ServerConfig::getErrorPage(e_status_code key) const
+{
+    std::map<e_status_code, std::string>::const_iterator it = error_page_.find(key);
 
     if (it != error_page_.end())
         return &(it->second);
     return NULL;
 }
 
-const std::map<int, std::string> &ServerConfig::getErrorPages() const
+const std::map<e_status_code, std::string> &ServerConfig::getErrorPages() const
 {
     return error_page_;
 }
@@ -193,6 +219,7 @@ int ServerConfig::addErrorPage(const std::string &code, const std::string &page)
     std::stringstream ss(code);
     char letfover;
     int code_;
+    e_status_code status;
 
     if (code.empty() || page.empty())
         return -1;
@@ -200,17 +227,16 @@ int ServerConfig::addErrorPage(const std::string &code, const std::string &page)
         return -1;
     if (!(ss >> code_) || (ss >> letfover))
         return -1;
-    if (!(code_ >= 400 && code_ <= 599))
+    if (toErrorStatusCode(code_, status) == -1)
         return -1;
     if (page[0] != '/')
         return -1;
-    
-    if (error_page_.count(code_) != 0)
+    if (error_page_.count(status) != 0)
 	{
 		std::cerr<<"error page: repeated field\n";
         return (-1);
 	}
-	error_page_.insert(std::make_pair(code_, page));
+	error_page_.insert(std::make_pair(status, page));
 	return (0);
 }
 int ServerConfig::setAutoindex(const std::string &autoindex)
@@ -258,7 +284,7 @@ void ServerConfig::addLocation(const LocationConfig &location)
 	locations_.push_back(location);
 }
 
-void ServerConfig::setErrorPages(const std::map<int, std::string> &error_pages)
+void ServerConfig::setErrorPages(const std::map<e_status_code, std::string> &error_pages)
 {
     error_page_ = error_pages;
 }
