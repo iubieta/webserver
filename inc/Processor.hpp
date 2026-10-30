@@ -28,9 +28,6 @@ class Processor {
 		// Resolve path (decode + normalize, see path_utils.hpp)
 		std::string resolvePath(const Request& req) const;
 
-		// Check if location has a return
-		std::string redirTarget(const LocationConfig& cfg) const;
-
 		// Check if method is allowed
 		bool methodIsAllowed(const Request& req,
 			const LocationConfig& cfg) const;

@@ -41,14 +41,6 @@ std::string Processor::resolvePath(const Request& req) const
 	return new_path;
 }
 
-// REDIR
-// Checks if location has a "return" parameter and in that case returns the new target
-std::string Processor::redirTarget(const LocationConfig& cfg) const {
-	(void)cfg;
-	return "";
-}
-
-// ALLOWED METHODS
 // Check if the specified method is allowed in the configuration
 bool Processor::methodIsAllowed(const Request& req,
 	const LocationConfig& cfg) const
@@ -133,6 +125,15 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 	res.setLocationConfig(cfg);
+
+	// If there is a return in the location process it
+	if (cfg->getReturnSet()) {
+		t_return ret = cfg->getReturn();
+		res.setStatus(static_cast<e_status_code>(ret.code));
+		res.setRedirURL(ret.destination);
+		res.setHandler(REDIRECTION);
+		return res;
+	}
 
 	// Searchs request method in config allowed methods 
 	if (!methodIsAllowed(req, *cfg))
