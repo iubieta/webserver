@@ -216,4 +216,5 @@ void test_requestParser()
 	Tester::runTest(
 		"Reject percent-encoded slash",
 		testRejectEncodedSlash);
+	Tester::report();
 }

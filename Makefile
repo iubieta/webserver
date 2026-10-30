@@ -7,6 +7,13 @@ CXX 		:= c++
 CXXFLAGS 	:= -Wall -Wextra -Werror -std=c++98
 CPPFLAGS	:= -I inc -MMD -MP
 
+LOG_LEVEL	?= INFO
+VALID_LOG_LEVELS := DEBUG INFO WARNING ERROR CRITICAL
+ifeq ($(filter $(LOG_LEVEL),$(VALID_LOG_LEVELS)),)
+$(error LOG_LEVEL inválido: '$(LOG_LEVEL)'. Usa: $(VALID_LOG_LEVELS))
+endif
+CPPFLAGS	+= -DLOG_LEVEL=$(LOG_LEVEL)
+
 SRC_DIR		:= src
 OBJ_DIR		:= obj
 

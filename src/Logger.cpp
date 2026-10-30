@@ -12,16 +12,22 @@
 
 #include "../inc/Logger.hpp"
 
+#ifndef LOG_LEVEL
+	
+	#define LOG_LEVEL INFO
+
+#endif // !LOG_LEVEL
+
 // Canonichal form ------------------------------------------------------------
 Logger::Logger() : 
 	file_level_(DEBUG),
-	console_(true), console_level_(DEBUG),
+	console_(true), console_level_(LOG_LEVEL),
 	timestamp_(true)
 {}
 
 Logger::Logger(const std::string &filepath) : 
 	file_level_(DEBUG), 
-	console_(true), console_level_(DEBUG),
+	console_(true), console_level_(LOG_LEVEL),
 	timestamp_(true)
 {
 	log_file_.open(filepath.c_str(), std::ios::app);
