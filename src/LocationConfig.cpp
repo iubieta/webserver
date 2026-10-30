@@ -1,5 +1,6 @@
 #include "../inc/LocationConfig.hpp"
 #include <sstream>
+#include <iostream>
 #include <limits>
 #include <strings.h>
 
@@ -10,7 +11,14 @@ LocationConfig::LocationConfig()
 			  allow_methods_(),
 			  index_(),
 			  client_max_body_size_(0),
-			  alias_("")
+			  alias_(""),
+			  root_set_(false),
+			  alias_set_(false),
+			  autoindex_set_(false),
+			  client_max_body_set_(false),
+			  return_(),
+			  return_set_(false),
+			  error_page_()
 
 {}
 
@@ -21,7 +29,14 @@ LocationConfig::LocationConfig(const LocationConfig &other)
 			  allow_methods_(other.allow_methods_),
 			  index_(other.index_),
 			  client_max_body_size_(other.client_max_body_size_),
-			  alias_(other.alias_)
+			  alias_(other.alias_),
+			  root_set_(other.root_set_),
+			  alias_set_(other.alias_set_),
+			  autoindex_set_(other.autoindex_set_),
+			  client_max_body_set_(other.client_max_body_set_),
+			  return_(other.return_),
+			  return_set_(other.return_set_),
+			  error_page_(other.error_page_)
 {}
 
 LocationConfig &LocationConfig::operator=(const LocationConfig &other)
@@ -35,6 +50,13 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 		index_ = other.index_;
 		client_max_body_size_ = other.client_max_body_size_;
 		alias_ = other.alias_;
+		root_set_ = other.root_set_;
+		alias_set_ = other.alias_set_;
+		autoindex_set_ = other.autoindex_set_;
+		client_max_body_set_ = other.client_max_body_set_;
+		return_  = other.return_;
+		return_set_ = other.return_set_;
+		error_page_ = other.error_page_;
 	}
 	return *this;
 }
@@ -47,17 +69,25 @@ const std::string &LocationConfig::getRoot() const
 }
 
 // Operators
-bool LocationConfig::operator==(const LocationConfig& other) const {
-	if (target_ == other.target_ &&
-		root_ == other.root_ &&
-		autoindex_ == other.autoindex_ &&
-		allow_methods_ == other.allow_methods_ &&
-		index_ == other.index_ &&
-		client_max_body_size_ == other.client_max_body_size_ )
+bool LocationConfig::operator==(const LocationConfig &other) const
+{
+	if (target_ == other.target_
+		&& root_ == other.root_
+		&& autoindex_ == other.autoindex_
+		&& allow_methods_ == other.allow_methods_
+		&& index_ == other.index_
+		&& client_max_body_size_ == other.client_max_body_size_
+		&& alias_ == other.alias_
+		&& root_set_ == other.root_set_
+		&& autoindex_set_ == other.autoindex_set_
+		&& client_max_body_set_ == other.client_max_body_set_
+		&& alias_set_ == other.alias_set_
+		&& return_ == other.return_
+		&& return_set_ == other.return_set_
+		&& error_page_ == other.error_page_)
 		return true;
 	return false;
 }
-
 bool LocationConfig::getAutoindex() const
 {
 	return autoindex_;
@@ -102,6 +132,12 @@ int LocationConfig::setRoot(const std::string &root)
 {
 	if(root.empty())
 		return -1;
+	if(root[0] != '/')
+	{
+		std::cerr << "root is not an absolute path\n";
+		return -1;
+	}
+		
 	root_ = root;
 	return 0;
 }
@@ -133,6 +169,42 @@ int LocationConfig::setClientMax(size_t clientMax)
 {
 	client_max_body_size_ = clientMax;
 	return 0;
+}
+
+int	LocationConfig::setReturn(const std::string &code,
+		const std::string &destination)
+{
+	std::stringstream	ss(code);
+	int					code_num;
+	char				leftover;
+
+	if (code.empty() || destination.empty())
+		return (-1);
+	if (!(ss >> code_num) || (ss >> leftover))
+		return (-1);
+	if (code_num != 301 && code_num != 302
+		&& code_num != 303 && code_num != 307
+		&& code_num != 308)
+		return (-1);
+	if (destination[0] != '/'
+		&& destination.find("http://") != 0
+		&& destination.find("https://") != 0)
+		return (-1);
+	return_.code = code_num;
+	return_.destination = destination;
+	return (0);
+}
+
+int LocationConfig::setReturn(int code, const std::string &destination)
+{
+	return_.code = code;
+	return_.destination = destination;
+	return 0;
+}
+
+void LocationConfig::setReturnSet(bool returnSet)
+{
+	return_set_ = returnSet;
 }
 
 void LocationConfig::addIndex(const std::string &index)
@@ -197,8 +269,103 @@ int LocationConfig::setAlias(const std::string &alias)
 		return -1;
 	if (alias[0] != '/')
 		return -1;
-	if (alias[alias.size()] != '/')
+	if (alias[alias.size() - 1] != '/')
 		return -1;
 	alias_ = alias;
 	return 0;
+}
+
+bool LocationConfig::getRootSet() const
+{
+	return root_set_;
+}
+
+void LocationConfig::setRootSet(bool rootSet)
+{
+	root_set_ = rootSet;
+}
+
+bool LocationConfig::getAliasSet() const
+{
+	return alias_set_; 
+}
+
+void LocationConfig::setAliasSet(bool aliasSet)
+{
+	alias_set_ = aliasSet;
+}
+
+bool LocationConfig::getAutoindexSet() const
+{
+	return autoindex_set_;
+}
+
+void LocationConfig::setAutoindexSet(bool autoindexSet)
+{
+	autoindex_set_ = autoindexSet;
+}
+
+bool LocationConfig::getClientMaxbodySet() const
+{
+	return client_max_body_set_;
+}
+
+const t_return &LocationConfig::getReturn() const
+{
+	return return_;
+}
+
+bool LocationConfig::getReturnSet() const
+{
+	return return_set_;
+}
+
+void LocationConfig::setClientMaxBodySet(bool clientMaxbodySet)
+{
+	client_max_body_set_ = clientMaxbodySet;
+}
+
+const std::string *LocationConfig::getErrorPage(int key) const
+{
+	std::map<int, std::string>::const_iterator it = error_page_.find(key);
+
+	if (it != error_page_.end())	
+		return &(it->second);
+	return NULL;
+}
+
+const std::map<int, std::string> &LocationConfig::getErrorPages() const
+{
+	return error_page_;
+}
+
+int LocationConfig::addErrorPage(const std::string &code, const std::string &page)
+{
+    std::stringstream ss(code);
+    char letfover;
+    int code_;
+
+    if (code.empty() || page.empty())
+        return -1;
+    if(code[0] == '+' || code.size() != 3)
+        return -1;
+    if (!(ss >> code_) || (ss >> letfover))
+        return -1;
+    if (!(code_ >= 400 && code_ <= 599))
+        return -1;
+    if (page[0] != '/')
+        return -1;
+    
+    if (error_page_.count(code_) != 0)
+	{
+		std::cerr<<"error page: repeated field\n";
+        return (-1);
+	}
+	error_page_.insert(std::make_pair(code_, page));
+	return (0);
+}
+
+void LocationConfig::setErrorPages(const std::map<int, std::string> &error_pages)
+{
+	error_page_ = error_pages;
 }

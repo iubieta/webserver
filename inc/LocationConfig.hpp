@@ -8,7 +8,25 @@
 
 #include "string"
 #include "vector"
+#include "map"
 #include <sys/types.h>
+
+typedef	struct s_return
+{
+	int			code;
+	std::string	destination;
+	
+	s_return():code(0), 
+			destination("")
+	{}
+	
+	bool operator==(const s_return &other) const
+	{
+		return (code == other.code
+			&& destination == other.destination);
+	}
+
+}	t_return;
 
 class	LocationConfig 
 {
@@ -20,7 +38,13 @@ class	LocationConfig
 		std::vector<std::string>	index_;
 		size_t						client_max_body_size_;
 		std::string					alias_;
-		//std::string					return_;
+		bool						root_set_;
+		bool						alias_set_;
+		bool						autoindex_set_;
+		bool						client_max_body_set_;
+		t_return					return_;
+		bool						return_set_;
+		std::map<int, std::string>	error_page_;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
 		
@@ -42,6 +66,14 @@ class	LocationConfig
 		const std::string &getMethod(size_t index) const;
 		const std::string &getTarget() const;
 		const std::string &getAlias() const;
+		bool	getRootSet() const;
+		bool	getAliasSet() const;
+		bool	getAutoindexSet() const;
+		bool	getClientMaxbodySet() const;
+		const t_return &getReturn() const;
+		bool	getReturnSet() const;
+		const	std::string *getErrorPage(int key) const;
+		const std::map<int, std::string> &getErrorPages() const;
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -53,6 +85,15 @@ class	LocationConfig
 		int setVecIndex(const std::vector<std::string> &index);
 		int setTarget(const std::string &target);
 		int setAlias(const std::string &alias) ;
+		void setRootSet(bool rootSet);
+		void setAliasSet(bool aliasSet);
+		void setAutoindexSet(bool autoindexSet);
+		void setClientMaxBodySet(bool clientMaxBodySet);
+		int setReturn(const std::string &code, const std::string &destination);
+		int setReturn(int code, const std::string &destination);
+		void setReturnSet(bool returnSet);
+		int addErrorPage(const std::string &code, const std::string &page);
+		void setErrorPages(const std::map<int, std::string> &error_pages);
 };
 
 #endif // !SERVER_CONFIG_HPP

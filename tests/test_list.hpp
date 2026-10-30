@@ -6,11 +6,13 @@
 
 void	logger_tests();
 void	config_tests();
+void	config_directive_tests();
 void	buffer_tests();
 void 	test_httpParser();
 void	test_httpParserBody();
 void	test_chunk();
 void	test_requestParser();
 void	processor_tests();
+void error_page_config_tests();
 
 #endif // !TESTLIST_HPP

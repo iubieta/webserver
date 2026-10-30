@@ -10,30 +10,37 @@
 class ConfigParse
 {
 	private:
-		std::string				file_name_;
-		std::vector<std::string>	token_;
-		std::vector<ServerConfig>	server_;
+	
+	std::string				file_name_;
+	std::vector<std::string>	token_;
+	std::vector<ServerConfig>	server_;
 
-		void		ftTokenize(const std::string &line);
-		bool		isDelimiter(char c) const;
-		bool		isBrace(char c) const;
-		bool		endSemicolon(const std::string &token) const;
-		std::string	clearSemicolon(const std::string &token) const;
-		int			serverBlocks(size_t &index);
-		int			locationBlocks(size_t &index,
+	void		ftTokenize(const std::string &line);
+	bool		isDelimiter(char c) const;
+	bool		isBrace(char c) const;
+	bool		endSemicolon(const std::string &token) const;
+	std::string	clearSemicolon(const std::string &token) const;
+	int			serverBlocks(size_t &index);
+	int			locationBlocks(size_t &index,
 						ServerConfig &server);
+	int normalizeConfigurationFile(ServerConfig &server);
+	int loadErrorPage(const std::vector<std::string> &code, 
+		const std::string &page, ServerConfig &server);
+	int loadErrorPage(const std::vector<std::string> &code, 
+		const std::string &page, LocationConfig &location);
 
 	public:
-		ConfigParse(const std::string &file_name);
-		ConfigParse(const ConfigParse &other);
-		ConfigParse &operator=(const ConfigParse &other);
-		~ConfigParse();
+		
+	ConfigParse(const std::string &file_name);
+	ConfigParse(const ConfigParse &other);
+	ConfigParse &operator=(const ConfigParse &other);
+	~ConfigParse();
 
-		void	fileToken();
-		int		parseManager();
+	void	fileToken();
+	int		parseManager();
 
-		const std::vector<std::string>	&getTokens() const;
-		const std::vector<ServerConfig>	&getServers() const;
+	const std::vector<std::string>	&getTokens() const;
+	const std::vector<ServerConfig>	&getServers() const;
 };
 
 #endif

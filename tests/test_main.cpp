@@ -14,12 +14,14 @@ struct	TestEntry {
 static const TestEntry g_tests[] = {
 	{ "logger" , logger_tests },
 	{ "config" , config_tests },
+	{"config-directive",config_directive_tests},
 	{ "buffer" , buffer_tests },
 	{"httpParser", test_httpParser},
 	{"httpParserBody", test_httpParserBody},
 	{"Test-chunk", test_chunk},
 	{"request-Parser", test_requestParser},
 	{ "processor" , processor_tests },
+	{"ErrorPage-config", error_page_config_tests}
 };
 
 static size_t g_count = sizeof(g_tests) / sizeof(TestEntry);
