@@ -26,8 +26,8 @@
 				<< "ASSERT_EQ(" << #actual					\
 				<< ", "	<< #expected						\
 				<< ") Failed."								\
-				<< " Expected: \'" << expected				\
-				<< "\' Received: \'" << actual	<< "\'"		\
+				<< " Expected: \'" << (expected)			\
+				<< "\' Received: \'" << (actual)	<< "\'"		\
 				<< RESET									\
 				<< std::endl;								\
 			Tester::recordFail();							\
@@ -46,8 +46,8 @@
 				<< "ASSERT_EQ(" << #actual					\
 				<< ", "	<< #expected						\
 				<< ") Failed."								\
-				<< " Expected: \'" << expected				\
-				<< "\' Received: \'" << actual	<< "\'"		\
+				<< " Expected: \'" << (expected)			\
+				<< "\' Received: \'" << (actual)	<< "\'"		\
 				<< RESET									\
 				<< std::endl;								\
 			Tester::recordFail();							\
