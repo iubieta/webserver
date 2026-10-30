@@ -44,9 +44,11 @@ class Processor {
 			const LocationConfig& cfg) const;
 
 		// Define handler for the request
-		// TODO: define a handler list
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
-
+	
+		// TODO: error pages
+		std::string resolveErrorPage(e_status_code error_code, const LocationConfig& cfg) const;
+		// TODO: alias
 
 	public:
 		

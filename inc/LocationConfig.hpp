@@ -13,6 +13,7 @@
 
 typedef	struct s_return
 {
+	// TODO: implement return with http status codes not int
 	int			code;
 	std::string	destination;
 	

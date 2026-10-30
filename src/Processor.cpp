@@ -21,7 +21,6 @@ Processor::~Processor() {}
 
 // Private methods -------------------------------------------------------------
 
-// CONFIG AND LOCATION
 // Finds the specific config based on the host of the request (virtual hosts)
 const ServerConfig* Processor::findConfig(const Request& req) const {
 	// OPTIONAL: implement this method
@@ -32,7 +31,6 @@ const ServerConfig* Processor::findConfig(const Request& req) const {
 	return &(*cfgs_.begin());
 }
 
-// PATH
 // Resolves the whole path to useful one
 std::string Processor::resolvePath(const Request& req) const
 {
@@ -56,7 +54,6 @@ bool Processor::methodIsAllowed(const Request& req,
 	return false;
 }
 
-// CONTENT-LENGTH
 // Check if content-length is greater than max-body-size
 int Processor::checkContentLength(const Request& req,
 	const LocationConfig& cfg) const
