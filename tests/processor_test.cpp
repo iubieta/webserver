@@ -225,6 +225,68 @@ static void testPathEscapesRoot() {
 	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
 }
 
+// Redirects -------------------------------------------------------------------
+static Decision redirectDecision(const std::string& method,
+	const std::string& path, const std::string& code,
+	const std::string& destination, const std::string& root = "")
+{
+	LocationConfig loc = makeLocation("/old");
+	if (!root.empty())
+		loc.setRoot(root);
+	loc.setReturn(code, destination);
+	loc.setReturnSet(true);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	return proc.procRequest(makeRequest(method, path));
+}
+
+// Relative targets are stored verbatim: root is a filesystem mapping, not a URL prefix
+static void testRedirectRelativeTarget() {
+	Decision res = redirectDecision("GET", "/old", "301", "/new", "/var/www");
+	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
+	ASSERT_EQ(res.getHandler(), REDIRECTION);
+	ASSERT_EQ(res.getRedirURL(), "/new");
+}
+
+// Absolute URLs are preserved as configured
+static void testRedirectAbsoluteTarget() {
+	Decision res = redirectDecision("GET", "/old", "302",
+		"https://example.com/new");
+	ASSERT_EQ(res.getStatus(), FOUND);
+	ASSERT_EQ(res.getHandler(), REDIRECTION);
+	ASSERT_EQ(res.getRedirURL(), "https://example.com/new");
+}
+
+// The status comes from the config, not from a hardcoded 301
+static void testRedirectConfiguredStatus() {
+	Decision res = redirectDecision("GET", "/old", "307", "/tmp");
+	ASSERT_EQ(res.getStatus(), TEMPORARY_REDIR);
+	res = redirectDecision("GET", "/old", "308", "/tmp");
+	ASSERT_EQ(res.getStatus(), PERMANENT_REDIR);
+}
+
+// return short-circuits the method check
+static void testRedirectBeforeMethodCheck() {
+	LocationConfig loc = makeLocation("/old");
+	loc.setReturn("301", "/new");
+	loc.setReturnSet(true);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("DELETE", "/old"));
+	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
+	ASSERT_EQ(res.getHandler(), REDIRECTION);
+}
+
 // Returns the status of "method /" against a "/" location with "allowed"
 static e_status_code methodStatus(const std::string& method,
 	const std::string& allowed)
@@ -685,6 +747,10 @@ void processor_tests() {
 	Tester::runTest("GET / w/o location", testGetRootWithoutLocations);
 	Tester::runTest("GET / with locations", testGetRootWithLocations);
 	Tester::runTest("Path escapes root", testPathEscapesRoot);
+	Tester::runTest("Redirect relative target", testRedirectRelativeTarget);
+	Tester::runTest("Redirect absolute target", testRedirectAbsoluteTarget);
+	Tester::runTest("Redirect configured status", testRedirectConfiguredStatus);
+	Tester::runTest("Redirect before method check", testRedirectBeforeMethodCheck);
 	Tester::runTest("Allowed methods", testAllowedMethods);
 	Tester::runTest("405 allowed list", testMethodNotAllowedList);
 	Tester::runTest("Disk path", testDiskPath);
