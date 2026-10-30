@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 
 #include "../inc/Processor.hpp"
+#include "../inc/path_utils.hpp"
+#include "../inc/log_global.hpp"
 
 // Builders --------------------------------------------------------------------
 // The builder has the server configs corresponding to the connection as input
@@ -101,7 +103,10 @@ int methodSwitch(const std::string& method) {
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
 	Decision	res;
+	
+	ft_log::global().debug("Processing request");
 
+	// Configuration searching
 	const ServerConfig* server_cfg = findConfig(req);
 	if (server_cfg == NULL)
 	{
@@ -119,6 +124,7 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 
+	// Configuration searching
 	const LocationConfig* cfg = PathUtils::findLocation(target, *server_cfg);
 	if (cfg == NULL)
 	{
@@ -128,17 +134,19 @@ Decision Processor::procRequest(const Request& req) {
 	}
 	res.setLocationConfig(cfg);
 
-	// 405 must carry the Allow header, so the builder needs the methods
+	// Searchs request method in config allowed methods 
 	if (!methodIsAllowed(req, *cfg))
 	{
 		res.setStatus(METHOD_NOT_ALLOWED);
 		res.setHandler(ERROR_PAGE);
+		// Sets the actual allowed methods in decision
 		const std::vector<std::string>& methods = cfg->getMethods();
 		for (size_t i = 0; i < methods.size(); ++i)
 			res.addAllowedMethod(methods[i]);
 		return res;
 	}
 
+	// Checks request content length
 	switch (checkContentLength(req, *cfg)) {
 		case 1: // Data error
 		{
@@ -154,22 +162,22 @@ Decision Processor::procRequest(const Request& req) {
 		}
 	}
 
-	// DISK PATH
+	// Resolves disk path: location root + target
 	std::string disk_path = cfg->getRoot() + target;
 	res.setDiskPath(disk_path);
 
-	// TODO: stat() -> file / directory / missing (PROCESSOR_PLAN step 6-7)
+	// Target file handling 
 	struct stat stat_buf;
 	if (stat(disk_path.c_str(), &stat_buf) == -1) 
 	{
 		switch (errno) {
-			case EACCES: 
+			case EACCES: // Permission error
 			{
 				res.setStatus(FORBIDDEN);
 				res.setHandler(ERROR_PAGE);
 				return res;
 			}
-			case ENOENT: 
+			case ENOENT: // File not found
 			{
 				res.setStatus(NOT_FOUND);
 				res.setHandler(ERROR_PAGE);
@@ -177,10 +185,11 @@ Decision Processor::procRequest(const Request& req) {
 			}
 		}
 	}
+	// When target is a dir: checks for index or autoindex
 	else if (S_ISDIR(stat_buf.st_mode)) 
 	{
-		std::vector<std::string> indexs = cfg->getIndexs();
 		// If there is a definded index file search it and read it
+		std::vector<std::string> indexs = cfg->getIndexs();
 		if (!indexs.empty())
 		{
 			for (size_t i = 0; i < indexs.size(); ++i) {
@@ -195,17 +204,19 @@ Decision Processor::procRequest(const Request& req) {
 			}
 		}
 		
-		// If there is no index file or has not been found
+		// If there is no index file tries autoindex
 		if (cfg->getAutoindex()) {
 			res.setStatus(OK);
 			res.setHandler(LIST_DIR);
 			return res;
+		// If autoindex is off return 403
 		} else {
 			res.setStatus(FORBIDDEN);
 			res.setHandler(ERROR_PAGE);
 			return res;
 		}
 	}
+	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
 		// TODO: make a method enum list
 		switch (methodSwitch(req.getMethod())) {

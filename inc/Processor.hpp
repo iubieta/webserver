@@ -4,14 +4,14 @@
 #ifndef PROCESSOR_HPP
 #define PROCESSOR_HPP
 
-#include "../inc/ServerConfig.hpp"
-#include "../inc/Request.hpp"
-#include "../inc/Decision.hpp"
-#include "LocationConfig.hpp"
-#include "http_status_codes.hpp"
-#include "path_utils.hpp"
 #include <string>
 #include <vector>
+
+#include "ServerConfig.hpp"
+#include "Request.hpp"
+#include "Decision.hpp"
+#include "LocationConfig.hpp"
+#include "http_status_codes.hpp"
 
 class Processor {
 	private:
