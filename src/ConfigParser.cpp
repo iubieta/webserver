@@ -145,11 +145,45 @@ int ConfigParse::parseManager()
 	return 0;
 }
 
+int ConfigParse::loadErrorPage(const std::vector<std::string> &code, 
+	const std::string &page, ServerConfig &server)
+{
+	std::vector<std::string>::const_iterator it = code.begin();
+
+	if (code.empty() || page.empty())
+		return -1;
+	
+	for(; it != code.end(); ++it)
+	{
+		if (server.addErrorPage(*it, page) == -1)
+			return -1;
+	}
+	return 0;
+}
+
+int ConfigParse::loadErrorPage(const std::vector<std::string> &code, 
+	const std::string &page, LocationConfig &location)
+{
+	std::vector<std::string>::const_iterator it = code.begin();
+
+	if (code.empty() || page.empty())
+		return -1;
+	
+	for(; it != code.end(); ++it)
+	{
+		if (location.addErrorPage(*it, page) == -1)
+			return -1;
+	}
+	return 0;
+}
+
+
 int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 {
 	std::string temp;
 	LocationConfig location;
-	
+	std::vector<std::string> code;
+
 	if (index >= token_.size() || token_[index].empty()
 		|| token_[index][0] != '/')
 		return -1;
@@ -270,7 +304,21 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (location.setReturn(temp, clearSemicolon(token_[index])) == -1)
 				return -1;
 			location.setReturnSet(true);
-
+		}
+		else if (token_[index] == "error_page")
+		{
+			index++;
+			code.clear();
+			while(index < token_.size() && !endSemicolon(token_[index]))
+			{
+				code.push_back(token_[index]);
+				index ++;
+			}
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (loadErrorPage(code, temp, location) == -1)
+				return -1;
 		}
 		else
 			return -1;
@@ -286,6 +334,7 @@ int ConfigParse::serverBlocks(size_t &index)
 {
 	ServerConfig server;
 	std::string temp;
+	std::vector<std::string> code;
 
 	index++;
 	if (index >= token_.size() || token_[index] != "{")
@@ -377,6 +426,21 @@ int ConfigParse::serverBlocks(size_t &index)
 			if (locationBlocks(index, server) == -1)
 				return -1;
 		}
+		else if(token_[index] == "error_page")
+		{
+			index++;
+			code.clear();
+			while(index < token_.size() && !endSemicolon(token_[index]))
+			{
+				code.push_back(token_[index]);
+				index ++;
+			}
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (loadErrorPage(code, temp, server) == -1)
+				return -1;
+		}
 		else
 			return -1;
 		index++;
@@ -417,6 +481,8 @@ int ConfigParse::normalizeConfigurationFile(ServerConfig &server)
 			it->setAutoindex(server.getAutoindex());
 		if (it -> getIndexs().empty() && !server.getIndexs().empty())
 			it -> setVecIndex(server.getIndexs());
+		if (it -> getErrorPages().empty() && !server.getErrorPages().empty())
+			it->setErrorPages(server.getErrorPages());
 		if (it -> getMethods().empty())
 			it->addMethod("GET");
 

@@ -17,7 +17,8 @@ LocationConfig::LocationConfig()
 			  autoindex_set_(false),
 			  client_max_body_set_(false),
 			  return_(),
-			  return_set_(false)
+			  return_set_(false),
+			  error_page_()
 
 {}
 
@@ -34,7 +35,8 @@ LocationConfig::LocationConfig(const LocationConfig &other)
 			  autoindex_set_(other.autoindex_set_),
 			  client_max_body_set_(other.client_max_body_set_),
 			  return_(other.return_),
-			  return_set_(other.return_set_)
+			  return_set_(other.return_set_),
+			  error_page_(other.error_page_)
 {}
 
 LocationConfig &LocationConfig::operator=(const LocationConfig &other)
@@ -54,6 +56,7 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 		client_max_body_set_ = other.client_max_body_set_;
 		return_  = other.return_;
 		return_set_ = other.return_set_;
+		error_page_ = other.error_page_;
 	}
 	return *this;
 }
@@ -80,7 +83,8 @@ bool LocationConfig::operator==(const LocationConfig &other) const
 		&& client_max_body_set_ == other.client_max_body_set_
 		&& alias_set_ == other.alias_set_
 		&& return_ == other.return_
-		&& return_set_ == other.return_set_)
+		&& return_set_ == other.return_set_
+		&& error_page_ == other.error_page_)
 		return true;
 	return false;
 }
@@ -319,4 +323,49 @@ bool LocationConfig::getReturnSet() const
 void LocationConfig::setClientMaxBodySet(bool clientMaxbodySet)
 {
 	client_max_body_set_ = clientMaxbodySet;
+}
+
+const std::string *LocationConfig::getErrorPage(int key) const
+{
+	std::map<int, std::string>::const_iterator it = error_page_.find(key);
+
+	if (it != error_page_.end())	
+		return &(it->second);
+	return NULL;
+}
+
+const std::map<int, std::string> &LocationConfig::getErrorPages() const
+{
+	return error_page_;
+}
+
+int LocationConfig::addErrorPage(const std::string &code, const std::string &page)
+{
+    std::stringstream ss(code);
+    char letfover;
+    int code_;
+
+    if (code.empty() || page.empty())
+        return -1;
+    if(code[0] == '+' || code.size() != 3)
+        return -1;
+    if (!(ss >> code_) || (ss >> letfover))
+        return -1;
+    if (!(code_ >= 400 && code_ <= 599))
+        return -1;
+    if (page[0] != '/')
+        return -1;
+    
+    if (error_page_.count(code_) != 0)
+	{
+		std::cerr<<"error page: repeated field\n";
+        return (-1);
+	}
+	error_page_.insert(std::make_pair(code_, page));
+	return (0);
+}
+
+void LocationConfig::setErrorPages(const std::map<int, std::string> &error_pages)
+{
+	error_page_ = error_pages;
 }

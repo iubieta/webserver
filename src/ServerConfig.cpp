@@ -1,4 +1,5 @@
 #include "../inc/ServerConfig.hpp"
+#include <iostream>
 #include <sstream>
 #include <limits>
 
@@ -10,7 +11,8 @@ ServerConfig::ServerConfig()
       client_max_body_size_(0),
       autoindex_(false),
       index_(),
-      locations_()
+      locations_(),
+      error_page_()
 {}
 
 
@@ -22,7 +24,8 @@ ServerConfig::ServerConfig(const ServerConfig &other)
       client_max_body_size_(other.client_max_body_size_),
       autoindex_(other.autoindex_), 
       index_(other.index_), 
-      locations_(other.locations_) 
+      locations_(other.locations_), 
+      error_page_(other.error_page_)
 {}
 
 
@@ -38,6 +41,7 @@ ServerConfig &ServerConfig::operator=(const ServerConfig &other)
         autoindex_ = other.autoindex_;
         index_ = other.index_;
         locations_ = other.locations_;
+        error_page_ = other.error_page_;
     }
     return *this;
 }
@@ -98,6 +102,20 @@ const std::string &ServerConfig::getIndex(size_t index) const
 const LocationConfig &ServerConfig::getLocation(size_t index) const
 {
 	return locations_.at(index);
+}
+
+const std::string *ServerConfig::getErrorPage(int key) const
+{
+    std::map<int, std::string>::const_iterator it = error_page_.find(key);
+
+    if (it != error_page_.end())
+        return &(it->second);
+    return NULL;
+}
+
+const std::map<int, std::string> &ServerConfig::getErrorPages() const
+{
+    return error_page_;
 }
 
 int ServerConfig::setListen(const std::string &listen_str)
@@ -170,6 +188,31 @@ int ServerConfig::setClientMax(const std::string &client_max_str)
 	return 0;
 }
 
+int ServerConfig::addErrorPage(const std::string &code, const std::string &page)
+{
+    std::stringstream ss(code);
+    char letfover;
+    int code_;
+
+    if (code.empty() || page.empty())
+        return -1;
+    if(code[0] == '+' || code.size() != 3)
+        return -1;
+    if (!(ss >> code_) || (ss >> letfover))
+        return -1;
+    if (!(code_ >= 400 && code_ <= 599))
+        return -1;
+    if (page[0] != '/')
+        return -1;
+    
+    if (error_page_.count(code_) != 0)
+	{
+		std::cerr<<"error page: repeated field\n";
+        return (-1);
+	}
+	error_page_.insert(std::make_pair(code_, page));
+	return (0);
+}
 int ServerConfig::setAutoindex(const std::string &autoindex)
 {
     if (autoindex.empty())
@@ -213,4 +256,9 @@ void ServerConfig::addIndex(const std::string &index)
 void ServerConfig::addLocation(const LocationConfig &location)
 {
 	locations_.push_back(location);
+}
+
+void ServerConfig::setErrorPages(const std::map<int, std::string> &error_pages)
+{
+    error_page_ = error_pages;
 }

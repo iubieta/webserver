@@ -8,6 +8,7 @@
 
 #include "string"
 #include "vector"
+#include "map"
 #include <sys/types.h>
 
 typedef	struct s_return
@@ -43,7 +44,7 @@ class	LocationConfig
 		bool						client_max_body_set_;
 		t_return					return_;
 		bool						return_set_;
-		//std::string					return_;
+		std::map<int, std::string>	error_page_;
 		//std::vector<std::string>	cgi_path;
 		//std::vector<std::string>	cgi_ext;
 		
@@ -71,6 +72,8 @@ class	LocationConfig
 		bool	getClientMaxbodySet() const;
 		const t_return &getReturn() const;
 		bool	getReturnSet() const;
+		const	std::string *getErrorPage(int key) const;
+		const std::map<int, std::string> &getErrorPages() const;
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -89,6 +92,8 @@ class	LocationConfig
 		int setReturn(const std::string &code, const std::string &destination);
 		int setReturn(int code, const std::string &destination);
 		void setReturnSet(bool returnSet);
+		int addErrorPage(const std::string &code, const std::string &page);
+		void setErrorPages(const std::map<int, std::string> &error_pages);
 };
 
 #endif // !SERVER_CONFIG_HPP

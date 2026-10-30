@@ -24,6 +24,10 @@ class ConfigParse
 	int			locationBlocks(size_t &index,
 						ServerConfig &server);
 	int normalizeConfigurationFile(ServerConfig &server);
+	int loadErrorPage(const std::vector<std::string> &code, 
+		const std::string &page, ServerConfig &server);
+	int loadErrorPage(const std::vector<std::string> &code, 
+		const std::string &page, LocationConfig &location);
 
 	public:
 		

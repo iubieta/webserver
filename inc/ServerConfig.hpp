@@ -24,6 +24,7 @@ class ServerConfig
         bool                         autoindex_;
         std::vector<std::string>     index_;
         std::vector<LocationConfig>  locations_;
+        std::map<int, std::string>    error_page_;
 
     public:
         ServerConfig();
@@ -42,6 +43,8 @@ class ServerConfig
         const std::vector<LocationConfig> &getLocations() const;
         const std::string &getIndex(size_t index) const;
         const LocationConfig &getLocation(size_t) const;
+        const std::string *getErrorPage(int key) const;
+        const std::map<int, std::string> &getErrorPages() const;
 
         int setListen(const std::string &listen);
         int setHost(const std::string &host);
@@ -49,6 +52,8 @@ class ServerConfig
         int setAutoindex(const std::string  &autoindex);
         int setServerName(const std::string &server_name);
         int setRoot(const std::string &root);
+        int addErrorPage(const std::string &code, const std::string &page);
+        void setErrorPages(const std::map<int, std::string> &erro_pages);
 
         void addIndex(const std::string &index_file);
         void addLocation(const LocationConfig &location);
