@@ -95,6 +95,8 @@ Decision Processor::procRequest(const Request& req) {
 	
 	ft_log::global().debug("Processing request");
 
+	// TODO: check request status
+
 	// Configuration searching
 	const ServerConfig* server_cfg = findConfig(req);
 	if (server_cfg == NULL)
@@ -148,12 +150,14 @@ Decision Processor::procRequest(const Request& req) {
 	switch (checkContentLength(req, *cfg)) {
 		case 1: // Data error
 		{
+			ft_log::global().error("Content length data error");
 			res.setStatus(BAD_REQUEST);
 			res.setHandler(ERROR_PAGE);
 			return res;
 		}
 		case 2: // Content length greater than max body size
 		{
+			ft_log::global().warning("Request content-length too long");
 			res.setStatus(PAYLOAD_TOO_LARGE);
 			res.setHandler(ERROR_PAGE);
 			return res;

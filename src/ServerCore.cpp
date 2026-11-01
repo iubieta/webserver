@@ -42,6 +42,7 @@ void ServerCore::initSockets() {
 	std::vector<ServerConfig>::iterator ite = configs_.end();
 	// For each config init a socket
 	for (it = configs_.begin(); it != ite; ++it) {
+		// TODO: add ServerConfig to the constructor
 		ListeningSocket *ls = new ListeningSocket(it->getHost(), it->getListen());
 		// If socket setup fails, warn and delete the pointer
 		if (!ls->setup()) {

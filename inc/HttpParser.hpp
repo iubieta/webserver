@@ -9,6 +9,17 @@
 #include "Headers.hpp"
 #include <string>
 
+enum e_parser_state {
+	LINE,
+	HEADERS,
+	BODY,
+	CHUNK_SIZE,
+	CHUNK_DATA,
+	CHUNK_END,
+	COMPLETE,
+	ERROR,
+};
+
 class HttpParser
 {
 	private:
@@ -45,6 +56,7 @@ class HttpParser
 	const std::string &getBuffer() const;
 	e_status_code getState() const;
 	e_status_code	stateHandler(Buffer &buffer, Request &request);
+	e_status_code bodyParser();
 	
 	const std::string &getBody() const;
 	size_t	getMaxbodySize() const;

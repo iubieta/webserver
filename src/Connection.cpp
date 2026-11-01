@@ -6,10 +6,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sstream>
+#include <vector>
 
 // Constructors ---------------------------------------------------------------
 Connection::Connection(int fd) : fd_(fd), closed_(false), 
-	last_activity_(time(NULL)), parser_(), request_()
+	last_activity_(time(NULL)), state_(READING_HEADERS), parser_(), request_()
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
@@ -79,13 +80,9 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
-		state = parser_.stateHandler(read_buff_, request_);
-		if (state > 0)
-		{
-			
-		}
 		// Update last activity time
 		last_activity_ = time(NULL);
+
 
 		std::ostringstream msg;
 		msg << "Connection: RECEIVED -> ";
@@ -170,3 +167,44 @@ void Connection::appendToWrite(const char *data, size_t n) {
 }
 
 
+void	Connection::advance() {
+	switch (state_) {
+		case READING_HEADERS: 
+		{
+			parser_.stateHandler(read_buff_, request_);
+			// Change state 
+		}
+		case PROCESSING: 
+		{
+			// Process request
+			// Change state 
+		}
+		case READING_BODY: 
+		{
+			// TODO: pass clienMaxBody to the parser
+			parser_.bodyParser();
+			// Change state 
+		}
+		case EXECUTING:
+		{
+			// Execute decision
+			// Build response
+			// Change state 
+		}
+		case RESPONDING: 
+		{
+			// Create response
+			// Change state 
+		}
+		case CLOSING: 
+		{
+			// Close connection
+			// Change state 
+		}
+		case KEEP_ALIVE:
+		{
+			// Reset variables and states
+			// Change state 
+		}
+	}
+}

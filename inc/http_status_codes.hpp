@@ -11,16 +11,6 @@
 #define HTTP_V1_1 "HTTP/1.1"
 
 enum e_status_code {
-	// Parsing status
-	ESTATE_LINE,
-	ESTATE_HEADERS,
-	ESTATE_BODY,
-	ESTATE_COMPLETE,
-	CHUNK_DATA,
-	CHUNK_END,
-
-	// Processing status
-	PROCESSING,
 
 	// Info
 	CONTINUE		= 100,
@@ -64,5 +54,8 @@ typedef struct s_status_message {
 
 // TODO: status message table
 const std::string getStatusMessage(e_status_code code);
+
+// TODO: implement httpError
+bool isHttpError(e_status_code code);
 
 #endif // !HTTP_STATUS_CODES_H

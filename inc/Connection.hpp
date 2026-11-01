@@ -19,20 +19,38 @@
 // IO_CLOSING = 0
 // IO_OK > 0
 
+enum e_conn_state {
+	READING_HEADERS,
+	PROCESSING,
+	READING_BODY,
+	EXECUTING,
+	RESPONDING,
+	CLOSING,
+	KEEP_ALIVE,
+};
+
 class Connection {
 private:
-	int			fd_;
-	bool		closed_;
-	Buffer		read_buff_;
-	Buffer		write_buff_;
-	time_t		last_activity_;
+	// ServerCore related
+	int					fd_;
+	ServerConfig		config_;
+
+	bool				closed_;
+	Buffer				read_buff_;
+	Buffer				write_buff_;
+	time_t				last_activity_;
+	e_conn_state		state_;
+ 
+	// Request related
 	HttpParser  parser_;
 	Request     request_;
+	Decision	decision_;
 
 	Connection(const Connection &other);
 	Connection& operator=(const Connection &other);
 
 public:
+	// TODO: add ServerConfig to the constructor
 	Connection(int fd);
 	~Connection();
 
@@ -42,6 +60,10 @@ public:
 	bool		wantsWrite() const;	// There is data on the write buffer
 	time_t		getLastActivity() const;
 	void		disconnect();
+
+	// State control
+	void		setState(e_conn_state state);
+	void		advance();
 	
 	// System I/O
 	ssize_t		readFromFd();
