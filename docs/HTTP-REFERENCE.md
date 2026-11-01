@@ -82,25 +82,25 @@ Hello world!
 | 308  | Permanent Redirect | like 301, method preserved   |
 
 ### 4xx Client error
-| Code | Reason           | Note                              |
-| ---- | ---------------- | --------------------------------- |
-| 400  | Bad Request      | malformed syntax                  |
-| 403  | Forbidden        | no permission / method not allowed|
-| 404  | Not Found        | resource missing                  |
-| 405  | Method Not Allowed | `Allow` header required         |
-| 408  | Request Timeout  | idle client                       |
-| 411  | Length Required  | `Content-Length` missing when needed |
-| 413  | Payload Too Large| body exceeds limit                |
-| 415  | Unsupported Media Type | unsupported `Content-Type`  |
-| 431  | Request Header Fields Too Large | header size/count limit exceeded |
+| Code | Reason           | Note                              | Responsability |
+| ---- | ---------------- | --------------------------------- |----------------|
+| 400  | Bad Request      | malformed syntax                  | Parser          |
+| 403  | Forbidden        | no permission / method not allowed| Processor       |       
+| 404  | Not Found        | resource missing                  | Processor       |
+| 405  | Method Not Allowed | `Allow` header required         | Processor       |
+| 408  | Request Timeout  | idle client                       | Core            |
+| 411  | Length Required  | `Content-Length` missing when needed | Parser       |
+| 413  | Payload Too Large| body exceeds limit                | Parser          |
+| 415  | Unsupported Media Type | unsupported `Content-Type`  | TODO            |
+| 431  | Request Header Fields Too Large | header size/count limit exceeded | Parser    |
 
 ### 5xx Server error
-| Code | Reason                  | Note                        |
-| ---- | ----------------------- | --------------------------- |
-| 500  | Internal Server Error   | CGI failure, unhandled error|
-| 501  | Not Implemented         | unsupported method          |
-| 503  | Service Unavailable     | overloaded, shutting down   |
-| 505  | HTTP Version Not Supported | not HTTP/1.1             |
+| Code | Reason                  | Note                        | Responsability |
+| ---- | ----------------------- | --------------------------- |----------------|
+| 500  | Internal Server Error   | CGI failure, unhandled error| ALL            |
+| 501  | Not Implemented         | unsupported method          | Parser         |
+| 503  | Service Unavailable     | overloaded, shutting down   | Processor      |
+| 505  | HTTP Version Not Supported | not HTTP/1.1             | Parser         |
 
 ## Key headers
 

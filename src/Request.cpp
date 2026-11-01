@@ -1,0 +1,156 @@
+// Request.cpp
+// -----------------------------------------------------------------------------
+
+#include "../inc/Request.hpp"
+#include "../inc/log_global.hpp"
+#include <string>
+
+// Builders --------------------------------------------------------------------
+Request::Request() : 
+	request_(), status_(ESTATE_LINE), 
+	method_(), path_(), query_(), version_(),
+	headers_(),
+	body_(),
+	schema_(""),
+	authority_("")
+{}
+
+Request::Request(const Request &other) {
+	*this = other;
+}
+
+Request& Request::operator=(const Request &other) {
+	if (this != &other) {
+		request_	= other.request_;
+		status_		= other.status_;
+		
+		method_		= other.method_;
+		path_		= other.method_;
+		query_		= other.query_;
+		version_	= other.version_;
+
+		headers_	= other.headers_;
+		body_		= other.body_;
+		schema_     = other.schema_;
+		authority_	= other.authority_;
+	}
+	return *this;
+}
+
+Request::~Request() 
+{
+	ft_log::global().debug("Api request destructor");
+}
+
+// Setters ---------------------------------------------------------------------
+void Request::setRequest(const std::string &request) {
+	request_ = request;
+}
+
+void Request::setStatus(e_status_code status) {
+	status_ = status;
+}
+
+void Request::setMethod(const std::string &method) {
+	method_ = method;
+}
+
+void Request::setPath(const std::string &path) {
+	path_ = path;
+}
+
+void Request::setQuery(const std::string &query) {
+	query_ = query;
+}
+
+void Request::setVersion(const std::string &version) {
+	version_ = version;
+}
+
+int Request::addHeader(const std::string &key, const std::string &value) 
+{
+	if (headers_.count(key) != 0)
+	{
+		ft_log::global().debug(
+			"Headers: repeated field",
+			__FILE__, __LINE__);
+
+		return (-1);
+	}
+	headers_.insert(std::make_pair(key, value));
+	return (0);
+}
+
+void Request::setHeaders(const std::map<std::string, std::string> &headers) {
+	headers_ = headers;
+}
+
+void Request::appendBody(const std::string &str) {
+	body_.append(str);
+}
+
+void Request::setBody(const std::string &body) {
+	body_ = body;
+}
+
+void Request::setSchema(const std::string &schema)
+{
+	schema_ = schema;
+}
+
+void Request::setAuthority(const std::string &authority)
+{
+	authority_ = authority;
+}
+
+// Getters ---------------------------------------------------------------------
+const std::string &Request::getRequest() const {
+	return request_;
+}
+
+e_status_code Request::getStatus() const {
+	return status_;
+}
+
+const std::string &Request::getMethod() const {
+	return method_;
+}
+
+const std::string &Request::getPath() const {
+	return path_;
+}
+
+const std::string &Request::getQuery() const {
+	return query_;
+}
+
+const std::string &Request::getVersion() const {
+	return version_;
+}
+
+const std::string &Request::getSchema() const
+{
+	return schema_;
+}
+
+const std::string &Request::getAuthority() const
+{
+	return authority_;
+}
+
+const std::string *Request::getHeader(const std::string &key) const 
+{
+	std::map<std::string, std::string>::const_iterator it = headers_.find(key);
+
+	if (it != headers_.end())
+		return &(it->second);
+	return NULL;
+}
+
+const std::map<std::string, std::string> &Request::getHeaders() const {
+	return headers_;
+}
+
+const std::string &Request::getBody() const {
+	return body_;
+}

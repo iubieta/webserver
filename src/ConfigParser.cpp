@@ -1,0 +1,496 @@
+#include "../inc/ConfigParser.hpp"
+
+ConfigParse::ConfigParse(const std::string &file_name)
+	:	file_name_(file_name),
+		token_(),
+		server_()
+{
+}
+
+ConfigParse::ConfigParse(const ConfigParse &other)
+	: file_name_(other.file_name_),
+	  token_(other.token_),
+	  server_(other.server_)
+{}
+
+ConfigParse &ConfigParse::operator=(const ConfigParse &other)
+{
+	if (this != &other)
+	{
+		file_name_ = other.file_name_;
+		token_	= other.token_;
+		server_ = other.server_;
+	}
+	return *this;
+}
+
+ConfigParse::~ConfigParse() {}
+
+bool ConfigParse::isDelimiter(char c) const
+{
+	if (c == ' ' || c == '\t')
+		return true;
+	return false;
+}
+
+bool ConfigParse::isBrace(char c) const
+{
+	if (c == '{' || c == '}')
+		return true;
+	return false;
+}
+
+bool ConfigParse::endSemicolon(const std::string &token) const
+{
+	if (token.empty())
+		return false;
+	if(token[token.size() - 1] == ';')
+		return true;
+	return false;
+}
+
+std::string ConfigParse::clearSemicolon(const std::string &token) const
+{
+	std::string result;
+
+	result = token.substr(0, token.size() - 1);
+	return result;
+}
+
+void ConfigParse::ftTokenize(const std::string &line)
+{
+	std::string token;
+	size_t i;
+	size_t start;
+
+	i = 0;
+	while(i  < line.size())
+	{
+		while (i < line.size() && isDelimiter(line[i]))
+			i++;
+		if (i == line.size())
+			break ; // avoid empty lines
+		start = i;
+		if (isBrace(line[i]))
+		{
+			token = line.substr(start, 1);
+			i++;
+		}
+		else
+		{
+	
+			while (i < line.size() && !isDelimiter(line[i]) 
+					&& !isBrace(line[i]))
+				i++;
+			token = line.substr(start, i - start);
+			
+		}
+		token_.push_back(token);
+		
+	}
+}
+void ConfigParse::fileToken()
+{
+	std::ifstream file(file_name_.c_str());
+	std::string line;
+	size_t i;
+
+	if(!file.is_open())
+	{
+		std::cerr <<"Error opening the file\n";
+		return ;
+	}
+
+	while(std::getline(file, line))
+	{
+		i = 0;
+		while(i < line.size() && isDelimiter(line[i]))
+			i++;
+		line = line.substr(i);
+		if(line.empty() ||line[0] == '#')
+			continue;
+	
+		ftTokenize(line);
+	}
+
+	file.close();
+	
+}
+
+const std::vector<std::string> &ConfigParse::getTokens() const
+{
+	return this->token_;
+}
+
+int ConfigParse::parseManager()
+{
+	size_t	i;
+
+	if (token_.empty())
+		return -1;
+	i = 0;
+	while (i < token_.size())
+	{
+		if (token_[i] != "server")
+			return -1;
+		if (i + 1 >= token_.size() || token_[i + 1] != "{")
+			return -1;
+		if (serverBlocks(i) == -1)
+		{
+			std::cerr << "Syntax error in the configuration file\n";
+			return -1;
+		}
+		i++;
+	}
+	return 0;
+}
+
+int ConfigParse::loadErrorPage(const std::vector<std::string> &code, 
+	const std::string &page, ServerConfig &server)
+{
+	std::vector<std::string>::const_iterator it = code.begin();
+
+	if (code.empty() || page.empty())
+		return -1;
+	
+	for(; it != code.end(); ++it)
+	{
+		if (server.addErrorPage(*it, page) == -1)
+			return -1;
+	}
+	return 0;
+}
+
+int ConfigParse::loadErrorPage(const std::vector<std::string> &code, 
+	const std::string &page, LocationConfig &location)
+{
+	std::vector<std::string>::const_iterator it = code.begin();
+
+	if (code.empty() || page.empty())
+		return -1;
+	
+	for(; it != code.end(); ++it)
+	{
+		if (location.addErrorPage(*it, page) == -1)
+			return -1;
+	}
+	return 0;
+}
+
+
+int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
+{
+	std::string temp;
+	LocationConfig location;
+	std::vector<std::string> code;
+
+	if (index >= token_.size() || token_[index].empty()
+		|| token_[index][0] != '/')
+		return -1;
+
+	if(location.setTarget(token_[index]) == -1)
+		return -1;
+	index++;
+
+	if (index >= token_.size() || token_[index] != "{")
+		return -1;
+	
+	index++;
+	while (index < token_.size() && token_[index] != "}")
+	{
+		if (token_[index] == "autoindex")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.getAutoindexSet())
+				return -1;
+			if(location.setAutoindex(temp) == -1)
+				return -1;
+			location.setAutoindexSet(true);
+		}
+		else if (token_[index] == "root")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			if (location.getRootSet()|| location.getAliasSet() ||
+				location.getReturnSet())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.setRoot(temp) == -1)
+				return -1;
+			location.setRootSet(true);
+		}
+		else if (token_[index] == "allow_methods")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				if (location.addMethod(token_[index]) == -1)
+					return -1;
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.addMethod(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "index")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				location.addIndex(token_[index]);
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (temp.empty())
+				return -1;
+			location.addIndex(temp);
+		}else if(token_[index] == "alias")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			if(location.getRootSet() || location.getAliasSet() ||
+				location.getReturnSet())
+				return -1;
+			temp = location.getTarget();
+			if (temp[temp.size() - 1] != '/')
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.setAlias(temp) == -1)
+				return -1;
+			location.setAliasSet(true);
+		}
+		else if (token_[index] == "client_max_body_size")
+		{
+			index ++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			if (location.getClientMaxbodySet())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (location.setClientMax(temp) == -1)
+				return -1;
+			location.setClientMaxBodySet(true);
+		}else if(token_[index] == "return")
+		{
+			index++;
+			if (index >= token_.size() || endSemicolon(token_[index]))
+				return -1;
+			temp = token_[index];
+			index++;
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			if(location.getAliasSet() || location.getRootSet() ||
+				location.getReturnSet())
+				return -1;
+			if (location.setReturn(temp, clearSemicolon(token_[index])) == -1)
+				return -1;
+			location.setReturnSet(true);
+		}
+		else if (token_[index] == "error_page")
+		{
+			index++;
+			code.clear();
+			while(index < token_.size() && !endSemicolon(token_[index]))
+			{
+				code.push_back(token_[index]);
+				index ++;
+			}
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (loadErrorPage(code, temp, location) == -1)
+				return -1;
+		}
+		else
+			return -1;
+		index++;
+	}
+	if (index >= token_.size() || token_[index] != "}")
+		return -1;
+	server.addLocation(location);
+	return 0;
+}
+
+int ConfigParse::serverBlocks(size_t &index)
+{
+	ServerConfig server;
+	std::string temp;
+	std::vector<std::string> code;
+
+	index++;
+	if (index >= token_.size() || token_[index] != "{")
+		return -1;
+	index++;
+	while (index < token_.size() && token_[index] != "}")
+	{
+		if (token_[index] == "server_name")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setServerName(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "host")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setHost(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "listen")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setListen(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "root")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setRoot(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "autoindex")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setAutoindex(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "client_max_body_size")
+		{
+			index++;
+			if (index >= token_.size()
+				|| !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (server.setClientMax(temp) == -1)
+				return -1;
+		}
+		else if (token_[index] == "index")
+		{
+			index++;
+			if (index >= token_.size())
+				return -1;
+			while (index < token_.size()
+				&& !endSemicolon(token_[index]))
+			{
+				server.addIndex(token_[index]);
+				index++;
+			}
+			if (index >= token_.size())
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (temp.empty())
+				return -1;
+			server.addIndex(temp);
+		}
+		else if (token_[index] == "location")
+		{
+			index++;
+			if (locationBlocks(index, server) == -1)
+				return -1;
+		}
+		else if(token_[index] == "error_page")
+		{
+			index++;
+			code.clear();
+			while(index < token_.size() && !endSemicolon(token_[index]))
+			{
+				code.push_back(token_[index]);
+				index ++;
+			}
+			if (index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			temp = clearSemicolon(token_[index]);
+			if (loadErrorPage(code, temp, server) == -1)
+				return -1;
+		}
+		else
+			return -1;
+		index++;
+	}
+	if (index >= token_.size() || token_[index] != "}")
+		return -1;
+	if (normalizeConfigurationFile(server) == -1)
+		return -1;
+	this->server_.push_back(server);
+	return 0;
+	
+}
+
+int ConfigParse::normalizeConfigurationFile(ServerConfig &server)
+{
+	std::vector<LocationConfig>::iterator it;
+
+	it = server.getLocations().begin();
+	for(; it != server.getLocations().end(); ++it)
+	{
+		
+		if(!it->getAliasSet() && !it->getRootSet()
+			&& !it -> getReturnSet())
+		{
+			if(server.getRoot().empty())
+			{
+
+				std::cerr<<"The root directive is missing from the configuration file."
+					<<std::endl;
+				return -1;
+			}
+			
+			it->setRoot(server.getRoot());
+		}
+		if (!it->getClientMaxbodySet())
+			it->setClientMax(server.getClientMaxBody());
+		if (!it->getAutoindexSet())
+			it->setAutoindex(server.getAutoindex());
+		if (it -> getIndexs().empty() && !server.getIndexs().empty())
+			it -> setVecIndex(server.getIndexs());
+		if (it -> getErrorPages().empty() && !server.getErrorPages().empty())
+			it->setErrorPages(server.getErrorPages());
+		if (it -> getMethods().empty())
+			it->addMethod("GET");
+
+	}
+	return 0;
+}
+
+const std::vector<ServerConfig>	&ConfigParse::getServers() const
+{
+	return (server_);
+}

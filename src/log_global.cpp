@@ -1,0 +1,14 @@
+// log_global.cpp
+// Logger global instance definition
+// ----------------------------------------------------------------------------
+
+#include "../inc/Logger.hpp"
+#include <sstream>
+
+namespace ft_log {
+	Logger& global() {
+		static Logger instance;
+		//instance.setConsoleLevel(DEBUG);
+		return instance;
+	}
+}

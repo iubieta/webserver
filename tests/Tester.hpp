@@ -26,7 +26,27 @@
 				<< "ASSERT_EQ(" << #actual					\
 				<< ", "	<< #expected						\
 				<< ") Failed."								\
-				<< " Expected: \'" << expected				\
+				<< " Expected: \'" << (expected)			\
+				<< "\' Received: \'" << (actual)	<< "\'"		\
+				<< RESET									\
+				<< std::endl;								\
+			Tester::recordFail();							\
+            return;                                         \
+        }                                                   \
+    } while (0)
+
+// TODO: raw bytes eq comparison
+
+#define ASSERT_NOT_EQ(actual, expected)						\
+    do {                                                	\
+        if ((actual) == (expected)) {                   	\
+			std::cerr										\
+				<< RED										\
+				<< __FILE__ << ":" << __LINE__ << " - "		\
+				<< "ASSERT_NOT_EQ(" << #actual				\
+				<< ", "	<< #expected						\
+				<< ") Failed."								\
+				<< " Expected: different from \'" << expected\
 				<< "\' Received: \'" << actual	<< "\'"		\
 				<< RESET									\
 				<< std::endl;								\
