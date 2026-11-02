@@ -62,7 +62,6 @@ ssize_t Connection::readFromFd()
 {
 	char	temp[BUFFLEN];
 	ssize_t read_bytes;
-	e_status_code	state;
 
 	// Conncetion already closed
 	if (fd_ == -1) {
@@ -174,38 +173,45 @@ void	Connection::advance() {
 		{
 			parser_.stateHandler(read_buff_, request_);
 			// Change state 
+			break;
 		}
 		case PROCESSING: 
 		{
 			// Process request
 			// Change state 
+			break;
 		}
 		case READING_BODY: 
 		{
 			// TODO: pass clienMaxBody to the parser
 			parser_.bodyParser(read_buff_, request_);
 			// Change state 
+			break;
 		}
 		case EXECUTING:
 		{
 			// Execute decision
 			// Build response
 			// Change state 
+			break;
 		}
 		case RESPONDING: 
 		{
 			// Create response
 			// Change state 
+			break;
 		}
 		case CLOSING: 
 		{
 			// Close connection
 			// Change state 
+			break;
 		}
 		case KEEP_ALIVE:
 		{
 			// Reset variables and states
 			// Change state 
+			break;
 		}
 	}
 }
