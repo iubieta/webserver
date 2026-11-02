@@ -8,7 +8,7 @@ void	testOriginFormRequestTarget()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET /search?name=yuliano HTTP/1.1\r\n"
@@ -16,7 +16,7 @@ void	testOriginFormRequestTarget()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 	ASSERT_EQ(request.getRequest(),
 		std::string("/search?name=yuliano"));
 	ASSERT_EQ(request.getPath(), std::string("/search"));
@@ -30,7 +30,7 @@ void	testAbsoluteFormRequestTarget()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET http://localhost:8080/search?name=yuliano HTTP/1.1\r\n"
@@ -38,7 +38,7 @@ void	testAbsoluteFormRequestTarget()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 	ASSERT_EQ(
 		request.getRequest(),
 		std::string(
@@ -57,7 +57,7 @@ void	testFragmentInRequestTarget()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append(
 			"GET /index.html#section HTTP/1.1\r\n"
@@ -65,7 +65,7 @@ void	testFragmentInRequestTarget()
 
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 
@@ -73,7 +73,7 @@ void	testFragmentInRequestTarget()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append(
 			"GET http://localhost:8080/index.html#section"
@@ -82,7 +82,7 @@ void	testFragmentInRequestTarget()
 
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 }
@@ -92,7 +92,7 @@ void	testInvalidRequestTargetForm()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET index.html HTTP/1.1\r\n"
@@ -100,7 +100,7 @@ void	testInvalidRequestTargetForm()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 }
 
@@ -109,7 +109,7 @@ void	testOriginFormPercentDecoding()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET /my%20file?name=Yuliano%20Pacileo HTTP/1.1\r\n"
@@ -117,7 +117,7 @@ void	testOriginFormPercentDecoding()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 	ASSERT_EQ(
 		request.getRequest(),
 		std::string(
@@ -135,7 +135,7 @@ void	testAbsoluteFormPercentDecoding()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET http://localhost:8080/api/%76%31?token=%41%42"
@@ -144,7 +144,7 @@ void	testAbsoluteFormPercentDecoding()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 	ASSERT_EQ(
 		request.getRequest(),
 		std::string(
@@ -163,7 +163,7 @@ void	testRejectEncodedSlash()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append(
 			"GET /private%2Ffile HTTP/1.1\r\n"
@@ -171,7 +171,7 @@ void	testRejectEncodedSlash()
 
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 
@@ -179,7 +179,7 @@ void	testRejectEncodedSlash()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append(
 			"GET http://localhost:8080/search?next=%2Findex"
@@ -188,7 +188,7 @@ void	testRejectEncodedSlash()
 
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 }

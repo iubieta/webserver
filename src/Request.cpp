@@ -7,7 +7,7 @@
 
 // Builders --------------------------------------------------------------------
 Request::Request() : 
-	request_(), status_(ESTATE_LINE), 
+	request_(), status_(OK), 
 	method_(), path_(), query_(), version_(),
 	headers_(),
 	body_(),

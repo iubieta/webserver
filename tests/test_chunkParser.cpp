@@ -12,24 +12,28 @@ void successfulRequestByChunks()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append("GET /ind");
 	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_LINE);
+	status = parser.bodyParser(buffer, request);
+	ASSERT_EQ(status, LINE);
 
 	buffer.append("ex.html?name=yuliano HTTP/1.1\r\nHo");
 	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	status = parser.bodyParser(buffer, request);
+	ASSERT_EQ(status, HEADERS);
 
 	buffer.append("st: localhost:8080\r\nContent-Ty");
 	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	status = parser.bodyParser(buffer, request);
+	ASSERT_EQ(status, HEADERS);
 
 	buffer.append("pe: text/plain\r\nConnection: close\r\n\r\n");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getMethod(), std::string("GET"));
 	ASSERT_EQ(request.getRequest(),
 		std::string("/index.html?name=yuliano"));
@@ -46,7 +50,7 @@ void	testChunkedSingleChunk()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -60,8 +64,9 @@ void	testChunkedSingleChunk()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 }
@@ -71,7 +76,7 @@ void	testChunkedMultipleChunks()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -87,8 +92,9 @@ void	testChunkedMultipleChunks()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello world"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 }
@@ -98,7 +104,7 @@ void	testChunkedHexadecimalSize()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -112,8 +118,9 @@ void	testChunkedHexadecimalSize()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("0123456789"));
 }
 
@@ -122,7 +129,7 @@ void	testChunkedBodyContainingCRLF()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -136,8 +143,9 @@ void	testChunkedBodyContainingCRLF()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("a\r\nb"));
 }
 
@@ -146,7 +154,7 @@ void	testChunkedFragmentedBody()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -158,20 +166,24 @@ void	testChunkedFragmentedBody()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	ASSERT_EQ(status, CHUNK_DATA);
 
 	buffer.append("llo\r");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	ASSERT_EQ(status, CHUNK_DATA);
 
 	buffer.append("\n0\r\n");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	ASSERT_EQ(status, CHUNK_END);
 
 	buffer.append("\r\n");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 }
@@ -181,7 +193,7 @@ void	testChunkedFragmentedSizeLine()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -192,7 +204,8 @@ void	testChunkedFragmentedSizeLine()
 	);
 
 	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_BODY);
+	status = parser.bodyParser(buffer, request);
+	ASSERT_EQ(status, BODY);
 
 	buffer.append(
 		"\r\n"
@@ -202,8 +215,9 @@ void	testChunkedFragmentedSizeLine()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("0123456789"));
 }
 
@@ -212,7 +226,7 @@ void	testChunkedLeavesNextRequest()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		remaining;
 
 	buffer.append(
@@ -230,9 +244,10 @@ void	testChunkedLeavesNextRequest()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	remaining = buffer.substr(0, buffer.size());
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(
 		remaining,
@@ -249,7 +264,7 @@ void	testChunkedInvalidSize()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -263,8 +278,9 @@ void	testChunkedInvalidSize()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 }
 
 void	testChunkedEmptySize()
@@ -272,7 +288,7 @@ void	testChunkedEmptySize()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -283,8 +299,9 @@ void	testChunkedEmptySize()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 }
 
 void	testChunkedInvalidDataTerminator()
@@ -292,7 +309,7 @@ void	testChunkedInvalidDataTerminator()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -304,8 +321,9 @@ void	testChunkedInvalidDataTerminator()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 }
 
 void	testChunkedIncompleteFinalTerminator()
@@ -313,7 +331,7 @@ void	testChunkedIncompleteFinalTerminator()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -327,13 +345,15 @@ void	testChunkedIncompleteFinalTerminator()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
 	ASSERT_EQ(status, CHUNK_END);
 
 	buffer.append("\n");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 }
 
@@ -342,7 +362,7 @@ void	testUnsupportedTransferEncoding()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -352,8 +372,9 @@ void	testUnsupportedTransferEncoding()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, NOT_IMPLEMENTED);
+	ASSERT_EQ(status, ERROR);
 }
 
 void	testContentLengthAndTransferEncodingConflict()
@@ -361,7 +382,7 @@ void	testContentLengthAndTransferEncodingConflict()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -376,8 +397,9 @@ void	testContentLengthAndTransferEncodingConflict()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 }
 
 void	testLengthRequired()
@@ -385,7 +407,7 @@ void	testLengthRequired()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -394,8 +416,9 @@ void	testLengthRequired()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, LENGTH_REQUIRED);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), LENGTH_REQUIRED);
 }
 
@@ -404,7 +427,7 @@ void	testContentLengthPayloadTooLarge()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	parser.setMaxbodySize(5);
 
@@ -417,8 +440,9 @@ void	testContentLengthPayloadTooLarge()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), PAYLOAD_TOO_LARGE);
 }
 
@@ -427,7 +451,7 @@ void	testChunkedPayloadTooLarge()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	parser.setMaxbodySize(10);
 
@@ -445,8 +469,9 @@ void	testChunkedPayloadTooLarge()
 	);
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), PAYLOAD_TOO_LARGE);
 }
 

@@ -19,12 +19,12 @@ void badRequest()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append("G(ET / HTTP/1.1\r\n");
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 
@@ -32,12 +32,12 @@ void badRequest()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append("GET HTTP/1.1\r\n");
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 
@@ -45,12 +45,12 @@ void badRequest()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append("GET / HTP/1.1\r\n");
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 
@@ -58,12 +58,12 @@ void badRequest()
 		Request			request;
 		HttpParser		parser;
 		Buffer			buffer;
-		e_status_code	status;
+		e_parser_state	status;
 
 		buffer.append("GET index.html HTTP/1.1\r\n");
 		status = parser.stateHandler(buffer, request);
 
-		ASSERT_EQ(status, BAD_REQUEST);
+		ASSERT_EQ(status, ERROR);
 		ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 	}
 }
@@ -73,12 +73,12 @@ void notImplemented()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append("BREW / HTTP/1.1\r\n");
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, NOT_IMPLEMENTED);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), NOT_IMPLEMENTED);
 }
 
@@ -87,12 +87,12 @@ void versionNotSupported()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append("GET / HTTP/9.9\r\n");
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, VERSION_NOT_SUPPORTED);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), VERSION_NOT_SUPPORTED);
 }
 
@@ -101,7 +101,7 @@ void uriTooLong()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		target;
 
 	target = "GET /";
@@ -110,7 +110,7 @@ void uriTooLong()
 	buffer.append(target);
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, URI_TOO_LONG);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), URI_TOO_LONG);
 }
 
@@ -119,12 +119,12 @@ void headerLineTooLarge()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		header;
 
 	buffer.append("GET / HTTP/1.1\r\n");
 	status = parser.stateHandler(buffer, request);
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 
 	header = "X-Test: ";
 	header.append(MAX_HEADER_LINE_SIZE, 'a');
@@ -132,7 +132,7 @@ void headerLineTooLarge()
 	buffer.append(header);
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, HEADERS_TOO_LARGE);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), HEADERS_TOO_LARGE);
 }
 
@@ -141,7 +141,7 @@ void totalHeadersTooLarge()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		header_value;
 
 	header_value.assign(7000, 'a');
@@ -171,7 +171,7 @@ void totalHeadersTooLarge()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, HEADERS_TOO_LARGE);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), HEADERS_TOO_LARGE);
 }
 
@@ -180,7 +180,7 @@ void tooManyHeaders()
 	Request				request;
 	HttpParser			parser;
 	Buffer				buffer;
-	e_status_code		status;
+	e_parser_state		status;
 	std::ostringstream	number;
 	std::string			header;
 	size_t				i;
@@ -204,7 +204,7 @@ void tooManyHeaders()
 
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, HEADERS_TOO_LARGE);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), HEADERS_TOO_LARGE);
 }
 
@@ -213,17 +213,17 @@ void incompleteRequestLine()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append("GET /index");
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_LINE);
+	ASSERT_EQ(status, LINE);
 
 	buffer.append(".html?name=yuliano HTTP/1.1\r\n");
 	status = parser.stateHandler(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_HEADERS);
+	ASSERT_EQ(status, HEADERS);
 	ASSERT_EQ(request.getMethod(), std::string("GET"));
 	ASSERT_EQ(request.getPath(), std::string("/index.html"));
 	ASSERT_EQ(request.getQuery(), std::string("name=yuliano"));

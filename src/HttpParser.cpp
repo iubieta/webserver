@@ -11,7 +11,7 @@
 
 
 HttpParser::HttpParser():
-	state_(ESTATE_LINE),
+	state_(LINE),
 	request_line_(NULL),
 	headers_(),
 	body_(""),
@@ -30,12 +30,12 @@ HttpParser::~HttpParser()
 	ft_log::global().debug("HTTP Parser destructor");	
 }
 
-void HttpParser::setState(e_status_code state)
+void HttpParser::setState(e_parser_state state)
 {
 	this->state_ = state;
 }
 
-e_status_code HttpParser::getState() const
+e_parser_state HttpParser::getState() const
 {
 	return state_;
 }
@@ -132,17 +132,17 @@ bool HttpParser::hexadecimalToDecimal(const std::string &value, size_t &decimal)
 }
 
 
-e_status_code HttpParser::reportStatusCode(e_status_code code, 
+e_parser_state HttpParser::reportStatusCode(e_status_code code, 
 	const std::string &log, Request &request)
 {
-	this->state_ = code;
+	this->state_ = ERROR;
 	request.setStatus(code);
 	ft_log::global().info(log);
-	return (code);
+	return (this->state_);
 }
 
 
-e_status_code HttpParser::bodyHandler(Buffer &buffer, Request &request)
+e_parser_state HttpParser::bodyHandler(Buffer &buffer, Request &request)
 {
 	size_t value;
 	size_t bytes;
@@ -168,7 +168,7 @@ e_status_code HttpParser::bodyHandler(Buffer &buffer, Request &request)
 		body_initialized_ = true;
 		if (remaining_body_bytes_ == 0)
 		{
-			this->state_ = ESTATE_COMPLETE;
+			this->state_ = COMPLETE;
 			request.setBody(body_);
 			return this->state_;
 		}
@@ -189,22 +189,22 @@ e_status_code HttpParser::bodyHandler(Buffer &buffer, Request &request)
 	}
 	if (remaining_body_bytes_ == 0)
 	{
-		this->state_ = ESTATE_COMPLETE;
+		this->state_ = COMPLETE;
 		request.setBody(body_);
 		return this->state_;
 	}
 	return (this->state_);
 }
 
-e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
+e_parser_state HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 {
 	size_t pos;
 	std::string value;
 	
-	while(this->state_ == ESTATE_BODY || this->state_ == CHUNK_DATA 
+	while(this->state_ == BODY || this->state_ == CHUNK_DATA 
 		|| this->state_ == CHUNK_END)
 	{
-		if (this->state_ == ESTATE_BODY)
+		if (this->state_ == BODY)
 		{
 			pos = buffer.find("\r\n");
 			if (pos == std::string::npos)
@@ -246,7 +246,7 @@ e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 
 			body_ += buffer.substr(0, chunk_size_);
 			buffer.consume(chunk_size_+ 2);
-			this->state_ = ESTATE_BODY;
+			this->state_ = BODY;
 		}
 		if (this->state_ == CHUNK_END)
 		{
@@ -258,7 +258,7 @@ e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 
 			buffer.consume(2);
 			request.setBody(body_);
-			this->state_ = ESTATE_COMPLETE;
+			this->state_ = COMPLETE;
 		}
 	}
 
@@ -267,7 +267,7 @@ e_status_code HttpParser::bodyChunkHandler(Buffer &buffer, Request &request)
 	
 }
 
-e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
+e_parser_state HttpParser::stateHandler(Buffer &buffer, Request &request)
 {
 	size_t						pos;
 	size_t						bytes;
@@ -278,19 +278,19 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 	if (buffer.empty())
 		return (this->state_);
 
-	while (this->state_ == ESTATE_LINE || this->state_ == ESTATE_HEADERS)
+	while (this->state_ == LINE || this->state_ == HEADERS)
 	{
 		pos = buffer.find("\r\n");
 		if (pos == std::string::npos)
 		{
 			bytes = buffer.size();
-			if (this->state_ == ESTATE_LINE && bytes > MAX_REQUEST_LINE_SIZE)
+			if (this->state_ == LINE && bytes > MAX_REQUEST_LINE_SIZE)
 				return reportStatusCode(URI_TOO_LONG, "URI too large", request);
 				
-			if (this->state_ == ESTATE_HEADERS && bytes > MAX_HEADER_LINE_SIZE)
+			if (this->state_ == HEADERS && bytes > MAX_HEADER_LINE_SIZE)
 				return reportStatusCode(HEADERS_TOO_LARGE, "Headers too large", request);
 			
-			if (this->state_ == ESTATE_HEADERS && 
+			if (this->state_ == HEADERS && 
 				headers_.getBytesHeader() + bytes > MAX_HEADER_SIZE)
 				return reportStatusCode(HEADERS_TOO_LARGE, "Headers too large", request);
 			
@@ -298,16 +298,16 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 		}
 		
 		bytes = pos + 2;
-		if (this->state_ == ESTATE_LINE && bytes > MAX_REQUEST_LINE_SIZE)
+		if (this->state_ == LINE && bytes > MAX_REQUEST_LINE_SIZE)
 			return reportStatusCode(URI_TOO_LONG, "URI too large", request);
 		
-		if (this->state_ == ESTATE_HEADERS && bytes > MAX_HEADER_LINE_SIZE)
+		if (this->state_ == HEADERS && bytes > MAX_HEADER_LINE_SIZE)
 			return reportStatusCode(HEADERS_TOO_LARGE, "Headers too large", request);
 			
 		line = buffer.substr(0, bytes);
 		buffer.consume(bytes);
 
-		if (this->state_ == ESTATE_LINE)
+		if (this->state_ == LINE)
 		{
 			tokens.clear();
 			if (RequestLine::tokenLine(line, tokens) == -1)
@@ -350,9 +350,9 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 			request.setAuthority(request_line_->getAuthority());
 
 
-			this->state_ = ESTATE_HEADERS;
+			this->state_ = HEADERS;
 		}
-		else if (this->state_ == ESTATE_HEADERS)
+		else if (this->state_ == HEADERS)
 		{
 	
 			if (headers_.addBytesHeader(line.size()) > MAX_HEADER_SIZE)
@@ -372,15 +372,15 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 					if (!isCorrectTransferEncoding())
 						return reportStatusCode(NOT_IMPLEMENTED,
 							"encoding type not implemented", request);
-					this->state_ = ESTATE_BODY;
+					this->state_ = BODY;
 				}
 				else if(valueExist("content-length"))
-					this->state_ = ESTATE_BODY;
+					this->state_ = BODY;
 				else if(request.getMethod() == "POST")
 					return (reportStatusCode(LENGTH_REQUIRED,
 						"Length required", request));
 				else
-					this->state_ = ESTATE_COMPLETE;
+					this->state_ = COMPLETE;
 
 				request.setHeaders(headers_.getHeaders());
 				break;
@@ -395,17 +395,21 @@ e_status_code HttpParser::stateHandler(Buffer &buffer, Request &request)
 
 		}
 	}
-	if (this->state_ == ESTATE_BODY && valueExist("content-length"))
-		this->state_= bodyHandler(buffer, request);
-	else if(valueExist("transfer-encoding") && (this->state_ == ESTATE_BODY
-		|| this->state_ == CHUNK_DATA || this->state_ == CHUNK_END))
-	{
-		this->state_ = bodyChunkHandler(buffer, request);
-	}
 
 	return (this->state_);
 }
 
+e_parser_state	HttpParser::bodyParser(Buffer &buffer, Request &request) {
+	if (this->state_ == BODY && valueExist("content-length"))
+		this->state_= bodyHandler(buffer, request);
+	else if(valueExist("transfer-encoding") && (this->state_ == BODY
+		|| this->state_ == CHUNK_DATA || this->state_ == CHUNK_END))
+	{
+		this->state_ = bodyChunkHandler(buffer, request);
+	}
+	
+	return (this->state_);
+}
 // void print(const std::map<std::string, std::string> &Headers)
 // {
 // 	std::map<std::string, std::string>::const_iterator it;

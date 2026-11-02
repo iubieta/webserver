@@ -34,7 +34,6 @@ static LocationConfig makeLocation(const std::string& target) {
 static Request makeRequest(const std::string& method, const std::string& path) {
 	Request req;
 	req.setRequest(method + " " + path);
-	req.setStatus(ESTATE_COMPLETE);
 	req.setMethod(method);
 	req.setPath(path);
 	req.setQuery("");

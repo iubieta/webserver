@@ -182,7 +182,7 @@ void	Connection::advance() {
 		case READING_BODY: 
 		{
 			// TODO: pass clienMaxBody to the parser
-			parser_.bodyParser();
+			parser_.bodyParser(read_buff_, request_);
 			// Change state 
 		}
 		case EXECUTING:

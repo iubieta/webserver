@@ -24,7 +24,7 @@ class HttpParser
 {
 	private:
 
-	e_status_code state_;
+	e_parser_state state_;
 	RequestLine *request_line_;
 	Headers headers_;
 	std::string body_;
@@ -36,27 +36,27 @@ class HttpParser
 
 	HttpParser(const HttpParser &other);
 	HttpParser &operator=(const HttpParser &other);
-	e_status_code reportStatusCode(e_status_code code, const std::string &log,
+	e_parser_state reportStatusCode(e_status_code code, const std::string &log,
 		Request &request);
 	bool valueExist(const std::string &key);
 	bool isValidValue(const std::string &key);
 	bool isCorrectTransferEncoding();
-	e_status_code	bodyHandler(Buffer &buffer, Request &request);
-	e_status_code	bodyChunkHandler(Buffer &buffer, Request &request);
+	e_parser_state	bodyHandler(Buffer &buffer, Request &request);
+	e_parser_state	bodyChunkHandler(Buffer &buffer, Request &request);
 	
 	public:
 
 	HttpParser();
 	~HttpParser();
 
-	void setState(e_status_code state);
+	void setState(e_parser_state state);
 	static bool hexadecimalToDecimal(const std::string &value, size_t &decimal);
 
 
 	const std::string &getBuffer() const;
-	e_status_code getState() const;
-	e_status_code	stateHandler(Buffer &buffer, Request &request);
-	e_status_code bodyParser();
+	e_parser_state getState() const;
+	e_parser_state	stateHandler(Buffer &buffer, Request &request);
+	e_parser_state	bodyParser(Buffer &buffer, Request &request);
 	
 	const std::string &getBody() const;
 	size_t	getMaxbodySize() const;

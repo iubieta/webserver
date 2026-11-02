@@ -7,7 +7,7 @@ void	bodyComplete()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -18,8 +18,9 @@ void	bodyComplete()
 		"hello");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(parser.getBody(), std::string("hello"));
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
@@ -30,7 +31,7 @@ void	bodyByChunks()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -41,15 +42,17 @@ void	bodyByChunks()
 		"hello");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_BODY);
+	ASSERT_EQ(status, BODY);
 	ASSERT_EQ(parser.getBody(), std::string("hello"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 
 	buffer.append(" world");
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(parser.getBody(), std::string("hello world"));
 	ASSERT_EQ(request.getBody(), std::string("hello world"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
@@ -60,7 +63,7 @@ void	incompleteBody()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -70,8 +73,9 @@ void	incompleteBody()
 		"hello");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_BODY);
+	ASSERT_EQ(status, BODY);
 	ASSERT_EQ(parser.getBody(), std::string("hello"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 }
@@ -81,7 +85,7 @@ void	emptyBody()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -90,8 +94,9 @@ void	emptyBody()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(parser.getBody(), std::string(""));
 	ASSERT_EQ(request.getBody(), std::string(""));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
@@ -102,7 +107,7 @@ void	bodyWithCrlf()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -112,8 +117,9 @@ void	bodyWithCrlf()
 		"a\r\nbcd");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(parser.getBody(), std::string("a\r\nbcd"));
 	ASSERT_EQ(request.getBody(), std::string("a\r\nbcd"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
@@ -124,7 +130,7 @@ void	bodyWithRemainingData()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		remaining;
 
 	buffer.append(
@@ -135,9 +141,10 @@ void	bodyWithRemainingData()
 		"helloWORLD");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	remaining = buffer.substr(0, buffer.size());
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(remaining, std::string("WORLD"));
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(5));
@@ -148,7 +155,7 @@ void	bodyFollowedByRequest()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 	std::string		remaining;
 
 	buffer.append(
@@ -162,9 +169,10 @@ void	bodyFollowedByRequest()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 	remaining = buffer.substr(0, buffer.size());
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(request.getBody(), std::string("hello"));
 	ASSERT_EQ(
 		remaining,
@@ -179,7 +187,7 @@ void	invalidContentLengthText()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -189,8 +197,9 @@ void	invalidContentLengthText()
 		"hello");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 }
 
@@ -199,7 +208,7 @@ void	negativeContentLength()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -208,8 +217,9 @@ void	negativeContentLength()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 }
 
@@ -218,7 +228,7 @@ void	emptyContentLength()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -227,8 +237,9 @@ void	emptyContentLength()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 }
 
@@ -237,7 +248,7 @@ void	contentLengthOverflow()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"POST /post-test HTTP/1.1\r\n"
@@ -247,8 +258,9 @@ void	contentLengthOverflow()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, BAD_REQUEST);
+	ASSERT_EQ(status, ERROR);
 	ASSERT_EQ(request.getStatus(), BAD_REQUEST);
 }
 
@@ -257,7 +269,7 @@ void	requestWithoutBody()
 	Request			request;
 	HttpParser		parser;
 	Buffer			buffer;
-	e_status_code	status;
+	e_parser_state	status;
 
 	buffer.append(
 		"GET /index.html HTTP/1.1\r\n"
@@ -265,8 +277,9 @@ void	requestWithoutBody()
 		"\r\n");
 
 	status = parser.stateHandler(buffer, request);
+	status = parser.bodyParser(buffer, request);
 
-	ASSERT_EQ(status, ESTATE_COMPLETE);
+	ASSERT_EQ(status, COMPLETE);
 	ASSERT_EQ(buffer.size(), static_cast<size_t>(0));
 }
 
