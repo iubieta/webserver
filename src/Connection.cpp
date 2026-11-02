@@ -9,8 +9,9 @@
 #include <vector>
 
 // Constructors ---------------------------------------------------------------
-Connection::Connection(int fd) : fd_(fd), closed_(false), 
-	last_activity_(time(NULL)), state_(READING_HEADERS), parser_(), request_()
+Connection::Connection(int fd, ServerConfig* config) : fd_(fd), config_(config),
+	closed_(false), last_activity_(time(NULL)), state_(READING_HEADERS), 
+	parser_(), request_()
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 

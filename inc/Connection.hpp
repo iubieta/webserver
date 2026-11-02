@@ -8,16 +8,13 @@
 #include <string>
 #include <sys/types.h>
 
-#include "../inc/Buffer.hpp"
-#include "../inc/HttpParser.hpp"
+#include "Buffer.hpp"
+#include "ServerConfig.hpp"
+#include "HttpParser.hpp"
+#include "Decision.hpp"
 //#include "../inc/Request.hpp"
 
 #define BUFFLEN 32768 // 32 KB
-
-// TODO: define status macros
-// IO_ERROR = -1
-// IO_CLOSING = 0
-// IO_OK > 0
 
 enum e_conn_state {
 	READING_HEADERS,
@@ -33,7 +30,7 @@ class Connection {
 private:
 	// ServerCore related
 	int					fd_;
-	ServerConfig		config_;
+	ServerConfig*		config_;
 
 	bool				closed_;
 	Buffer				read_buff_;
@@ -51,7 +48,7 @@ private:
 
 public:
 	// TODO: add ServerConfig to the constructor
-	Connection(int fd);
+	Connection(int fd, ServerConfig* config);
 	~Connection();
 
 	// Status control

@@ -14,11 +14,20 @@
 #define EVENTS_MAX 100
 #define TIMEOUT_MS -1
 
+// Struct that associates a socket to its config
+struct Listener {
+	ListeningSocket*	sock_;
+	ServerConfig*		cfg_;
+
+	Listener(ListeningSocket* s, ServerConfig* c)
+		: sock_(s), cfg_(c) {};
+};
+
 class ServerCore {
 private:
 	int								epoll_fd_;
 	std::vector<ServerConfig>		configs_;
-	std::vector<ListeningSocket*>	socks_;
+	std::map<int, Listener>			socks_;
 	std::map<int, Connection*>		conns_;
 
 	ServerCore(const ServerCore &other);

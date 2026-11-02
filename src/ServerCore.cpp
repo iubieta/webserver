@@ -60,8 +60,11 @@ void ServerCore::initSockets() {
 			delete ls;
 			continue;
 		}
-		// Add the socket to server socket vector
-		socks_.push_back(ls);
+		
+		// Add the socket to listening socket map
+		socks_.insert(
+			std::pair<int, Listener>(ls->getFd(), Listener(ls, &(*it)))
+		);
 		std::ostringstream msg;
 		msg << "ServerCore: socket added to epoll monitoring (fd: " << ls->getFd() << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
@@ -87,11 +90,9 @@ void ServerCore::cleanConnection(int fd) {
 
 void ServerCore::closeSockets() {
 	ft_log::global().debug("ServerCore: closing server sockets", __FILE__, __LINE__);
-	std::vector<ListeningSocket*>::iterator it;
-	std::vector<ListeningSocket*>::iterator ite = socks_.end();
-	for (it = socks_.begin(); it != ite; ++it) {
-		// ListeningSocket destructor closes the fd
-		delete *it;
+	while (!socks_.empty()) {
+		delete socks_.begin()->second.sock_;
+		socks_.erase(socks_.begin());
 	}
 }
 
@@ -104,60 +105,60 @@ void ServerCore::closeConnections() {
 }
 
 int ServerCore::handleSocketEvent(int fd) {
-	std::vector<ListeningSocket*>::iterator it;
-	std::vector<ListeningSocket*>::iterator ite = socks_.end();
-	for (it = socks_.begin(); it != ite; ++it) {
-		// Search the socket of the event
-		if (fd == (*it)->getFd() ) {
-			std::ostringstream msg;
-			msg << "ServerCore: new socket event(fd: " << fd << ")";
-			ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-			
-			ListeningSocket *ls = *it;
+	// Search the socket of the event
+	if (socks_.count(fd)) {
+		std::ostringstream msg;
+		msg << "ServerCore: new socket event(fd: " << fd << ")";
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		
+		ListeningSocket *ls = socks_[fd].sock_;
 
-			// accepts the connection
-			int conn_fd = ls->acceptClient();
-			if (conn_fd < 0) {
-				ft_log::global().warning("ServerCore: connection failed", __FILE__, __LINE__);
-				continue;
-			}
-
-			// Sets connection socket as nonblocking
-			if (fcntl(conn_fd, F_SETFL, O_NONBLOCK) < 0) {
-				ft_log::global().debug("ServerCore: set connection as nonblocking failed", __FILE__, __LINE__);
-				close(conn_fd);
-				continue;
-			}
-
-			// Adds connection to epoll monitoring
-			struct epoll_event	event;
-			memset(&event, 0, sizeof(event));
-			event.events = EPOLLIN;
-			event.data.fd = conn_fd;
-			if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-				// If the fail is not caused by fd repetition close it
-				if (logEpollError() != EEXIST) {
-					close(conn_fd);
-				}
-				break;
-			}
-			// Add connection to the server connection map
-			conns_[conn_fd] = new Connection(conn_fd);
-			
-			// DEBUG: Connection stablished message sending
-			std::ostringstream response;
-			response << "SERVER: Connection succesfully stablished\n";
-			conns_[conn_fd]->appendToWrite(response.str());
-			event.events = EPOLLIN | EPOLLOUT;
-			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
-				logEpollError();
-			}
-
-			return (fd);
+		// accepts the connection
+		int conn_fd = ls->acceptClient();
+		if (conn_fd < 0) {
+			ft_log::global().warning("ServerCore: connection failed", __FILE__, __LINE__);
+			return -1;
 		}
+
+		// Sets connection socket as nonblocking
+		if (fcntl(conn_fd, F_SETFL, O_NONBLOCK) < 0) {
+			ft_log::global().warning("ServerCore: set connection as nonblocking failed", __FILE__, __LINE__);
+			close(conn_fd);
+			return -1;
+		}
+
+		// Adds connection to epoll monitoring
+		struct epoll_event	event;
+		memset(&event, 0, sizeof(event));
+		event.events = EPOLLIN;
+		event.data.fd = conn_fd;
+		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
+			// If the fail is not caused by fd repetition close it
+			if (logEpollError() != EEXIST) {
+				close(conn_fd);
+			}
+			return -1;
+		}
+
+		// Add connection to the server connection map
+		conns_[conn_fd] = new Connection(conn_fd, socks_[fd].cfg_);
+		msg << "ServerCore: connection stablished (conn fd: " << conn_fd << ")";
+		ft_log::global().info(msg.str(), __FILE__, __LINE__);
+		
+		// DEBUG: Connection stablished message sending
+		std::ostringstream response;
+		response << "SERVER: Connection succesfully stablished\n";
+		conns_[conn_fd]->appendToWrite(response.str());
+		event.events = EPOLLIN | EPOLLOUT;
+		if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
+			logEpollError();
+		}
+
+		// If connection stablished successfully returns connection fd
+		return (conn_fd);
 	}
 	std::ostringstream msg;
-	msg << "ServerCore: failed to stablish connection (socket fd: " << fd << ")";
+	msg << "ServerCore: socket not found (socket fd: " << fd << ")";
 	ft_log::global().error(msg.str(), __FILE__, __LINE__);
 	return -1;
 }
