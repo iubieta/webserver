@@ -33,7 +33,6 @@ ServerCore::~ServerCore() {
 // Private Methods ------------------------------------------------------------
 
 
-
 // Socket init based on server config
 void ServerCore::initSockets() {
 	ft_log::global().debug("ServerCore: initializing server sockets", __FILE__, __LINE__);
@@ -42,7 +41,8 @@ void ServerCore::initSockets() {
 	std::vector<ServerConfig>::iterator ite = configs_.end();
 	// For each config init a socket
 	for (it = configs_.begin(); it != ite; ++it) {
-		// TODO: add ServerConfig to the constructor
+
+		// Create new socket
 		ListeningSocket *ls = new ListeningSocket(it->getHost(), it->getListen());
 		// If socket setup fails, warn and delete the pointer
 		if (!ls->setup()) {
@@ -50,11 +50,13 @@ void ServerCore::initSockets() {
 			delete ls;
 			continue;
 		}
+		
 		// Add the socket to epoll monitoring
 		struct epoll_event	event;
 		memset(&event, 0, sizeof(event));
 		event.events = EPOLLIN;
 		event.data.fd = ls->getFd();
+		// If epoll adding fails delete the socket
 		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
 			logEpollError();
 			delete ls;
@@ -66,7 +68,7 @@ void ServerCore::initSockets() {
 			std::pair<int, Listener>(ls->getFd(), Listener(ls, &(*it)))
 		);
 		std::ostringstream msg;
-		msg << "ServerCore: socket added to epoll monitoring (fd: " << ls->getFd() << ")";
+		msg << "ServerCore: socket correctly initiated (fd: " << ls->getFd() << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 }
