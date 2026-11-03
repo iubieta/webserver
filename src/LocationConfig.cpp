@@ -3,6 +3,8 @@
 #include <iostream>
 #include <limits>
 #include <strings.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 LocationConfig::LocationConfig()
 			: target_(""), 
@@ -18,7 +20,8 @@ LocationConfig::LocationConfig()
 			  client_max_body_set_(false),
 			  return_(),
 			  return_set_(false),
-			  error_page_()
+			  error_page_(),
+			  cgi_handlers_()
 
 {}
 
@@ -36,7 +39,8 @@ LocationConfig::LocationConfig(const LocationConfig &other)
 			  client_max_body_set_(other.client_max_body_set_),
 			  return_(other.return_),
 			  return_set_(other.return_set_),
-			  error_page_(other.error_page_)
+			  error_page_(other.error_page_),
+			  cgi_handlers_(other.cgi_handlers_)
 {}
 
 LocationConfig &LocationConfig::operator=(const LocationConfig &other)
@@ -57,6 +61,7 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 		return_  = other.return_;
 		return_set_ = other.return_set_;
 		error_page_ = other.error_page_;
+		cgi_handlers_	= other.cgi_handlers_;
 	}
 	return *this;
 }
@@ -84,7 +89,8 @@ bool LocationConfig::operator==(const LocationConfig &other) const
 		&& alias_set_ == other.alias_set_
 		&& return_ == other.return_
 		&& return_set_ == other.return_set_
-		&& error_page_ == other.error_page_)
+		&& error_page_ == other.error_page_
+		&& cgi_handlers_ ==  other.cgi_handlers_)
 		return true;
 	return false;
 }
@@ -359,6 +365,45 @@ const t_return &LocationConfig::getReturn() const
 bool LocationConfig::getReturnSet() const
 {
 	return return_set_;
+}
+
+const std::map<std::string, std::string> &LocationConfig::getCgiHandlers() const
+{
+	return cgi_handlers_;
+}
+
+const std::string *LocationConfig::getCgiInterprete(const std::string &extension) const
+{
+	std::map<std::string, std::string>::const_iterator it = cgi_handlers_.find(extension);
+
+	if(it != cgi_handlers_.end())
+		return &(it->second);
+	return NULL;
+}
+
+int	LocationConfig::addCgiHandler(const std::string &extension,
+		const std::string &path)
+{
+	struct stat	info;
+
+	if (extension.empty() || path.empty())
+		return (-1);
+	if (extension.size() < 2 || extension[0] != '.')
+		return (-1);
+	if (extension.find('/') != std::string::npos)
+		return (-1);
+	if (cgi_handlers_.count(extension) != 0)
+		return (-1);
+	if (path[0] != '/')
+		return (-1);
+	if (stat(path.c_str(), &info) == -1)
+		return (-1);
+	if (!S_ISREG(info.st_mode))
+		return (-1);
+	if (access(path.c_str(), X_OK) == -1)
+		return (-1);
+	cgi_handlers_.insert(std::make_pair(extension, path));
+	return (0);
 }
 
 void LocationConfig::setClientMaxBodySet(bool clientMaxbodySet)

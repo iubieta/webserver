@@ -46,8 +46,7 @@ class	LocationConfig
 		t_return					return_;
 		bool						return_set_;
 		std::map<e_status_code, std::string>	error_page_;
-		//std::vector<std::string>	cgi_path;
-		//std::vector<std::string>	cgi_ext;
+		std::map<std::string, std::string>		cgi_handlers_;
 
 		int	toRedirectStatusCode(int number, e_status_code &status);
 		int	toErrorStatusCode(int number, e_status_code &status);
@@ -78,6 +77,9 @@ class	LocationConfig
 		bool	getReturnSet() const;
 		const	std::string *getErrorPage(e_status_code key) const;
 		const std::map<e_status_code, std::string> &getErrorPages() const;
+		const std::map<std::string, std::string> &getCgiHandlers() const;
+		const std::string *getCgiInterprete(const std::string &extension) const;
+		
 
 		int setRoot(const std::string &root);
 		int setAutoindex(const std::string &autoindex);
@@ -94,10 +96,10 @@ class	LocationConfig
 		void setAutoindexSet(bool autoindexSet);
 		void setClientMaxBodySet(bool clientMaxBodySet);
 		int setReturn(const std::string &code, const std::string &destination);
-		//int setReturn(e_status_code code, const std::string &destination);
 		void setReturnSet(bool returnSet);
 		int addErrorPage(const std::string &code, const std::string &page);
 		void setErrorPages(const std::map<e_status_code, std::string> &error_pages);
+		int addCgiHandler(const std::string &extension, const std::string &path);
 };
 
 #endif // !SERVER_CONFIG_HPP

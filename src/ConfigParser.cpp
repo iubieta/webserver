@@ -289,7 +289,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (location.setClientMax(temp) == -1)
 				return -1;
 			location.setClientMaxBodySet(true);
-		}else if(token_[index] == "return")
+		}
+		else if(token_[index] == "return")
 		{
 			index++;
 			if (index >= token_.size() || endSemicolon(token_[index]))
@@ -304,6 +305,20 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (location.setReturn(temp, clearSemicolon(token_[index])) == -1)
 				return -1;
 			location.setReturnSet(true);
+		}
+		else if(token_[index] ==  "cgi")
+		{
+			index++;
+			if(index >= token_.size() || endSemicolon(token_[index]))
+				return -1;
+			temp = token_[index];
+			index++;
+			if(index >= token_.size() || !endSemicolon(token_[index]))
+				return -1;
+			
+			if(location.addCgiHandler(temp, clearSemicolon(token_[index]))
+				== -1)
+				return -1;
 		}
 		else if (token_[index] == "error_page")
 		{
@@ -454,40 +469,42 @@ int ConfigParse::serverBlocks(size_t &index)
 	
 }
 
-int ConfigParse::normalizeConfigurationFile(ServerConfig &server)
+int	ConfigParse::normalizeConfigurationFile(ServerConfig &server)
 {
-	std::vector<LocationConfig>::iterator it;
+	std::vector<LocationConfig>::iterator	it;
 
 	it = server.getLocations().begin();
-	for(; it != server.getLocations().end(); ++it)
+	for (; it != server.getLocations().end(); ++it)
 	{
-		
-		if(!it->getAliasSet() && !it->getRootSet()
-			&& !it -> getReturnSet())
+		if (!it->getCgiHandlers().empty()
+			&& (it->getAliasSet() || it->getReturnSet()))
+			return (-1);
+		if (!it->getAliasSet() && !it->getRootSet()
+			&& !it->getReturnSet())
 		{
-			if(server.getRoot().empty())
+			if (server.getRoot().empty())
 			{
-
-				std::cerr<<"The root directive is missing from the configuration file."
-					<<std::endl;
-				return -1;
+				std::cerr << "No effective root for location."
+					<< std::endl;
+				return (-1);
 			}
-			
 			it->setRoot(server.getRoot());
 		}
+		if (!it->getCgiHandlers().empty() && it->getRoot().empty())
+			return (-1);
 		if (!it->getClientMaxbodySet())
 			it->setClientMax(server.getClientMaxBody());
 		if (!it->getAutoindexSet())
 			it->setAutoindex(server.getAutoindex());
-		if (it -> getIndexs().empty() && !server.getIndexs().empty())
-			it -> setVecIndex(server.getIndexs());
-		if (it -> getErrorPages().empty() && !server.getErrorPages().empty())
+		if (it->getIndexs().empty() && !server.getIndexs().empty())
+			it->setVecIndex(server.getIndexs());
+		if (it->getErrorPages().empty()
+			&& !server.getErrorPages().empty())
 			it->setErrorPages(server.getErrorPages());
-		if (it -> getMethods().empty())
+		if (it->getMethods().empty())
 			it->addMethod("GET");
-
 	}
-	return 0;
+	return (0);
 }
 
 const std::vector<ServerConfig>	&ConfigParse::getServers() const
