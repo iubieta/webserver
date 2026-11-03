@@ -399,7 +399,8 @@ e_parser_state HttpParser::stateHandler(Buffer &buffer, Request &request)
 	return (this->state_);
 }
 
-e_parser_state	HttpParser::bodyParser(Buffer &buffer, Request &request) {
+e_parser_state	HttpParser::bodyParser(Buffer &buffer, Request &request)
+{
 	if (this->state_ == BODY && valueExist("content-length"))
 		this->state_= bodyHandler(buffer, request);
 	else if(valueExist("transfer-encoding") && (this->state_ == BODY

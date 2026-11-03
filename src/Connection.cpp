@@ -167,25 +167,45 @@ void Connection::appendToWrite(const char *data, size_t n) {
 }
 
 
-void	Connection::advance() {
-	switch (state_) {
-		case READING_HEADERS: 
+
+void	Connection::advance() 
+{
+	e_parser_state	parser_state;
+
+	switch (state_) 
+	{
+		case READING_HEADERS:
 		{
-			parser_.stateHandler(read_buff_, request_);
-			// Change state 
+			parser_state = parser_.stateHandler(read_buff_, request_);
+			if (parser_state == BODY || parser_state == COMPLETE)
+				state_ = PROCESSING;
+			else if (parser_state == ERROR)
+				state_ = RESPONDING;
 			break;
 		}
-		case PROCESSING: 
+		case PROCESSING:
 		{
-			// Process request
-			// Change state 
+			/*
+	 		*  decision_ = processor.process(request_);
+	 		*/
+
+			if (parser_.getState() == BODY)
+			{
+				
+				//parser_.setMaxbodySize(decision_.getClientMaxBodySize());
+				state_ = READING_BODY;
+			}
+			else
+			state_ = EXECUTING;
 			break;
 		}
-		case READING_BODY: 
+		case READING_BODY:
 		{
-			// TODO: pass clienMaxBody to the parser
-			parser_.bodyParser(read_buff_, request_);
-			// Change state 
+			parser_state = parser_.bodyParser(read_buff_, request_);
+			if (parser_state == COMPLETE)
+			state_ = EXECUTING;
+			else if (parser_state == ERROR)
+				state_ = RESPONDING;
 			break;
 		}
 		case EXECUTING:

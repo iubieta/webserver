@@ -13,7 +13,6 @@ enum e_parser_state {
 	LINE,
 	HEADERS,
 	BODY,
-	CHUNK_SIZE,
 	CHUNK_DATA,
 	CHUNK_END,
 	COMPLETE,
@@ -52,8 +51,6 @@ class HttpParser
 	void setState(e_parser_state state);
 	static bool hexadecimalToDecimal(const std::string &value, size_t &decimal);
 
-
-	const std::string &getBuffer() const;
 	e_parser_state getState() const;
 	e_parser_state	stateHandler(Buffer &buffer, Request &request);
 	e_parser_state	bodyParser(Buffer &buffer, Request &request);
