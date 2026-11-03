@@ -43,7 +43,8 @@ TEST_SRCS	:= Tester.cpp test_main.cpp \
 			   test_requestParser.cpp \
 			   processor_test.cpp \
 			   ConfigDirectiveTests.cpp\
-			   test_errorPage.cpp
+			   test_errorPage.cpp \
+			   test_cgi.cpp
 
 TEST_OBJS	:= $(TEST_SRCS:%.cpp=$(OBJ_DIR)/tests/%.o)
 DEPS		+= $(TEST_OBJS:.o=.d)

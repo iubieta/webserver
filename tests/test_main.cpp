@@ -21,7 +21,8 @@ static const TestEntry g_tests[] = {
 	{"Test-chunk", test_chunk},
 	{"request-Parser", test_requestParser},
 	{ "processor" , processor_tests },
-	{"ErrorPage-config", error_page_config_tests}
+	{"ErrorPage-config", error_page_config_tests},
+	{"Test-cgi-ConfigParser", cgi_tests}
 };
 
 static size_t g_count = sizeof(g_tests) / sizeof(TestEntry);
