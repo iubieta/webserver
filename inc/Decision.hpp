@@ -30,6 +30,7 @@ class Decision {
 		
 		std::string		disk_path_;
 		std::string		redir_url_;
+		std::string		error_page_;
 	
 		std::vector<std::string>	allowed_methods_;
 
@@ -50,6 +51,7 @@ class Decision {
 
 		void setDiskPath(const std::string& disk_path);
 		void setRedirURL(const std::string& redir_url);
+		void setErrorPage(const std::string& error_page);
 
 		void addAllowedMethod(const std::string& method);
 
@@ -61,6 +63,7 @@ class Decision {
 	
 		const std::string &getDiskPath() const;
 		const std::string &getRedirURL() const;
+		const std::string &getErrorPage() const;
 		const std::vector<std::string> &getAllowedMethods() const;
 
 		const LocationConfig* getLocationConfig() const;

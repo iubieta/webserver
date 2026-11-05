@@ -46,6 +46,10 @@ void Decision::setRedirURL(const std::string& redir_url) {
 	redir_url_ = redir_url;
 }
 
+void Decision::setErrorPage(const std::string& error_page) {
+	error_page_ = error_page;
+}
+
 void Decision::addAllowedMethod(const std::string& method) {
 	allowed_methods_.push_back(method);
 }
@@ -69,6 +73,10 @@ const std::string& Decision::getDiskPath() const {
 
 const std::string& Decision::getRedirURL() const {
 	return redir_url_;
+}
+
+const std::string& Decision::getErrorPage() const {
+	return error_page_;
 }
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {

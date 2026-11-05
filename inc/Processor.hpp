@@ -39,16 +39,12 @@ class Processor {
 		int checkContentLength(const Request& req,
 			const LocationConfig& cfg) const;
 
-		// Resolve error page path
-		std::string findErrorPage(e_status_code code,
-			const LocationConfig& cfg) const;
-
 		// Define handler for the request
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
 	
-		// TODO: error pages
-		std::string resolveErrorPage(e_status_code error_code, const LocationConfig& cfg) const;
-		// TODO: alias
+		std::string resolveErrorPage(
+			e_status_code error_code, const LocationConfig* cfg, const ServerConfig* serv_cfg
+		) const;
 
 	public:
 		
