@@ -732,6 +732,116 @@ static void testStatDirIndexMissingAutoindexOffFallback() {
 	removeDirRecursive(root);
 }
 
+// Error pages ------------------------------------------------------------------
+static void testErrorPageFromLocation() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.addErrorPage("404", "/errors/404.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/errors/404.html");
+}
+
+static void testErrorPageFromServer() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addErrorPage("404", "/errors/404.html");
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/errors/404.html");
+}
+
+static void testErrorPageLocationOverridesServer() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.addErrorPage("404", "/errors/loc404.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addErrorPage("404", "/errors/srv404.html");
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/errors/loc404.html");
+}
+
+static void testErrorPageDefaultEmpty() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), std::string(""));
+}
+
+static void testErrorPageFor405() {
+	LocationConfig loc = makeLocation("/");
+	loc.addMethod("GET");
+	loc.addErrorPage("405", "/errors/405.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Decision res = proc.procRequest(makeRequest("DELETE", "/"));
+	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/errors/405.html");
+}
+
+static void testErrorPageFor413() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("POST");
+	loc.setClientMax("10");
+	loc.addErrorPage("413", "/errors/413.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+	std::vector<ServerConfig> cfgs;
+	cfgs.push_back(cfg);
+
+	Processor proc(cfgs);
+	Request req = makeRequestWithCL("POST", "/", 100);
+	Decision res = proc.procRequest(req);
+	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/errors/413.html");
+}
+
 void processor_tests() {
 	Tester::runTest("Path decoder", testDecodePath);
 	Tester::runTest("Path normalizer", testNormalizePath);
@@ -768,6 +878,12 @@ void processor_tests() {
 	Tester::runTest("stat dir autoindex off -> 403", testStatDirAutoindexOff);
 	Tester::runTest("stat dir index missing + autoindex on -> LIST_DIR", testStatDirIndexMissingAutoindexOnFallback);
 	Tester::runTest("stat dir index missing + autoindex off -> 403", testStatDirIndexMissingAutoindexOffFallback);
+	Tester::runTest("Error page from location", testErrorPageFromLocation);
+	Tester::runTest("Error page from server", testErrorPageFromServer);
+	Tester::runTest("Error page location overrides server", testErrorPageLocationOverridesServer);
+	Tester::runTest("Error page default empty", testErrorPageDefaultEmpty);
+	Tester::runTest("Error page for 405", testErrorPageFor405);
+	Tester::runTest("Error page for 413", testErrorPageFor413);
 
 	Tester::report();
 }
