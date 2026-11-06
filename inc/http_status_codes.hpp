@@ -47,10 +47,11 @@ enum e_status_code {
 	VERSION_NOT_SUPPORTED	= 505
 };
 
-typedef struct s_status_message {
+typedef struct s_status_message 
+{
 	e_status_code code_;
 	const char *message_;
-} t_status_message;
+}	t_status_message;
 
 // TODO: status message table
 const std::string getStatusMessage(e_status_code code);

@@ -1,5 +1,6 @@
 #include "../inc/HttpResponse.hpp"
 #include "../inc/log_global.hpp"
+#include "../inc/Headers.hpp"
 #include <ctime>
 #include <sstream>
 
@@ -46,13 +47,14 @@ void HttpResponse::setAliveKeep(bool Alive_keep)
 
 int HttpResponse::addHeader(const std::string &key, const std::string &value)
 {
-	if(headers_.count(key) > 0)
+	std::string key_temp = key;
+	Headers::normalize(key_temp);
+	if(headers_.count(key_temp) > 0)
 	{
 		ft_log::global().debug("header: duplicate field");
 		return -1;
 	}
-
-	headers_.insert(std::make_pair(key, value));
+	headers_.insert(std::make_pair(key_temp, value));
 	return 0;
 }
 
@@ -86,16 +88,32 @@ bool HttpResponse::getAliveKeep() const
 	return Alive_keep_;
 }
 
-const std::string *HttpResponse::getHeader(const std::string &key)
+const std::string *HttpResponse::getHeader(const std::string &key) const
 {
-	std::map<std::string, std::string>::const_iterator it = headers_.find(key);
+	std::string key_temp = key;
+	std::map<std::string, std::string>::const_iterator it;
 
+	Headers::normalize(key_temp);
+	it = headers_.find(key_temp);
+	
 	if (it != headers_.end())
 		return &(it->second);
 	return NULL;
 }
 
-const std::string &HttpResponse::getCurrentHttpDate() const
+std::string HttpResponse::sizetoString(size_t size)
+{
+	std::string answer = "";
+
+    if (size >= 10) 
+        answer += sizetoString(size / 10);
+	
+	answer += static_cast<unsigned char>('0' + (size % 10));
+
+    return answer;
+}
+
+std::string HttpResponse::getCurrentHttpDate() const
 {
     char buffer[100];
     
@@ -116,22 +134,89 @@ const std::string &HttpResponse::getCurrentHttpDate() const
     return "";
 }
 
-const std::string &HttpResponse::build()
+std::string HttpResponse::build()
 {
 	std::stringstream response;
+	std::map<std::string, std::string>::const_iterator it;
 	
+	reason_phrase_ = getStatusMessage(status_code_);
 
 	// Status line
 	response << version_ <<" "<< status_code_<<" "<< reason_phrase_<<"\r\n";
 
 	//Header fields
-	response <<"Date: "<< getCurrentHttpDate()<<"\r\n";
-	response <<"Server: "<< "webserver/1.0\r\n";
+	if(!getHeader("date"))
+		response <<"date: "<< getCurrentHttpDate()<<"\r\n";
+	if(!getHeader("server"))
+		response <<"server: webserver/1.0\r\n";
+	
+	// Prohibido en 1xx y 204, incluso con valor cero.
+	if(!getHeader("content-length"))
+		response << "content-length: "<< body_.size() << "\r\n";
+	else
+	{
+		headers_["content-length"] = sizetoString(body_.size());
+	}
+
+	//Allow	Obligatorio en una respuesta 405. "Method Not Allowed"
+
+	if(!getHeader("Connection"))
+		 response << "Connection: " << (Alive_keep_? "Keep-Alive" : "close") << "\r\n";
+
+	it = headers_.begin();
+	for(; it != headers_.end(); ++it)
+	{
+		response << it->first << ": "<< it ->second << "\r\n";
+	}
 
 	//Empty line
 	response << "\r\n";
 
 	//Body
+	if (!body_.empty())
+		response << body_;
 
 	return response.str();
 }
+
+
+// #include <iostream>
+
+// int main()
+// {
+// 	HttpResponse	ok_response;
+// 	HttpResponse	error_response;
+// 	HttpResponse	empty_response;
+
+// 	// Respuesta con body y longitud manual incorrecta.
+// 	// build() debe sustituir 100 por 4.
+// 	ok_response.setStatusCode(OK);
+// 	ok_response.setBody("Hola");
+// 	ok_response.addHeader("Content-Type", "text/plain");
+// 	ok_response.addHeader("Content-Length", "100");
+// 	ok_response.setAliveKeep(false);
+
+// 	std::cout << "===== 200 CON BODY =====" << std::endl;
+// 	std::cout << ok_response.build();
+// 	std::cout << "\n\n";
+
+// 	// Respuesta de error con contenido HTML.
+// 	error_response.setStatusCode(NOT_FOUND);
+// 	error_response.setBody("<h1>404 Not Found</h1>");
+// 	error_response.addHeader("Content-Type", "text/html");
+// 	error_response.setAliveKeep(false);
+
+// 	std::cout << "===== 404 CON BODY =====" << std::endl;
+// 	std::cout << error_response.build();
+// 	std::cout << "\n\n";
+
+// 	// Respuesta correcta sin contenido.
+// 	empty_response.setStatusCode(OK);
+// 	empty_response.setAliveKeep(false);
+
+// 	std::cout << "===== 200 SIN BODY =====" << std::endl;
+// 	std::cout << empty_response.build();
+// 	std::cout << "\n";
+
+// 	return (0);
+// }

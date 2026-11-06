@@ -20,7 +20,8 @@ class HttpResponse
 	HttpResponse(const HttpResponse &other);
 	HttpResponse &operator=(const HttpResponse &other);
 
-	const std::string  &getCurrentHttpDate() const;
+	std::string  getCurrentHttpDate() const;
+	std::string  sizetoString(size_t size);
 
 	public:
 
@@ -42,9 +43,9 @@ class HttpResponse
 	const std::map<std::string, std::string> &getHeaders() const;
 	const std::string &getBody() const;
 	bool getAliveKeep() const;
-	const std::string *getHeader(const std::string &key);
+	const std::string *getHeader(const std::string &key) const;
 
-	const std::string &build();
+	std::string build();
 
 };
 
