@@ -22,6 +22,7 @@ class HttpResponse
 
 	std::string  getCurrentHttpDate() const;
 	std::string  sizetoString(size_t size);
+	bool	mayHasBody() const;
 
 	public:
 

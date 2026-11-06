@@ -134,6 +134,15 @@ std::string HttpResponse::getCurrentHttpDate() const
     return "";
 }
 
+bool HttpResponse::mayHasBody() const
+{
+	if ((status_code_ >= 100 && status_code_ <= 199)
+		|| status_code_ != NO_CONTENT)
+		return false;
+	
+	return true;
+}
+
 std::string HttpResponse::build()
 {
 	std::stringstream response;
@@ -151,14 +160,19 @@ std::string HttpResponse::build()
 		response <<"server: webserver/1.0\r\n";
 	
 	// Prohibido en 1xx y 204, incluso con valor cero.
-	if(!getHeader("content-length"))
-		response << "content-length: "<< body_.size() << "\r\n";
-	else
+	if (mayHasBody())
 	{
-		headers_["content-length"] = sizetoString(body_.size());
+		if(!getHeader("content-length"))
+			response << "content-length: "<< body_.size() << "\r\n";
+		else
+		{
+			headers_["content-length"] = sizetoString(body_.size());
+		}
 	}
+	
 
 	//Allow	Obligatorio en una respuesta 405. "Method Not Allowed"
+	//Tipo MIME (std::string contentType): Identificador del contenido (ej. "text/html", "image/png", "application/json").
 
 	if(!getHeader("Connection"))
 		 response << "Connection: " << (Alive_keep_? "Keep-Alive" : "close") << "\r\n";
@@ -166,6 +180,8 @@ std::string HttpResponse::build()
 	it = headers_.begin();
 	for(; it != headers_.end(); ++it)
 	{
+		if(it->first == "content-length" && !mayHasBody())
+			continue;
 		response << it->first << ": "<< it ->second << "\r\n";
 	}
 
@@ -173,7 +189,7 @@ std::string HttpResponse::build()
 	response << "\r\n";
 
 	//Body
-	if (!body_.empty())
+	if (mayHasBody() && !body_.empty())
 		response << body_;
 
 	return response.str();
@@ -190,7 +206,7 @@ std::string HttpResponse::build()
 
 // 	// Respuesta con body y longitud manual incorrecta.
 // 	// build() debe sustituir 100 por 4.
-// 	ok_response.setStatusCode(OK);
+// 	ok_response.setStatusCode(CONTINUE);
 // 	ok_response.setBody("Hola");
 // 	ok_response.addHeader("Content-Type", "text/plain");
 // 	ok_response.addHeader("Content-Length", "100");
