@@ -17,14 +17,11 @@ class Processor {
 	private:
 		// TODO: aclarar si es solo una config o un array de configs
 		// como se contempla configs distintas con un mismo puerto?
-		const std::vector<ServerConfig>& cfgs_;
+		const ServerConfig* serv_cfg_;
 
 		Processor(const Processor& other);
 		Processor& operator=(const Processor& other);
 	
-		// Find config for the host
-		const ServerConfig *findConfig(const Request& req) const;
-
 		// Resolve path (decode + normalize, see path_utils.hpp)
 		std::string resolvePath(const Request& req) const;
 
@@ -43,12 +40,12 @@ class Processor {
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
 	
 		std::string resolveErrorPage(
-			e_status_code error_code, const LocationConfig* cfg, const ServerConfig* serv_cfg
+			e_status_code error_code, const LocationConfig* cfg
 		) const;
 
 	public:
 		
-		Processor(const std::vector<ServerConfig>& cfgs);
+		Processor(const ServerConfig* serv_cfg);
 		~Processor();
 
 		Decision procRequest(const Request& req);

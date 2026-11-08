@@ -13,23 +13,13 @@
 
 // Builders --------------------------------------------------------------------
 // The builder has the server configs corresponding to the connection as input
-Processor::Processor(const std::vector<ServerConfig>& cfgs):
-	cfgs_(cfgs)
+Processor::Processor(const ServerConfig* serv_cfg):
+	serv_cfg_(serv_cfg)
 {}
 
 Processor::~Processor() {}
 
 // Private methods -------------------------------------------------------------
-
-// Finds the specific config based on the host of the request (virtual hosts)
-const ServerConfig* Processor::findConfig(const Request& req) const {
-	// OPTIONAL: implement this method
-	(void)req;
-	// Default = first config
-	if (cfgs_.empty())
-		return NULL;
-	return &(*cfgs_.begin());
-}
 
 // Resolves the whole path to useful one
 std::string Processor::resolvePath(const Request& req) const
@@ -87,7 +77,7 @@ int methodSwitch(const std::string& method) {
 }
 
 std::string Processor::resolveErrorPage(
-		e_status_code code, const LocationConfig* loc_cfg, const ServerConfig* serv_cfg) const 
+		e_status_code code, const LocationConfig* loc_cfg) const 
 {
 	const std::string *path_ptr = NULL;
 	// Searchs in Location
@@ -96,8 +86,8 @@ std::string Processor::resolveErrorPage(
 	if (path_ptr)
 		return *path_ptr;
 	// If location return NULL -> searchs in root config
-	if (serv_cfg)
-		path_ptr = serv_cfg->getErrorPage(code);
+	if (serv_cfg_)
+		path_ptr = serv_cfg_->getErrorPage(code);
 	if (path_ptr)
 		return *path_ptr;
 	// TODO: check that file exists with stat
@@ -112,33 +102,23 @@ Decision Processor::procRequest(const Request& req) {
 
 	// TODO: check request status
 
-	// Configuration searching
-	const ServerConfig* server_cfg = findConfig(req);
-	if (server_cfg == NULL)
-	{
-		res.setStatus(INTERNAL_ERROR);
-		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL, server_cfg));
-		return res;
-	}
-
 	// Path escapes the root ("/../x")
 	std::string target = resolvePath(req);
 	if (target.empty())
 	{
 		res.setStatus(BAD_REQUEST);
 		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL, server_cfg));
+		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL));
 		return res;
 	}
 
 	// Configuration searching
-	const LocationConfig* cfg = PathUtils::findLocation(target, *server_cfg);
+	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	if (cfg == NULL)
 	{
 		res.setStatus(NOT_FOUND);
 		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL, server_cfg));
+		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL));
 		return res;
 	}
 	res.setLocationConfig(cfg);
@@ -157,7 +137,7 @@ Decision Processor::procRequest(const Request& req) {
 	{
 		res.setStatus(METHOD_NOT_ALLOWED);
 		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 		// Sets the actual allowed methods in decision
 		const std::vector<std::string>& methods = cfg->getMethods();
 		for (size_t i = 0; i < methods.size(); ++i)
@@ -172,7 +152,7 @@ Decision Processor::procRequest(const Request& req) {
 	// 		ft_log::global().error("Content length data error");
 	// 		res.setStatus(BAD_REQUEST);
 	// 		res.setHandler(ERROR_PAGE);
-	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 	// 		return res;
 	// 	}
 	// 	case 2: // Content length greater than max body size
@@ -180,7 +160,7 @@ Decision Processor::procRequest(const Request& req) {
 	// 		ft_log::global().warning("Request content-length too long");
 	// 		res.setStatus(PAYLOAD_TOO_LARGE);
 	// 		res.setHandler(ERROR_PAGE);
-	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 	// 		return res;
 	// 	}
 	// }
@@ -198,14 +178,14 @@ Decision Processor::procRequest(const Request& req) {
 			{
 				res.setStatus(FORBIDDEN);
 				res.setHandler(ERROR_PAGE);
-				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 				return res;
 			}
 			case ENOENT: // File not found
 			{
 				res.setStatus(NOT_FOUND);
 				res.setHandler(ERROR_PAGE);
-				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 				return res;
 			}
 		}
@@ -238,7 +218,7 @@ Decision Processor::procRequest(const Request& req) {
 		} else {
 			res.setStatus(FORBIDDEN);
 			res.setHandler(ERROR_PAGE);
-			res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+			res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
 			return res;
 		}
 	}

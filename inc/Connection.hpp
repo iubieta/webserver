@@ -30,7 +30,7 @@ class Connection {
 private:
 	// ServerCore related
 	int					fd_;
-	ServerConfig*		config_;
+	const ServerConfig*		config_;
 
 	bool				closed_;
 	Buffer				read_buff_;

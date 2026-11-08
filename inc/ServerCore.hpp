@@ -16,8 +16,8 @@
 
 // Struct that associates a socket to its config
 struct Listener {
-	ListeningSocket*	sock_;
-	ServerConfig*		cfg_;
+	const ListeningSocket*	sock_;
+	const ServerConfig*		cfg_;
 
 	Listener(ListeningSocket* s, ServerConfig* c)
 		: sock_(s), cfg_(c) {};

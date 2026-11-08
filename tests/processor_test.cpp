@@ -187,10 +187,8 @@ static void testLocationTrailingSlash() {
 static void testGetRootWithoutLocations() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor	proc(cfgs);
+	Processor proc(&cfg);
 	Decision	res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -201,10 +199,8 @@ static void testGetRootWithLocations() {
 	setBasicConfig(cfg);
 	cfg.addLocation(makeLocation("/one"));
 	cfg.addLocation(makeLocation("/one/two"));
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor	proc(cfgs);
+	Processor proc(&cfg);
 	Decision	res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -214,10 +210,8 @@ static void testPathEscapesRoot() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(makeLocation("/"));
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor	proc(cfgs);
+	Processor proc(&cfg);
 	Decision	res = proc.procRequest(makeRequest("GET", "/../etc/passwd"));
 	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
 	res = proc.procRequest(makeRequest("GET", "/%2E%2E/etc/passwd"));
@@ -237,10 +231,8 @@ static Decision redirectDecision(const std::string& method,
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	return proc.procRequest(makeRequest(method, path));
 }
 
@@ -277,10 +269,8 @@ static void testRedirectBeforeMethodCheck() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("DELETE", "/old"));
 	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
 	ASSERT_EQ(res.getHandler(), REDIRECTION);
@@ -297,10 +287,8 @@ static e_status_code methodStatus(const std::string& method,
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	return proc.procRequest(makeRequest(method, "/")).getStatus();
 }
 
@@ -321,10 +309,8 @@ static void testMethodNotAllowedList() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor	proc(cfgs);
+	Processor proc(&cfg);
 	Decision	res = proc.procRequest(makeRequest("DELETE", "/"));
 	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -340,10 +326,8 @@ static Decision diskPathDecision(const std::string& path) {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	return proc.procRequest(makeRequest("GET", path));
 }
 
@@ -413,10 +397,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("POST", "/", 512);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -431,10 +413,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("POST", "/", 100);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -450,10 +430,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("POST", "/", 100);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -468,10 +446,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("POST", "/", 999999);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -486,10 +462,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestChunked("POST", "/");
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -504,10 +478,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("DELETE", "/", 500);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
@@ -525,10 +497,8 @@ static void removeDirRecursive(const std::string& path) {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequest("GET", "/");
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
@@ -549,10 +519,8 @@ static void testStatRegularFile() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/index.html"));
 	ASSERT_EQ(res.getHandler(), READ_FILE);
 	ASSERT_EQ(res.getDiskPath(), file);
@@ -572,10 +540,8 @@ static void testStatMissingFile() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/nope.html"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -596,10 +562,8 @@ static void testStatNoPermission() {
 		ServerConfig cfg;
 		setBasicConfig(cfg);
 		cfg.addLocation(loc);
-		std::vector<ServerConfig> cfgs;
-		cfgs.push_back(cfg);
 
-		Processor proc(cfgs);
+		Processor proc(&cfg);
 		Decision res = proc.procRequest(makeRequest("GET", "/secret/"));
 		ASSERT_EQ(res.getStatus(), FORBIDDEN);
 		ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -624,10 +588,8 @@ static void testStatDirWithIndex() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getHandler(), READ_FILE);
 	ASSERT_EQ(res.getDiskPath(), index);
@@ -648,10 +610,8 @@ static void testStatDirAutoindexOn() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getHandler(), LIST_DIR);
 	ASSERT_EQ(res.getDiskPath(), root + "/");
@@ -672,10 +632,8 @@ static void testStatDirAutoindexOff() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getStatus(), FORBIDDEN);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -697,10 +655,8 @@ static void testStatDirIndexMissingAutoindexOnFallback() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getHandler(), LIST_DIR);
 
@@ -721,10 +677,8 @@ static void testStatDirIndexMissingAutoindexOffFallback() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/"));
 	ASSERT_EQ(res.getStatus(), FORBIDDEN);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -741,10 +695,8 @@ static void testErrorPageFromLocation() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -759,10 +711,8 @@ static void testErrorPageFromServer() {
 	setBasicConfig(cfg);
 	cfg.addErrorPage("404", "/errors/404.html");
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -778,10 +728,8 @@ static void testErrorPageLocationOverridesServer() {
 	setBasicConfig(cfg);
 	cfg.addErrorPage("404", "/errors/srv404.html");
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -795,10 +743,8 @@ static void testErrorPageDefaultEmpty() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -812,10 +758,8 @@ static void testErrorPageFor405() {
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
 
-	Processor proc(cfgs);
+	Processor proc(&cfg);
 	Decision res = proc.procRequest(makeRequest("DELETE", "/"));
 	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
@@ -831,10 +775,8 @@ static void testErrorPageFor405() {
 // 	ServerConfig cfg;
 // 	setBasicConfig(cfg);
 // 	cfg.addLocation(loc);
-// 	std::vector<ServerConfig> cfgs;
-// 	cfgs.push_back(cfg);
 // 
-// 	Processor proc(cfgs);
+// 	Processor proc(&cfg);
 // 	Request req = makeRequestWithCL("POST", "/", 100);
 // 	Decision res = proc.procRequest(req);
 // 	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
