@@ -58,10 +58,7 @@ bool Processor::methodIsAllowed(const Request& req,
 int Processor::checkContentLength(const Request& req,
 	const LocationConfig& cfg) const
 {
-	(void)req;
-	(void)cfg;
-	// TODO: compare body size with cfg.getClientMax() (0 = no limit)
-	const std::string *content_len_str = req.getHeader("Content-Length");
+	const std::string *content_len_str = req.getHeader("content-length");
 	// Whithout content-length header the body size must be checked later
 	if (content_len_str == NULL)
 		return 0;
@@ -103,6 +100,7 @@ std::string Processor::resolveErrorPage(
 		path_ptr = serv_cfg->getErrorPage(code);
 	if (path_ptr)
 		return *path_ptr;
+	// TODO: check that file exists with stat
 	return "";
 }
 
@@ -167,25 +165,25 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 
-	// Checks request content length
-	switch (checkContentLength(req, *cfg)) {
-		case 1: // Data error
-		{
-			ft_log::global().error("Content length data error");
-			res.setStatus(BAD_REQUEST);
-			res.setHandler(ERROR_PAGE);
-			res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
-			return res;
-		}
-		case 2: // Content length greater than max body size
-		{
-			ft_log::global().warning("Request content-length too long");
-			res.setStatus(PAYLOAD_TOO_LARGE);
-			res.setHandler(ERROR_PAGE);
-			res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
-			return res;
-		}
-	}
+	// Checks request content length -- PARSER RESPONSABILITY
+	// switch (checkContentLength(req, *cfg)) {
+	// 	case 1: // Data error
+	// 	{
+	// 		ft_log::global().error("Content length data error");
+	// 		res.setStatus(BAD_REQUEST);
+	// 		res.setHandler(ERROR_PAGE);
+	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+	// 		return res;
+	// 	}
+	// 	case 2: // Content length greater than max body size
+	// 	{
+	// 		ft_log::global().warning("Request content-length too long");
+	// 		res.setStatus(PAYLOAD_TOO_LARGE);
+	// 		res.setHandler(ERROR_PAGE);
+	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg, server_cfg));
+	// 		return res;
+	// 	}
+	// }
 
 	// Resolves disk path: location root + target
 	std::string disk_path = cfg->getRoot() + target;

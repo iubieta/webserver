@@ -48,7 +48,7 @@ class Processor {
 
 	public:
 		
-		Processor(const std::vector<ServerConfig >& cfgs);
+		Processor(const std::vector<ServerConfig>& cfgs);
 		~Processor();
 
 		Decision procRequest(const Request& req);

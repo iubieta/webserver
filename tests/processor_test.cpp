@@ -360,23 +360,23 @@ static void testDiskPathNested() {
 }
 
 // Content-Length helpers ------------------------------------------------------
-static Request makeRequestWithCL(const std::string& method,
-								const std::string& path,
-								size_t contentLength)
-{
-	Request req = makeRequest(method, path);
-	std::stringstream iss;
-	iss << contentLength;
-	req.addHeader("Content-Length", iss.str());
-	return req;
-}
-
-static Request makeRequestChunked(const std::string& method, const std::string& path)
-{
-	Request req = makeRequest(method, path);
-	req.addHeader("Transfer-Encoding", "chunked");
-	return req;
-}
+// Static Request makeRequestWithCL(const std::string& method,
+// 								const std::string& path,
+// 								size_t contentLength)
+// {
+// 	Request req = makeRequest(method, path);
+// 	std::stringstream iss;
+// 	iss << contentLength;
+// 	req.addHeader("Content-Length", iss.str());
+// 	return req;
+// }
+// 
+// static Request makeRequestChunked(const std::string& method, const std::string& path)
+// {
+// 	Request req = makeRequest(method, path);
+// 	req.addHeader("Transfer-Encoding", "chunked");
+// 	return req;
+// }
 
 // FS helpers for stat tests ---------------------------------------------------
 static std::string makeTempRoot(const std::string& suffix) {
@@ -405,134 +405,134 @@ static void removeDirRecursive(const std::string& path) {
 }
 
 // Content-Length within limit -> no debe ser 413
-static void testContentLengthWithinLimit() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("1024");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("POST", "/", 512);
-	Decision res = proc.procRequest(req);
-	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-}
-
-// Content-Length > limit -> 413 Payload Too Large, ERROR_PAGE
-static void testContentLengthExceedsLimit() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("10");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("POST", "/", 100);
-	Decision res = proc.procRequest(req);
-	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-}
-
-// Igual al límite -> permitido (> , no >=)
-static void testContentLengthEqualsLimit() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("100");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("POST", "/", 100);
-	Decision res = proc.procRequest(req);
-	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-}
-
-// client_max_body_size 0 -> sin límite
-static void testContentLengthLimitZero() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("0");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("POST", "/", 999999);
-	Decision res = proc.procRequest(req);
-	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-}
-
-// Chunked: el processor NO debe rechazar por client_max_body_size
-static void testContentLengthChunkedIgnoredByProcessor() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("10");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestChunked("POST", "/");
-	Decision res = proc.procRequest(req);
-	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-}
-
-// Prioridad: método no permitido + Content-Length excesivo -> debe prevalecer 405 con Allow
-static void testContentLengthMethodNotAllowedHasPriority() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("GET");
-	loc.setClientMax("10");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("DELETE", "/", 500);
-	Decision res = proc.procRequest(req);
-	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
-	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getAllowedMethods().size(), 1u);
-	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
-}
-
-// Sin Content-Length ni chunked -> no debe dar 413
-static void testNoContentLengthNo413() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("GET");
-	loc.setClientMax("1");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequest("GET", "/");
-	Decision res = proc.procRequest(req);
-	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-}
+// static void testContentLengthWithinLimit() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("1024");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("POST", "/", 512);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// }
+// 
+// // Content-Length > limit -> 413 Payload Too Large, ERROR_PAGE
+// static void testContentLengthExceedsLimit() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("10");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("POST", "/", 100);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+// }
+// 
+// // Igual al límite -> permitido (> , no >=)
+// static void testContentLengthEqualsLimit() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("100");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("POST", "/", 100);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// }
+// 
+// // client_max_body_size 0 -> sin límite
+// static void testContentLengthLimitZero() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("0");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("POST", "/", 999999);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// }
+// 
+// // Chunked: el processor NO debe rechazar por client_max_body_size
+// static void testContentLengthChunkedIgnoredByProcessor() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("10");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestChunked("POST", "/");
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// }
+// 
+// // Prioridad: método no permitido + Content-Length excesivo -> debe prevalecer 405 con Allow
+// static void testContentLengthMethodNotAllowedHasPriority() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("GET");
+// 	loc.setClientMax("10");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("DELETE", "/", 500);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
+// 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+// 	ASSERT_EQ(res.getAllowedMethods().size(), 1u);
+// 	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
+// }
+// 
+// // Sin Content-Length ni chunked -> no debe dar 413
+// static void testNoContentLengthNo413() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("GET");
+// 	loc.setClientMax("1");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequest("GET", "/");
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_NOT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// }
 
 // stat() tests ---------------------------------------------------------------
 // Fichero regular legible -> READ_FILE
@@ -822,25 +822,25 @@ static void testErrorPageFor405() {
 	ASSERT_EQ(res.getErrorPage(), "/errors/405.html");
 }
 
-static void testErrorPageFor413() {
-	LocationConfig loc = makeLocation("/");
-	loc.setRoot("/var/www");
-	loc.addMethod("POST");
-	loc.setClientMax("10");
-	loc.addErrorPage("413", "/errors/413.html");
-	ServerConfig cfg;
-	setBasicConfig(cfg);
-	cfg.addLocation(loc);
-	std::vector<ServerConfig> cfgs;
-	cfgs.push_back(cfg);
-
-	Processor proc(cfgs);
-	Request req = makeRequestWithCL("POST", "/", 100);
-	Decision res = proc.procRequest(req);
-	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
-	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getErrorPage(), "/errors/413.html");
-}
+// static void testErrorPageFor413() {
+// 	LocationConfig loc = makeLocation("/");
+// 	loc.setRoot("/var/www");
+// 	loc.addMethod("POST");
+// 	loc.setClientMax("10");
+// 	loc.addErrorPage("413", "/errors/413.html");
+// 	ServerConfig cfg;
+// 	setBasicConfig(cfg);
+// 	cfg.addLocation(loc);
+// 	std::vector<ServerConfig> cfgs;
+// 	cfgs.push_back(cfg);
+// 
+// 	Processor proc(cfgs);
+// 	Request req = makeRequestWithCL("POST", "/", 100);
+// 	Decision res = proc.procRequest(req);
+// 	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+// 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+// 	ASSERT_EQ(res.getErrorPage(), "/errors/413.html");
+// }
 
 void processor_tests() {
 	Tester::runTest("Path decoder", testDecodePath);
@@ -848,7 +848,6 @@ void processor_tests() {
 	Tester::runTest("Trailing slash", testNormalizeTrailingSlash);
 	Tester::runTest("Nested prefix", testLocationNestedPrefix);
 	Tester::runTest("Disk path nested", testDiskPathNested);
-
 	Tester::runTest("Different locations", testDifferentLocations);
 	Tester::runTest("Longest location match", testLocationLongestMatch);
 	Tester::runTest("Location segment boundary", testLocationSegmentBoundary);
@@ -863,13 +862,13 @@ void processor_tests() {
 	Tester::runTest("Allowed methods", testAllowedMethods);
 	Tester::runTest("405 allowed list", testMethodNotAllowedList);
 	Tester::runTest("Disk path", testDiskPath);
-	Tester::runTest("Content-Length within limit", testContentLengthWithinLimit);
-	Tester::runTest("Content-Length equals limit allowed", testContentLengthEqualsLimit);
-	Tester::runTest("Content-Length exceeds limit -> 413", testContentLengthExceedsLimit);
-	Tester::runTest("client_max_body_size 0 = no limit", testContentLengthLimitZero);
-	Tester::runTest("Chunked ignored by processor", testContentLengthChunkedIgnoredByProcessor);
-	Tester::runTest("413 vs 405 priority (method not allowed)", testContentLengthMethodNotAllowedHasPriority);
-	Tester::runTest("No Content-Length -> no 413", testNoContentLengthNo413);
+	// Tester::runTest("Content-Length within limit", testContentLengthWithinLimit);
+	// Tester::runTest("Content-Length equals limit allowed", testContentLengthEqualsLimit);
+	// Tester::runTest("Content-Length exceeds limit -> 413", testContentLengthExceedsLimit);
+	// Tester::runTest("client_max_body_size 0 = no limit", testContentLengthLimitZero);
+	// Tester::runTest("Chunked ignored by processor", testContentLengthChunkedIgnoredByProcessor);
+	// Tester::runTest("413 vs 405 priority (method not allowed)", testContentLengthMethodNotAllowedHasPriority);
+	// Tester::runTest("No Content-Length -> no 413", testNoContentLengthNo413);
 	Tester::runTest("stat regular file -> READ_FILE", testStatRegularFile);
 	Tester::runTest("stat missing -> 404", testStatMissingFile);
 	Tester::runTest("stat no permission -> 403", testStatNoPermission);
@@ -883,7 +882,7 @@ void processor_tests() {
 	Tester::runTest("Error page location overrides server", testErrorPageLocationOverridesServer);
 	Tester::runTest("Error page default empty", testErrorPageDefaultEmpty);
 	Tester::runTest("Error page for 405", testErrorPageFor405);
-	Tester::runTest("Error page for 413", testErrorPageFor413);
+	// Tester::runTest("Error page for 413", testErrorPageFor413);
 
 	Tester::report();
 }
