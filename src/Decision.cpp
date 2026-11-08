@@ -21,6 +21,7 @@ Decision& Decision::operator=(const Decision& other) {
 		handler_			= other.handler_;
 		disk_path_			= other.disk_path_;
 		redir_url_			= other.redir_url_;
+		error_page_			= other.error_page_;
 		allowed_methods_	= other.allowed_methods_;
 		location_			= other.location_;
 	}
