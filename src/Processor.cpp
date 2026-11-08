@@ -183,6 +183,9 @@ Decision Processor::procRequest(const Request& req) {
 			}
 			case ENOENT: // File not found
 			{
+				// TODO: if method is post create file
+				
+				// If GET or DELETE methods -> NOT FOUND
 				res.setStatus(NOT_FOUND);
 				res.setHandler(ERROR_PAGE);
 				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
