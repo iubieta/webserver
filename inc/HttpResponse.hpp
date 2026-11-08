@@ -5,17 +5,22 @@
 #include <string>
 #include "http_status_codes.hpp"
 
+#ifndef DEF_SERVER_NAME 
+# define DEF_SERVER_NAME "webserver/0.1"
+#endif // !DEF_SERVER_NAME 
 
 class HttpResponse
 {
 	private:
 
-	e_status_code						status_code_;
 	std::string							version_;
+	e_status_code						status_code_;
 	std::string							reason_phrase_;
+
 	std::map<std::string, std::string>	headers_;
+	bool								keep_alive_;
+
 	std::string							body_;
-	bool								Alive_keep_;
 
 	HttpResponse(const HttpResponse &other);
 	HttpResponse &operator=(const HttpResponse &other);
@@ -34,7 +39,7 @@ class HttpResponse
 	void setReasonPhrase(const std::string &reason_phrase);
 	void setHeaders(const std::map<std::string, std::string> &headers);
 	void setBody(const std::string &body);
-	void setAliveKeep(bool Alive_keeo);
+	void setAliveKeep(bool keep_alive);
 
 	int addHeader(const std::string &key, const std::string &vaalue);
 

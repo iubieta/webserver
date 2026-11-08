@@ -10,7 +10,7 @@ HttpResponse::HttpResponse():
 			reason_phrase_("ok"),
 			headers_(),
 			body_(""),
-			Alive_keep_(false)
+			keep_alive_(false)
 			{}
 
 HttpResponse:: ~HttpResponse() {}
@@ -40,9 +40,9 @@ void HttpResponse::setBody(const std::string &body)
 	body_ = body;
 }
 
-void HttpResponse::setAliveKeep(bool Alive_keep)
+void HttpResponse::setAliveKeep(bool keep_alive)
 {
-	Alive_keep_ = Alive_keep;
+	keep_alive_ = keep_alive;
 }
 
 int HttpResponse::addHeader(const std::string &key, const std::string &value)
@@ -85,7 +85,7 @@ const std::string &HttpResponse::getBody() const
 
 bool HttpResponse::getAliveKeep() const
 {
-	return Alive_keep_;
+	return keep_alive_;
 }
 
 const std::string *HttpResponse::getHeader(const std::string &key) const
@@ -148,16 +148,15 @@ std::string HttpResponse::build()
 	std::stringstream response;
 	std::map<std::string, std::string>::const_iterator it;
 	
-	reason_phrase_ = getStatusMessage(status_code_);
-
 	// Status line
+	reason_phrase_ = getStatusMessage(status_code_);
 	response << version_ <<" "<< status_code_<<" "<< reason_phrase_<<"\r\n";
 
 	//Header fields
 	if(!getHeader("date"))
 		response <<"date: "<< getCurrentHttpDate()<<"\r\n";
 	if(!getHeader("server"))
-		response <<"server: webserver/1.0\r\n";
+		response <<"server: " << DEF_SERVER_NAME << "\r\n"; 
 	
 	// Prohibido en 1xx y 204, incluso con valor cero.
 	if (mayHasBody())
@@ -175,7 +174,7 @@ std::string HttpResponse::build()
 	//Tipo MIME (std::string contentType): Identificador del contenido (ej. "text/html", "image/png", "application/json").
 
 	if(!getHeader("Connection"))
-		 response << "Connection: " << (Alive_keep_? "Keep-Alive" : "close") << "\r\n";
+		 response << "Connection: " << (keep_alive_? "Keep-Alive" : "close") << "\r\n";
 
 	it = headers_.begin();
 	for(; it != headers_.end(); ++it)
@@ -185,7 +184,7 @@ std::string HttpResponse::build()
 		response << it->first << ": "<< it ->second << "\r\n";
 	}
 
-	//Empty line
+	//Empty line to indicate header-section ending
 	response << "\r\n";
 
 	//Body
