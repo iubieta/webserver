@@ -57,7 +57,15 @@ void Decision::setErrorPage(const std::string& error_page) {
 void Decision::setError(e_status_code error) {
 	status_ = error;
 	handler_ = ERROR_PAGE;
-	error_page_ = PathUtils::resolveErrorPage(error, location_, server_cfg_);
+	std::string root = PathUtils::resolveRoot(location_, server_cfg_);
+	std::string error_page = PathUtils::resolveErrorPage(error, location_, server_cfg_);
+	if (!error_page.empty())
+	{
+		if (!root.empty() && root[root.size() - 1] == '/' && error_page[0] == '/')
+			error_page_ = root.substr(0, root.size() - 1) + error_page;
+		else
+			error_page_ = root + error_page;
+	}
 }
 
 void Decision::addAllowedMethod(const std::string& method) {

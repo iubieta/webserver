@@ -141,7 +141,12 @@ Decision Processor::procRequest(const Request& req) {
 	// }
 
 	// Resolves disk path: location root + target
-	std::string disk_path = cfg->getRoot() + target;
+	std::string root = PathUtils::resolveRoot(cfg, serv_cfg_);
+	std::string disk_path;
+	if (!root.empty() && root[root.size() - 1] == '/' && target[0] == '/')
+		 disk_path = root.substr(0, root.size() - 1) + target;
+	else
+		disk_path = root + target;
 	res.setDiskPath(disk_path);
 
 	// Target file handling

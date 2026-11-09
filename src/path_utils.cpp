@@ -99,8 +99,20 @@ const LocationConfig* PathUtils::findLocation(std::string target,
 	return NULL;
 }
 
+std::string PathUtils::resolveRoot(
+	const LocationConfig* loc_cfg, const ServerConfig *serv_cfg)
+{
+	// Searchs in Location
+	if (loc_cfg && !loc_cfg->getRoot().empty())
+		return loc_cfg->getRoot();
+	// If location return NULL -> searchs in root config
+	if (serv_cfg && !serv_cfg->getRoot().empty())
+		return serv_cfg->getRoot();
+	return "";
+}
+
 std::string PathUtils::resolveErrorPage(
-		e_status_code code, const LocationConfig* loc_cfg, const ServerConfig* serv_cfg)
+	e_status_code code, const LocationConfig* loc_cfg, const ServerConfig* serv_cfg)
 {
 	const std::string *path_ptr = NULL;
 	// Searchs in Location

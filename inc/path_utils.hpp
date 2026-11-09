@@ -19,6 +19,8 @@ namespace PathUtils {
 	// Searchs the longest matching location with the path
 	const LocationConfig *findLocation(std::string target,
 		const ServerConfig& cfg);
+	// Searchs root in config
+	std::string resolveRoot(const LocationConfig* loc_cfg, const ServerConfig* serv_cfg);
 	// Searchs error page in a location config
 	std::string resolveErrorPage(
 		e_status_code error_code,
