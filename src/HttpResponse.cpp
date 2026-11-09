@@ -137,7 +137,7 @@ std::string HttpResponse::getCurrentHttpDate() const
 bool HttpResponse::mayHasBody() const
 {
 	if ((status_code_ >= 100 && status_code_ <= 199)
-		|| status_code_ != NO_CONTENT)
+		|| status_code_ == NO_CONTENT)
 		return false;
 	
 	return true;
