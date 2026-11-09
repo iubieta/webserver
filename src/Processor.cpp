@@ -195,6 +195,17 @@ Decision Processor::procRequest(const Request& req) {
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{
+				// Checks for "/" at the end; if not return a redir
+				if (target[target.size() - 1] != '/')
+				{
+					std::string redir = target + "/";
+					if (!req.getQuery().empty())
+						redir += "?" + req.getQuery();
+					res.setStatus(MOVED_PERMANENTLY);
+					res.setRedirURL(redir);
+					res.setHandler(REDIRECTION);
+					return res;
+				}
 				// If there is a definded index file search it and read it
 				std::vector<std::string> indexs = cfg->getIndexs();
 				if (!indexs.empty())
