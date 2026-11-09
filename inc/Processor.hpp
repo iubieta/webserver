@@ -5,18 +5,14 @@
 #define PROCESSOR_HPP
 
 #include <string>
-#include <vector>
 
 #include "ServerConfig.hpp"
 #include "Request.hpp"
 #include "Decision.hpp"
 #include "LocationConfig.hpp"
-#include "http_status_codes.hpp"
 
 class Processor {
 	private:
-		// TODO: aclarar si es solo una config o un array de configs
-		// como se contempla configs distintas con un mismo puerto?
 		const ServerConfig* serv_cfg_;
 
 		Processor(const Processor& other);

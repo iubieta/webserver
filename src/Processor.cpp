@@ -58,7 +58,7 @@ int Processor::checkContentLength(const Request& req,
 
 	if (!(stream >> content_len) || !stream.eof())
 		return 1;
-	
+
 	if (cfg.getClientMax() > 0 && content_len > cfg.getClientMax())
 		return 2;
 
@@ -144,9 +144,10 @@ Decision Processor::procRequest(const Request& req) {
 	std::string disk_path = cfg->getRoot() + target;
 	res.setDiskPath(disk_path);
 
-	// Target file handling 
+	// Target file handling
 	struct stat stat_buf;
-	if (stat(disk_path.c_str(), &stat_buf) == -1) 
+	// When target fails
+	if (stat(disk_path.c_str(), &stat_buf) == -1)
 	{
 		switch (errno) {
 			case EACCES: // Permission error
@@ -154,53 +155,78 @@ Decision Processor::procRequest(const Request& req) {
 				res.setError(FORBIDDEN);
 				return res;
 			}
-			case ENOENT: // File not found
+			case ENOTDIR:
+				// FALLTHROUGH
+			case ENOENT : // File not found
 			{
-				// TODO: if method is post create file
-				
+				// Post method -> Create file
+				if (req.getMethod() == "POST") {
+					res.setHandler(WRITE_FILE);
+					return res;
+				}
+
 				// If GET or DELETE methods -> NOT FOUND
-				res.setStatus(NOT_FOUND);
-				res.setHandler(ERROR_PAGE);
-				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
+				res.setError(NOT_FOUND);
+				return res;
+			}
+			default:
+			{
+				res.setError(INTERNAL_ERROR);
 				return res;
 			}
 		}
 	}
 	// When target is a dir: checks for index or autoindex
-	else if (S_ISDIR(stat_buf.st_mode)) 
+	else if (S_ISDIR(stat_buf.st_mode))
 	{
-		// If there is a definded index file search it and read it
-		std::vector<std::string> indexs = cfg->getIndexs();
-		if (!indexs.empty())
-		{
-			for (size_t i = 0; i < indexs.size(); ++i) {
-				std::string index_file = disk_path + indexs[i];
-				if (stat(index_file.c_str(), &stat_buf) != -1 
-					&& S_ISREG(stat_buf.st_mode)) {
-					res.setDiskPath(index_file);
-					res.setStatus(OK);
-					res.setHandler(READ_FILE);
+		switch (methodSwitch(req.getMethod())) {
+			case 1: // GET
+			{
+				// If there is a definded index file search it and read it
+				std::vector<std::string> indexs = cfg->getIndexs();
+				if (!indexs.empty())
+				{
+					for (size_t i = 0; i < indexs.size(); ++i) {
+						std::string index_file = disk_path + indexs[i];
+						if (stat(index_file.c_str(), &stat_buf) != -1
+							&& S_ISREG(stat_buf.st_mode)) {
+							res.setDiskPath(index_file);
+							res.setHandler(READ_FILE);
+							return res;
+						}
+					}
+				}
+
+				// If there is no index file tries autoindex
+				if (cfg->getAutoindex()) {
+					res.setHandler(LIST_DIR);
+					return res;
+
+				// If autoindex is off return 403
+				} else {
+					res.setError(FORBIDDEN);
 					return res;
 				}
 			}
-		}
-		
-		// If there is no index file tries autoindex
-		if (cfg->getAutoindex()) {
-			res.setStatus(OK);
-			res.setHandler(LIST_DIR);
-			return res;
-		// If autoindex is off return 403
-		} else {
-			res.setStatus(FORBIDDEN);
-			res.setHandler(ERROR_PAGE);
-			res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
-			return res;
+			case 2: // POST
+			{
+				res.setError(FORBIDDEN);
+				return res;
+			}
+			case 3: // DELETE
+			{
+				res.setHandler(REMOVE_FILE);
+				return res;
+			}
+			default:
+			{
+				res.setError(METHOD_NOT_ALLOWED);
+				return res;
+			}
 		}
 	}
 	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
-		// TODO: make a method enum list
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{
@@ -217,7 +243,18 @@ Decision Processor::procRequest(const Request& req) {
 				res.setHandler(REMOVE_FILE);
 				return res;
 			}
+			default:
+			{
+				res.setError(METHOD_NOT_ALLOWED);
+				return res;
+			}
 		}
+	}
+	// Target is neither a directory nor a regular file (fifo, socket...)
+	else
+	{
+		res.setError(FORBIDDEN);
+		return res;
 	}
 	return res;
 }
