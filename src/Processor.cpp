@@ -84,11 +84,20 @@ Decision Processor::procRequest(const Request& req) {
 
 	Decision	res;
 	res.setServerConfig(serv_cfg_);
+	std::string target = resolvePath(req);
+	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
+	res.setLocationConfig(cfg);
+	// If a location is find fill the allowed methods in Decision
+	if (cfg)
+	{
+		const std::vector<std::string>& methods = cfg->getMethods();
+		for (size_t i = 0; i < methods.size(); ++i)
+			res.addAllowedMethod(methods[i]);
+	}
 
 	// TODO: check request status
 
 	// Path escapes the root ("/../x")
-	std::string target = resolvePath(req);
 	if (target.empty())
 	{
 		res.setError(BAD_REQUEST);
@@ -96,13 +105,11 @@ Decision Processor::procRequest(const Request& req) {
 	}
 
 	// Configuration searching
-	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	if (cfg == NULL)
 	{
 		res.setError(NOT_FOUND);
 		return res;
 	}
-	res.setLocationConfig(cfg);
 
 	// If there is a return in the location process it
 	if (cfg->getReturnSet()) {
@@ -117,10 +124,6 @@ Decision Processor::procRequest(const Request& req) {
 	if (!methodIsAllowed(req, *cfg))
 	{
 		res.setError(METHOD_NOT_ALLOWED);
-		// Sets the actual allowed methods in decision
-		const std::vector<std::string>& methods = cfg->getMethods();
-		for (size_t i = 0; i < methods.size(); ++i)
-			res.addAllowedMethod(methods[i]);
 		return res;
 	}
 
