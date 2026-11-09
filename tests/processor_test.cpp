@@ -41,6 +41,10 @@ static Request makeRequest(const std::string& method, const std::string& path) {
 	return req;
 }
 
+// FS helpers (definidos más abajo, usados también por testAllowedMethods)
+static std::string makeTempRoot(const std::string& suffix);
+static void removeDirRecursive(const std::string& path);
+
 // Path utils ------------------------------------------------------------------
 static void testDecodePath() {
 	using PathUtils::decodePath;
@@ -276,11 +280,13 @@ static void testRedirectBeforeMethodCheck() {
 	ASSERT_EQ(res.getHandler(), REDIRECTION);
 }
 
-// Returns the status of "method /" against a "/" location with "allowed"
+// Returns the status of `method path` against a "/" location with `allowed`
 static e_status_code methodStatus(const std::string& method,
-	const std::string& allowed)
+	const std::string& allowed, const std::string& path,
+	const std::string& root)
 {
 	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
 	loc.setAutoindex(true);
 	if (!allowed.empty())
 		loc.addMethod(allowed);
@@ -289,16 +295,23 @@ static e_status_code methodStatus(const std::string& method,
 	cfg.addLocation(loc);
 
 	Processor proc(&cfg);
-	return proc.procRequest(makeRequest(method, "/")).getStatus();
+	return proc.procRequest(makeRequest(method, path)).getStatus();
 }
 
 static void testAllowedMethods() {
-	ASSERT_EQ(methodStatus("GET", ""), METHOD_NOT_ALLOWED);
-	ASSERT_EQ(methodStatus("GET", "GET"), OK);
-	ASSERT_EQ(methodStatus("POST", "GET"), METHOD_NOT_ALLOWED);
-	ASSERT_EQ(methodStatus("POST", "POST"), OK);
-	ASSERT_EQ(methodStatus("DELETE", "GET"), METHOD_NOT_ALLOWED);
-	ASSERT_EQ(methodStatus("DELETE", "DELETE"), OK);
+	std::string root = makeTempRoot("methods");
+	if (root.empty())
+		return;
+
+	ASSERT_EQ(methodStatus("GET", "", "/", root), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("GET", "GET", "/", root), OK);
+	ASSERT_EQ(methodStatus("POST", "GET", "/new.txt", root),
+		METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("POST", "POST", "/new.txt", root), OK);
+	ASSERT_EQ(methodStatus("DELETE", "GET", "/", root), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(methodStatus("DELETE", "DELETE", "/", root), OK);
+
+	removeDirRecursive(root);
 }
 
 // 405 carries the allowed methods for the "Allow" header
@@ -365,7 +378,7 @@ static void testDiskPathNested() {
 // FS helpers for stat tests ---------------------------------------------------
 static std::string makeTempRoot(const std::string& suffix) {
 	char tmpl[128];
-	std::strncpy(tmpl, "/tmp/webserv_test", sizeof(tmpl) - 1);
+	std::strncpy(tmpl, "/tmp/webserv_testXXXXXX", sizeof(tmpl) - 1);
 	tmpl[sizeof(tmpl) - 1] = '\0';
 	char* d = mkdtemp(tmpl);
 	if (!d)
@@ -549,11 +562,16 @@ static void testStatMissingFile() {
 	removeDirRecursive(root);
 }
 
-// Directorio sin permisos -> 403 (si el proceso puede detectar EACCES)
+// Directorio sin permisos de búsqueda -> 403 (si el proceso detecta EACCES)
 static void testStatNoPermission() {
 	std::string root = makeTempRoot("statperm");
 	if (root.empty())
 		return;
+	// root ignora los permisos, EACCES no se puede provocar
+	if (geteuid() == 0) {
+		removeDirRecursive(root);
+		return;
+	}
 	std::string sub = root + "/secret";
 	if (mkdir(sub.c_str(), 0000) == 0) {
 		LocationConfig loc = makeLocation("/");
@@ -564,7 +582,8 @@ static void testStatNoPermission() {
 		cfg.addLocation(loc);
 
 		Processor proc(&cfg);
-		Decision res = proc.procRequest(makeRequest("GET", "/secret/"));
+		// "secret" es un directorio intermedio: stat() no puede atravesarlo
+		Decision res = proc.procRequest(makeRequest("GET", "/secret/file"));
 		ASSERT_EQ(res.getStatus(), FORBIDDEN);
 		ASSERT_EQ(res.getHandler(), ERROR_PAGE);
 
@@ -606,7 +625,7 @@ static void testStatDirAutoindexOn() {
 	LocationConfig loc = makeLocation("/");
 	loc.setRoot(root);
 	loc.addMethod("GET");
-	loc.setAutoindex("on");
+	loc.setAutoindex(true);
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
@@ -628,7 +647,7 @@ static void testStatDirAutoindexOff() {
 	LocationConfig loc = makeLocation("/");
 	loc.setRoot(root);
 	loc.addMethod("GET");
-	loc.setAutoindex("off");
+	loc.setAutoindex(false);
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
@@ -651,7 +670,7 @@ static void testStatDirIndexMissingAutoindexOnFallback() {
 	loc.setRoot(root);
 	loc.addMethod("GET");
 	loc.addIndex("index.html"); // existe pero no creamos fichero
-	loc.setAutoindex("on");
+	loc.setAutoindex(true);
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
@@ -673,7 +692,7 @@ static void testStatDirIndexMissingAutoindexOffFallback() {
 	loc.setRoot(root);
 	loc.addMethod("GET");
 	loc.addIndex("index.html");
-	loc.setAutoindex("off");
+	loc.setAutoindex(false);
 	ServerConfig cfg;
 	setBasicConfig(cfg);
 	cfg.addLocation(loc);
@@ -684,6 +703,152 @@ static void testStatDirIndexMissingAutoindexOffFallback() {
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
 
 	removeDirRecursive(root);
+}
+
+// POST / DELETE ----------------------------------------------------------------
+// POST a un fichero inexistente -> orden de crearlo, NO 404
+static void testPostMissingFileCreates() {
+	std::string root = makeTempRoot("postcreate");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("POST");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("POST", "/upload.txt"));
+	ASSERT_EQ(res.getStatus(), OK);				// provisional: el handler pone 201/200
+	ASSERT_EQ(res.getHandler(), WRITE_FILE);
+	ASSERT_EQ(res.getDiskPath(), root + "/upload.txt");
+
+	removeDirRecursive(root);
+}
+
+// POST a un fichero existente -> WRITE_FILE (sobrescribir)
+static void testPostExistingFile() {
+	std::string root = makeTempRoot("postexisting");
+	if (root.empty())
+		return;
+	writeEmptyFile(root + "/upload.txt");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("POST");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("POST", "/upload.txt"));
+	ASSERT_EQ(res.getHandler(), WRITE_FILE);
+	ASSERT_EQ(res.getDiskPath(), root + "/upload.txt");
+
+	removeDirRecursive(root);
+}
+
+// POST sobre un directorio -> 403 (no sirve index ni listing)
+static void testPostDirectoryForbidden() {
+	std::string root = makeTempRoot("postdir");
+	if (root.empty())
+		return;
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("POST");
+	loc.setAutoindex(true);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("POST", "/"));
+	ASSERT_EQ(res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
+// POST no permitido -> 405 (el gate va antes del stat)
+static void testPostNotAllowedMissingFile() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/tmp");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("POST", "/missing.txt"));
+	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+// DELETE: existente -> REMOVE_FILE ; inexistente -> 404
+static void testDeleteExistingAndMissing() {
+	std::string root = makeTempRoot("deletefile");
+	if (root.empty())
+		return;
+	writeEmptyFile(root + "/bye.txt");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("DELETE");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("DELETE", "/bye.txt"));
+	ASSERT_EQ(res.getHandler(), REMOVE_FILE);
+	ASSERT_EQ(res.getDiskPath(), root + "/bye.txt");
+
+	res = proc.procRequest(makeRequest("DELETE", "/missing.txt"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
+// Regresión ENOTDIR: componente intermedio es un fichero -> 404, no 500
+static void testPathComponentNotDir() {
+	std::string root = makeTempRoot("enotdir");
+	if (root.empty())
+		return;
+	writeEmptyFile(root + "/file.txt");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/file.txt/child"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	removeDirRecursive(root);
+}
+
+// Decision copia/asigna el puntero al ServerConfig (setError depende de él)
+static void testDecisionCopyKeepsServerConfig() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+
+	Decision original;
+	original.setServerConfig(&cfg);
+
+	Decision copied(original);
+	ASSERT_EQ(copied.getServerConfig(), &cfg);
+
+	Decision assigned;
+	assigned = original;
+	ASSERT_EQ(assigned.getServerConfig(), &cfg);
 }
 
 // Error pages ------------------------------------------------------------------
@@ -819,6 +984,13 @@ void processor_tests() {
 	Tester::runTest("stat dir autoindex off -> 403", testStatDirAutoindexOff);
 	Tester::runTest("stat dir index missing + autoindex on -> LIST_DIR", testStatDirIndexMissingAutoindexOnFallback);
 	Tester::runTest("stat dir index missing + autoindex off -> 403", testStatDirIndexMissingAutoindexOffFallback);
+	Tester::runTest("POST missing file -> WRITE_FILE", testPostMissingFileCreates);
+	Tester::runTest("POST existing file -> WRITE_FILE", testPostExistingFile);
+	Tester::runTest("POST directory -> 403", testPostDirectoryForbidden);
+	Tester::runTest("POST not allowed -> 405", testPostNotAllowedMissingFile);
+	Tester::runTest("DELETE existing/missing", testDeleteExistingAndMissing);
+	Tester::runTest("Path component not dir -> 404", testPathComponentNotDir);
+	Tester::runTest("Decision copy keeps server config", testDecisionCopyKeepsServerConfig);
 	Tester::runTest("Error page from location", testErrorPageFromLocation);
 	Tester::runTest("Error page from server", testErrorPageFromServer);
 	Tester::runTest("Error page location overrides server", testErrorPageLocationOverridesServer);
