@@ -95,7 +95,12 @@ Decision Processor::procRequest(const Request& req) {
 			res.addAllowedMethod(methods[i]);
 	}
 
-	// TODO: check request status
+	// Check request status
+	if (req.getStatus() != OK)
+	{
+		res.setError(req.getStatus());
+		return res;
+	}
 
 	// Path escapes the root ("/../x")
 	if (target.empty())
