@@ -41,6 +41,15 @@ static Request makeRequest(const std::string& method, const std::string& path) {
 	return req;
 }
 
+// Request con el status que dejaría el parser (OK por defecto)
+static Request makeRequestWithStatus(const std::string& method,
+	const std::string& path, e_status_code status)
+{
+	Request req = makeRequest(method, path);
+	req.setStatus(status);
+	return req;
+}
+
 // FS helpers (definidos más abajo, usados también por testAllowedMethods)
 static std::string makeTempRoot(const std::string& suffix);
 static void removeDirRecursive(const std::string& path);
@@ -851,6 +860,167 @@ static void testDecisionCopyKeepsServerConfig() {
 	ASSERT_EQ(assigned.getServerConfig(), &cfg);
 }
 
+// Request status transfer ------------------------------------------------------
+// Un status de error del parser se copia a Decision y no se procesa la request
+static void testRequestStatusTransferred() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", BAD_REQUEST));
+	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), std::string(""));
+}
+
+// La error_page del server se resuelve para el status del parser
+static void testRequestStatusUsesServerErrorPage() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addErrorPage("413", "/errors/413.html");
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", PAYLOAD_TOO_LARGE));
+	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/413.html");
+}
+
+// Si la location define su error_page, se usa para el status del parser
+static void testRequestStatusUsesLocationErrorPage() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.addErrorPage("413", "/errors/loc413.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addErrorPage("413", "/errors/srv413.html");
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", PAYLOAD_TOO_LARGE));
+	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/loc413.html");
+}
+
+// Si la location no define esa error_page, cae a la del server
+static void testRequestStatusLocationFallsBackToServer() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	loc.addErrorPage("404", "/errors/loc404.html"); // otra página distinta
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addErrorPage("413", "/errors/srv413.html");
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", PAYLOAD_TOO_LARGE));
+	ASSERT_EQ(res.getStatus(), PAYLOAD_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/srv413.html");
+}
+
+// También se trasladan los 5xx del parser
+static void testRequestStatusServerError() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", INTERNAL_ERROR));
+	ASSERT_EQ(res.getStatus(), INTERNAL_ERROR);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+// El status del parser tiene prioridad sobre un path que escapa del root
+static void testRequestStatusBeforePathCheck() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/../etc/passwd", URI_TOO_LONG));
+	ASSERT_EQ(res.getStatus(), URI_TOO_LONG);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+// El status del parser tiene prioridad sobre el 405 del método
+static void testRequestStatusBeforeMethodCheck() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("DELETE", "/index.html", HEADERS_TOO_LARGE));
+	ASSERT_EQ(res.getStatus(), HEADERS_TOO_LARGE);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+}
+
+// La comprobación es != OK, no solo >= 400: también se traslada un 3xx
+static void testRequestStatusNonOkTransferred() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", MOVED_PERMANENTLY));
+	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
+}
+
+// Un status OK no corta el procesamiento normal
+static void testRequestStatusOkProceeds() {
+	std::string root = makeTempRoot("reqstatusok");
+	if (root.empty())
+		return;
+	writeEmptyFile(root + "/index.html");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", OK));
+	ASSERT_EQ(res.getStatus(), OK);
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getDiskPath(), root + "/index.html");
+
+	removeDirRecursive(root);
+}
+
 // Error pages ------------------------------------------------------------------
 static void testErrorPageFromLocation() {
 	LocationConfig loc = makeLocation("/");
@@ -865,7 +1035,7 @@ static void testErrorPageFromLocation() {
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getErrorPage(), "/errors/404.html");
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/404.html");
 }
 
 static void testErrorPageFromServer() {
@@ -881,7 +1051,7 @@ static void testErrorPageFromServer() {
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getErrorPage(), "/errors/404.html");
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/404.html");
 }
 
 static void testErrorPageLocationOverridesServer() {
@@ -898,7 +1068,7 @@ static void testErrorPageLocationOverridesServer() {
 	Decision res = proc.procRequest(makeRequest("GET", "/missing"));
 	ASSERT_EQ(res.getStatus(), NOT_FOUND);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getErrorPage(), "/errors/loc404.html");
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/loc404.html");
 }
 
 static void testErrorPageDefaultEmpty() {
@@ -918,6 +1088,7 @@ static void testErrorPageDefaultEmpty() {
 
 static void testErrorPageFor405() {
 	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
 	loc.addMethod("GET");
 	loc.addErrorPage("405", "/errors/405.html");
 	ServerConfig cfg;
@@ -928,7 +1099,7 @@ static void testErrorPageFor405() {
 	Decision res = proc.procRequest(makeRequest("DELETE", "/"));
 	ASSERT_EQ(res.getStatus(), METHOD_NOT_ALLOWED);
 	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
-	ASSERT_EQ(res.getErrorPage(), "/errors/405.html");
+	ASSERT_EQ(res.getErrorPage(), "/var/www/errors/405.html");
 }
 
 // static void testErrorPageFor413() {
@@ -949,6 +1120,156 @@ static void testErrorPageFor405() {
 // 	ASSERT_EQ(res.getErrorPage(), "/errors/413.html");
 // }
 
+// Directory redirect -----------------------------------------------------------
+// GET on an existing directory without trailing "/" -> 301 to add it
+static void testDirRedirectAddsSlash() {
+	std::string root = makeTempRoot("dirredir");
+	if (root.empty())
+		return;
+	if (mkdir((root + "/sub").c_str(), 0755) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+	writeEmptyFile(root + "/sub/index.html");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addIndex("index.html");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/sub"));
+	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
+	ASSERT_EQ(res.getHandler(), REDIRECTION);
+	ASSERT_EQ(res.getRedirURL(), "/sub/");
+
+	// The version with the slash serves the index normally
+	res = proc.procRequest(makeRequest("GET", "/sub/"));
+	ASSERT_EQ(res.getStatus(), OK);
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getDiskPath(), root + "/sub/index.html");
+
+	removeDirRecursive(root);
+}
+
+// The redirect keeps the query string
+static void testDirRedirectKeepsQuery() {
+	std::string root = makeTempRoot("dirredirq");
+	if (root.empty())
+		return;
+	if (mkdir((root + "/sub").c_str(), 0755) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Request req = makeRequest("GET", "/sub");
+	req.setQuery("x=1&y=2");
+	Decision res = proc.procRequest(req);
+	ASSERT_EQ(res.getStatus(), MOVED_PERMANENTLY);
+	ASSERT_EQ(res.getRedirURL(), "/sub/?x=1&y=2");
+
+	removeDirRecursive(root);
+}
+
+// Only GET redirects: POST -> 403 and DELETE -> REMOVE_FILE keep their path
+static void testDirRedirectOnlyForGet() {
+	std::string root = makeTempRoot("dirredirm");
+	if (root.empty())
+		return;
+	if (mkdir((root + "/sub").c_str(), 0755) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addMethod("POST");
+	loc.addMethod("DELETE");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("POST", "/sub"));
+	ASSERT_EQ(res.getStatus(), FORBIDDEN);
+	ASSERT_EQ(res.getHandler(), ERROR_PAGE);
+
+	res = proc.procRequest(makeRequest("DELETE", "/sub"));
+	ASSERT_EQ(res.getHandler(), REMOVE_FILE);
+	ASSERT_NOT_EQ(res.getHandler(), REDIRECTION);
+
+	removeDirRecursive(root);
+}
+
+// Allowed methods are filled for every decision, not only on 405
+static void testAllowedMethodsFilledForNormalRequest() {
+	std::string root = makeTempRoot("methodsnormal");
+	if (root.empty())
+		return;
+	writeEmptyFile(root + "/index.html");
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addMethod("POST");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/index.html"));
+	ASSERT_EQ(res.getStatus(), OK);
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getAllowedMethods().size(), 2u);
+	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
+	ASSERT_EQ(res.getAllowedMethods()[1], "POST");
+
+	removeDirRecursive(root);
+}
+
+// The list is filled before the parser status check
+static void testAllowedMethodsFilledBeforeStatusCheck() {
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot("/var/www");
+	loc.addMethod("GET");
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(
+		makeRequestWithStatus("GET", "/index.html", BAD_REQUEST));
+	ASSERT_EQ(res.getStatus(), BAD_REQUEST);
+	ASSERT_EQ(res.getAllowedMethods().size(), 1u);
+	ASSERT_EQ(res.getAllowedMethods()[0], "GET");
+}
+
+// No location -> no allowed methods to fill
+static void testAllowedMethodsEmptyWithoutLocation() {
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/anything"));
+	ASSERT_EQ(res.getStatus(), NOT_FOUND);
+	ASSERT_EQ(res.getAllowedMethods().size(), 0u);
+}
+
 void processor_tests() {
 	Tester::runTest("Path decoder", testDecodePath);
 	Tester::runTest("Path normalizer", testNormalizePath);
@@ -968,6 +1289,9 @@ void processor_tests() {
 	Tester::runTest("Redirect before method check", testRedirectBeforeMethodCheck);
 	Tester::runTest("Allowed methods", testAllowedMethods);
 	Tester::runTest("405 allowed list", testMethodNotAllowedList);
+	Tester::runTest("Allowed methods filled for normal request", testAllowedMethodsFilledForNormalRequest);
+	Tester::runTest("Allowed methods filled before status check", testAllowedMethodsFilledBeforeStatusCheck);
+	Tester::runTest("Allowed methods empty without location", testAllowedMethodsEmptyWithoutLocation);
 	Tester::runTest("Disk path", testDiskPath);
 	// Tester::runTest("Content-Length within limit", testContentLengthWithinLimit);
 	// Tester::runTest("Content-Length equals limit allowed", testContentLengthEqualsLimit);
@@ -990,7 +1314,19 @@ void processor_tests() {
 	Tester::runTest("POST not allowed -> 405", testPostNotAllowedMissingFile);
 	Tester::runTest("DELETE existing/missing", testDeleteExistingAndMissing);
 	Tester::runTest("Path component not dir -> 404", testPathComponentNotDir);
+	Tester::runTest("dir without slash -> 301", testDirRedirectAddsSlash);
+	Tester::runTest("dir redirect keeps query", testDirRedirectKeepsQuery);
+	Tester::runTest("dir redirect only for GET", testDirRedirectOnlyForGet);
 	Tester::runTest("Decision copy keeps server config", testDecisionCopyKeepsServerConfig);
+	Tester::runTest("Request status transferred -> Decision", testRequestStatusTransferred);
+	Tester::runTest("Request status uses server error page", testRequestStatusUsesServerErrorPage);
+	Tester::runTest("Request status uses location error page", testRequestStatusUsesLocationErrorPage);
+	Tester::runTest("Request status location falls back to server", testRequestStatusLocationFallsBackToServer);
+	Tester::runTest("Request status 5xx transferred", testRequestStatusServerError);
+	Tester::runTest("Request status before path check", testRequestStatusBeforePathCheck);
+	Tester::runTest("Request status before method check", testRequestStatusBeforeMethodCheck);
+	Tester::runTest("Request status non-OK transferred", testRequestStatusNonOkTransferred);
+	Tester::runTest("Request status OK proceeds", testRequestStatusOkProceeds);
 	Tester::runTest("Error page from location", testErrorPageFromLocation);
 	Tester::runTest("Error page from server", testErrorPageFromServer);
 	Tester::runTest("Error page location overrides server", testErrorPageLocationOverridesServer);
