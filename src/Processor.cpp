@@ -76,29 +76,14 @@ int methodSwitch(const std::string& method) {
 	return 0;
 }
 
-std::string Processor::resolveErrorPage(
-		e_status_code code, const LocationConfig* loc_cfg) const 
-{
-	const std::string *path_ptr = NULL;
-	// Searchs in Location
-	if (loc_cfg)
-		path_ptr = loc_cfg->getErrorPage(code);
-	if (path_ptr)
-		return *path_ptr;
-	// If location return NULL -> searchs in root config
-	if (serv_cfg_)
-		path_ptr = serv_cfg_->getErrorPage(code);
-	if (path_ptr)
-		return *path_ptr;
-	// TODO: check that file exists with stat
-	return "";
-}
 
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
-	Decision	res;
-	
+
 	ft_log::global().debug("Processing request");
+
+	Decision	res;
+	res.setServerConfig(serv_cfg_);
 
 	// TODO: check request status
 
@@ -106,9 +91,7 @@ Decision Processor::procRequest(const Request& req) {
 	std::string target = resolvePath(req);
 	if (target.empty())
 	{
-		res.setStatus(BAD_REQUEST);
-		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL));
+		res.setError(BAD_REQUEST);
 		return res;
 	}
 
@@ -116,9 +99,7 @@ Decision Processor::procRequest(const Request& req) {
 	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	if (cfg == NULL)
 	{
-		res.setStatus(NOT_FOUND);
-		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), NULL));
+		res.setError(NOT_FOUND);
 		return res;
 	}
 	res.setLocationConfig(cfg);
@@ -132,12 +113,10 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 
-	// Searchs request method in config allowed methods 
+	// Searchs request method in config allowed methods
 	if (!methodIsAllowed(req, *cfg))
 	{
-		res.setStatus(METHOD_NOT_ALLOWED);
-		res.setHandler(ERROR_PAGE);
-		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
+		res.setError(METHOD_NOT_ALLOWED);
 		// Sets the actual allowed methods in decision
 		const std::vector<std::string>& methods = cfg->getMethods();
 		for (size_t i = 0; i < methods.size(); ++i)
@@ -150,17 +129,13 @@ Decision Processor::procRequest(const Request& req) {
 	// 	case 1: // Data error
 	// 	{
 	// 		ft_log::global().error("Content length data error");
-	// 		res.setStatus(BAD_REQUEST);
-	// 		res.setHandler(ERROR_PAGE);
-	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
+	// 		res.setError(BAD_REQUEST);
 	// 		return res;
 	// 	}
 	// 	case 2: // Content length greater than max body size
 	// 	{
 	// 		ft_log::global().warning("Request content-length too long");
-	// 		res.setStatus(PAYLOAD_TOO_LARGE);
-	// 		res.setHandler(ERROR_PAGE);
-	// 		res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
+	// 		res.setError(PAYLOAD_TOO_LARGE);
 	// 		return res;
 	// 	}
 	// }
@@ -176,9 +151,7 @@ Decision Processor::procRequest(const Request& req) {
 		switch (errno) {
 			case EACCES: // Permission error
 			{
-				res.setStatus(FORBIDDEN);
-				res.setHandler(ERROR_PAGE);
-				res.setErrorPage(resolveErrorPage(res.getStatus(), cfg));
+				res.setError(FORBIDDEN);
 				return res;
 			}
 			case ENOENT: // File not found
@@ -231,19 +204,16 @@ Decision Processor::procRequest(const Request& req) {
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{
-				res.setStatus(OK);
 				res.setHandler(READ_FILE);
 				return res;
 			}
 			case 2: // POST
 			{
-				res.setStatus(OK);
 				res.setHandler(WRITE_FILE);
 				return res;
 			}
-			case 3: // POST
+			case 3: // DELETE
 			{
-				res.setStatus(OK);
 				res.setHandler(REMOVE_FILE);
 				return res;
 			}

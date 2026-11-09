@@ -38,10 +38,6 @@ class Processor {
 
 		// Define handler for the request
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
-	
-		std::string resolveErrorPage(
-			e_status_code error_code, const LocationConfig* cfg
-		) const;
 
 	public:
 		

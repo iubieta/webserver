@@ -4,6 +4,7 @@
 #ifndef DECISION_HPP
 #define DECISION_HPP
 
+#include "ServerConfig.hpp"
 #include "http_status_codes.hpp"
 #include <map>
 #include <string>
@@ -34,8 +35,8 @@ class Decision {
 	
 		std::vector<std::string>	allowed_methods_;
 
-		// Resolved context from Processor (pointer modifiable, pointed-to content const)
-		const LocationConfig* location_;
+		const ServerConfig*		server_cfg_;
+		const LocationConfig*	location_;
 	
 	public:
 		
@@ -52,10 +53,12 @@ class Decision {
 		void setDiskPath(const std::string& disk_path);
 		void setRedirURL(const std::string& redir_url);
 		void setErrorPage(const std::string& error_page);
+		void setError(e_status_code error);
 
 		void addAllowedMethod(const std::string& method);
 
-		void setLocationConfig(const LocationConfig* locationConfig);
+		void setServerConfig(const ServerConfig* server_config);
+		void setLocationConfig(const LocationConfig* location_config);
 
 		// Getters
 		e_status_code getStatus() const;
@@ -66,6 +69,7 @@ class Decision {
 		const std::string &getErrorPage() const;
 		const std::vector<std::string> &getAllowedMethods() const;
 
+		const ServerConfig* getServerConfig() const;
 		const LocationConfig* getLocationConfig() const;
 
 

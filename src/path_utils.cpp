@@ -98,3 +98,20 @@ const LocationConfig* PathUtils::findLocation(std::string target,
 	// If no location matches target returns NULL
 	return NULL;
 }
+
+std::string PathUtils::resolveErrorPage(
+		e_status_code code, const LocationConfig* loc_cfg, const ServerConfig* serv_cfg)
+{
+	const std::string *path_ptr = NULL;
+	// Searchs in Location
+	if (loc_cfg)
+		path_ptr = loc_cfg->getErrorPage(code);
+	if (path_ptr)
+		return *path_ptr;
+	// If location return NULL -> searchs in root config
+	if (serv_cfg)
+		path_ptr = serv_cfg->getErrorPage(code);
+	if (path_ptr)
+		return *path_ptr;
+	return "";
+}

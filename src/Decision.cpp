@@ -2,12 +2,14 @@
 // -----------------------------------------------------------------------------
 
 #include "../inc/Decision.hpp"
+#include "../inc/path_utils.hpp"
 #include <string>
 
 // Builders --------------------------------------------------------------------
 Decision::Decision() :
 	status_(OK),
 	handler_(UNPROCESSED),
+	server_cfg_(NULL),
 	location_(NULL)
 {}; 
 
@@ -23,6 +25,7 @@ Decision& Decision::operator=(const Decision& other) {
 		redir_url_			= other.redir_url_;
 		error_page_			= other.error_page_;
 		allowed_methods_	= other.allowed_methods_;
+		server_cfg_			= other.server_cfg_;
 		location_			= other.location_;
 	}
 	return *this;
@@ -51,12 +54,22 @@ void Decision::setErrorPage(const std::string& error_page) {
 	error_page_ = error_page;
 }
 
+void Decision::setError(e_status_code error) {
+	status_ = error;
+	handler_ = ERROR_PAGE;
+	error_page_ = PathUtils::resolveErrorPage(error, location_, server_cfg_);
+}
+
 void Decision::addAllowedMethod(const std::string& method) {
 	allowed_methods_.push_back(method);
 }
 
-void Decision::setLocationConfig(const LocationConfig* locationConfig) {
-	location_ = locationConfig;
+void Decision::setServerConfig(const ServerConfig* server_config) {
+	server_cfg_ = server_config;
+}
+
+void Decision::setLocationConfig(const LocationConfig* location_config) {
+	location_ = location_config;
 }
 
 // Getters ---------------------------------------------------------------------
@@ -82,6 +95,10 @@ const std::string& Decision::getErrorPage() const {
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {
 	return allowed_methods_;
+}
+
+const ServerConfig* Decision::getServerConfig() const {
+	return server_cfg_;
 }
 
 const LocationConfig* Decision::getLocationConfig() const {

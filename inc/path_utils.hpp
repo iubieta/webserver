@@ -19,6 +19,12 @@ namespace PathUtils {
 	// Searchs the longest matching location with the path
 	const LocationConfig *findLocation(std::string target,
 		const ServerConfig& cfg);
+	// Searchs error page in a location config
+	std::string resolveErrorPage(
+		e_status_code error_code,
+		const LocationConfig* cfg,
+		const ServerConfig* serv_cfg
+	);
 }
 
 #endif // !PATH_UTILS_HPP
