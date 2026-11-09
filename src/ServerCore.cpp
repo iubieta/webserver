@@ -113,7 +113,7 @@ int ServerCore::handleSocketEvent(int fd) {
 		msg << "ServerCore: new socket event(fd: " << fd << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		
-		ListeningSocket *ls = socks_[fd].sock_;
+		const ListeningSocket *ls = socks_[fd].sock_;
 
 		// accepts the connection
 		int conn_fd = ls->acceptClient();

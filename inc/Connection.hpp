@@ -48,7 +48,7 @@ private:
 
 public:
 	// TODO: add ServerConfig to the constructor
-	Connection(int fd, ServerConfig* config);
+	Connection(int fd, const ServerConfig* config);
 	~Connection();
 
 	// Status control
