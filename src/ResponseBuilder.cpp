@@ -28,7 +28,8 @@ void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) cons
 		if (loadFile(data.getErrorPage(), content) == FILE_OK)
 		{
 			res.setBody(content);
-			// TODO: add content-type header
+			std::string mime_type = getMimeType(getFileExtension(data.getErrorPage()));
+			res.addHeader("Content-Type", mime_type);
 			return;
 		}
 	}

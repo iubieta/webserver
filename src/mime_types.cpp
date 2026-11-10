@@ -27,6 +27,12 @@ static const t_mime_type mime_types[] =
 	// TODO: Apps / exes (CGI)
 };
 
+const std::string getFileExtension(const std::string &filename)
+{
+	size_t i = filename.find_last_of('.');
+	return filename.substr(i+1);
+}
+
 const std::string getMimeType(const std::string &extension)
 {
 	for (size_t i = 0; i < sizeof(mime_types) / sizeof(t_mime_type); ++i)
@@ -53,4 +59,6 @@ const std::string getExtension(const std::string &type)
 // 	
 // 	std::cout << getExtension("text/html") << std::endl;
 // 	std::cout << getExtension("unknown") << std::endl;
+// 
+// 	std::cout << getFileExtension("404.html");
 // }

@@ -15,6 +15,7 @@ typedef struct s_mime_type {
 	const char* type_;
 } t_mime_type;
 
+const std::string getFileExtension(const std::string &filename);
 const std::string getMimeType(const std::string &extension);
 const std::string getExtension(const std::string &type);
 
