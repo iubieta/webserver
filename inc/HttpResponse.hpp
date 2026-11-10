@@ -33,12 +33,13 @@ class HttpResponse
 	HttpResponse &operator=(const HttpResponse &other);
 	~HttpResponse();
 
-	void setStatusCode(e_status_code status_code);
 	void setVersion(const std::string &version);
+	void setStatusCode(e_status_code status_code);
 	void setReasonPhrase(const std::string &reason_phrase);
+	void setWholeStatus(e_status_code status_code);
 	void setHeaders(const std::map<std::string, std::string> &headers);
-	void setBody(const std::string &body);
 	void setAliveKeep(bool keep_alive);
+	void setBody(const std::string &body);
 
 	int addHeader(const std::string &key, const std::string &vaalue);
 

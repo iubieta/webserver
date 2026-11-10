@@ -34,19 +34,25 @@ HttpResponse &HttpResponse::operator=(const HttpResponse &other)
 
 HttpResponse:: ~HttpResponse() {}
 
-void HttpResponse::setStatusCode(e_status_code status_code)
-{
-	status_code_ = status_code;
-}
-
 void HttpResponse::setVersion(const std::string &version)
 {
 	version_ = version;
 }
 
+void HttpResponse::setStatusCode(e_status_code status_code)
+{
+	status_code_ = status_code;
+}
+
 void HttpResponse::setReasonPhrase(const std::string &reason_phrase)
 {
 	reason_phrase_ = reason_phrase;
+}
+
+void HttpResponse::setWholeStatus(e_status_code status_code)
+{
+	setStatusCode(status_code);
+	setReasonPhrase(getStatusMessage(status_code));
 }
 
 void HttpResponse::setHeaders(const std::map<std::string, std::string> &headers)

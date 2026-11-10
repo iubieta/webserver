@@ -8,7 +8,6 @@
 #include <sstream>
 #include <string>
 
-// Helpers ---------------------------------------------------------------------
 
 // Builders --------------------------------------------------------------------
 // The builder has the server configs corresponding to the connection as input
@@ -16,27 +15,40 @@ ResponseBuilder::ResponseBuilder() {}
 
 ResponseBuilder::~ResponseBuilder() {}
 
-// Private methods -------------------------------------------------------------
+// Helpers ---------------------------------------------------------------------
+
+e_file_result buildBody(const std::string& file_path, HttpResponse& res)
+{
+	std::string content;
+	e_file_result fr = loadFile(file_path, content);
+	if (fr == FILE_OK)
+	{
+		res.setBody(content);
+		std::string mime_type = getMimeType(getFileExtension(file_path));
+		res.addHeader("Content-Type", mime_type);
+	}
+	return fr;
+}
+
 
 // Error Handler
+
 void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) const
 {
-	// If there is a defined error page
-	if (!data.getErrorPage().empty())
-	{
-		std::string content;
-		if (loadFile(data.getErrorPage(), content) == FILE_OK)
+	std::string file_path = data.getErrorPage();
+	switch (buildBody(file_path, res)) {
+		case FILE_OK:
 		{
-			res.setBody(content);
-			std::string mime_type = getMimeType(getFileExtension(data.getErrorPage()));
-			res.addHeader("Content-Type", mime_type);
 			return;
 		}
+		default:
+		{
+			// If the error page is not defined, file opening fails or similar return
+			// default body for error pages
+			res.setBody(buildDefaultErrorPage(res.getStatusCode()));
+			res.addHeader("Content-Type", "text/html");
+		}
 	}
-	// If the error page is not defined, file opening fails or similar return
-	// default body for error pages
-	res.setBody(buildDefaultErrorPage(res.getStatusCode()));
-	res.addHeader("Content-Type", "text/html");
 }
 
 std::string ResponseBuilder::buildDefaultErrorPage(e_status_code code) const
@@ -63,8 +75,7 @@ std::string ResponseBuilder::buildDefaultErrorPage(e_status_code code) const
 HttpResponse ResponseBuilder::execute(const Decision& data) const {
 	HttpResponse res;
 	res.setVersion(HTTP_V1_1);
-	res.setStatusCode(data.getStatus());
-	res.setReasonPhrase(getStatusMessage(data.getStatus()));
+	res.setWholeStatus(data.getStatus());
 	switch (data.getHandler()) {
 		case READ_FILE:
 			break;
