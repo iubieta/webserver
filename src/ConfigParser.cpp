@@ -125,7 +125,8 @@ const std::vector<std::string> &ConfigParse::getTokens() const
 int ConfigParse::parseManager()
 {
 	size_t	i;
-
+	size_t	j;
+	
 	if (token_.empty())
 		return -1;
 	i = 0;
@@ -141,6 +142,19 @@ int ConfigParse::parseManager()
 			return -1;
 		}
 		i++;
+	}
+
+	for (i = 0; i < server_.size(); ++i)
+	{
+		for (j = i + 1; j < server_.size(); ++j)
+		{
+			if (server_[i].getListen() == server_[j].getListen())
+			{
+				std::cerr << "Configuration error: duplicate listen port "
+					<< server_[i].getListen() << "\n";
+				return -1;
+			}
+		}
 	}
 	return 0;
 }
@@ -260,7 +274,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			if (temp.empty())
 				return -1;
 			location.addIndex(temp);
-		}else if(token_[index] == "alias")
+		}
+		else if(token_[index] == "alias")
 		{
 			index++;
 			if (index >= token_.size()
