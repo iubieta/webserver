@@ -12,6 +12,7 @@
 #include "Tester.hpp"
 #include "../inc/Decision.hpp"
 #include "../inc/ResponseBuilder.hpp"
+#include "../inc/ServerConfig.hpp"
 #include "../inc/file_utils.hpp"
 
 // Helpers ---------------------------------------------------------------------
@@ -67,6 +68,327 @@ static void assertContentType(const HttpResponse& res, const std::string& expect
 	ASSERT_EQ(type != NULL, true);
 	if (type)
 		ASSERT_EQ(*type, expected);
+}
+
+static Decision makeReadDecision(const std::string& path)
+{
+	Decision decision;
+
+	decision.setStatus(OK);
+	decision.setHandler(READ_FILE);
+	decision.setDiskPath(path);
+	return decision;
+}
+
+// Read file handling ----------------------------------------------------------
+
+// Serving an existing regular file returns its bytes unchanged.
+static void testReadExistingFile()
+{
+	std::string root = makeTempRoot("readok");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/index.html";
+	std::string content = "<!DOCTYPE html><html><body>hello</body></html>\n";
+	if (!writeFile(path, content))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), OK);
+	ASSERT_EQ(res.getBody(), content);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
+}
+
+// The Content-Type header must follow the file extension.
+static void testReadFileMimeTypes()
+{
+	struct { const char* extension; const char* type; } cases[] = {
+		{ "html", "text/html" },
+		{ "htm", "text/html" },
+		{ "shtml", "text/html" },
+		{ "css", "text/css" },
+		{ "xml", "text/xml" },
+		{ "txt", "text/plain" },
+		{ "gif", "image/gif" },
+		{ "jpeg", "image/jpeg" },
+		{ "jpg", "image/jpeg" },
+		{ "png", "image/png" },
+		{ "svg", "image/svg" },
+		{ "webp", "image/webp" },
+		{ "unknownext", "application/octet-stream" }
+	};
+
+	std::string root = makeTempRoot("readmime");
+	if (root.empty())
+		return;
+
+	ResponseBuilder builder;
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+	{
+		std::string path = root + "/file." + cases[i].extension;
+		if (!writeFile(path, "data"))
+		{
+			removeDirRecursive(root);
+			return;
+		}
+		Decision decision = makeReadDecision(path);
+		HttpResponse res = builder.execute(decision);
+
+		ASSERT_EQ(res.getStatusCode(), OK);
+		assertContentType(res, cases[i].type);
+	}
+
+	removeDirRecursive(root);
+}
+
+// Binary files must be served byte by byte, NUL bytes included.
+static void testReadBinaryFile()
+{
+	std::string root = makeTempRoot("readbinary");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/data.bin";
+	std::string content("a\0b\0c", 5);
+	if (!writeFile(path, content))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), OK);
+	ASSERT_EQ(res.getBody().size(), 5u);
+	ASSERT_EQ(res.getBody(), content);
+	assertContentType(res, "application/octet-stream");
+
+	removeDirRecursive(root);
+}
+
+// Files larger than the read buffer must be served completely.
+static void testReadLargeFile()
+{
+	std::string root = makeTempRoot("readlarge");
+	if (root.empty())
+		return;
+
+	std::string content;
+	for (size_t i = 0; i < (3 * 32768) + 123; ++i)
+		content += static_cast<char>('a' + (i % 26));
+
+	std::string path = root + "/large.txt";
+	if (!writeFile(path, content))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), OK);
+	ASSERT_EQ(res.getBody().size(), content.size());
+	ASSERT_EQ(res.getBody(), content);
+
+	removeDirRecursive(root);
+}
+
+// A zero-length file is a valid representation: 200 OK with an empty body.
+static void testReadEmptyFile()
+{
+	std::string root = makeTempRoot("readempty");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/empty.txt";
+	if (!writeFile(path, ""))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), OK);
+	ASSERT_EQ(res.getBody(), std::string(""));
+	ASSERT_EQ(contains(res.build(), "content-length: 0\r\n"), true);
+
+	removeDirRecursive(root);
+}
+
+// The serialized response must carry the file bytes and the right length.
+static void testReadFileResponseBuild()
+{
+	std::string root = makeTempRoot("readbuild");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/page.txt";
+	std::string content = "hello from disk\n";
+	if (!writeFile(path, content))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	std::ostringstream contentLength;
+	contentLength << "content-length: " << content.size() << "\r\n";
+
+	std::string raw = res.build();
+	ASSERT_EQ(raw.find("HTTP/1.1 200 OK\r\n"), 0u);
+	ASSERT_EQ(contains(raw, contentLength.str()), true);
+	ASSERT_EQ(contains(raw, "\r\n\r\n" + content), true);
+
+	removeDirRecursive(root);
+}
+
+// A missing file is a 404 and uses the default error page.
+static void testReadMissingFile()
+{
+	std::string root = makeTempRoot("readmiss");
+	if (root.empty())
+		return;
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(root + "/missing.html");
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), NOT_FOUND);
+	ASSERT_EQ(contains(res.getBody(), "<h1>404 Not Found</h1>"), true);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
+}
+
+// A directory is not a regular file and must not be served as one.
+static void testReadDirectory()
+{
+	std::string root = makeTempRoot("readdir");
+	if (root.empty())
+		return;
+
+	std::string directory = root + "/assets";
+	if (mkdir(directory.c_str(), 0755) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(directory);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), FORBIDDEN);
+	ASSERT_EQ(contains(res.getBody(), "<h1>403 Forbidden</h1>"), true);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
+}
+
+// A 404 uses the configured error page when one exists.
+static void testReadMissingFileUsesConfiguredErrorPage()
+{
+	std::string root = makeTempRoot("read404page");
+	if (root.empty())
+		return;
+
+	std::string content = "<h1>custom not found</h1>\n";
+	if (mkdir((root + "/errors").c_str(), 0755) != 0
+		|| !writeFile(root + "/errors/404.html", content))
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ServerConfig cfg;
+	cfg.setRoot(root + "/");
+	cfg.addErrorPage("404", "/errors/404.html");
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(root + "/missing.html");
+	decision.setServerConfig(&cfg);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), NOT_FOUND);
+	ASSERT_EQ(res.getBody(), content);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
+}
+
+// A file that cannot be opened is a 403, not a 404.
+static void testReadUnreadableFile()
+{
+	if (geteuid() == 0)
+		return;
+
+	std::string root = makeTempRoot("readperm");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/secret.txt";
+	if (!writeFile(path, "secret\n") || chmod(path.c_str(), 0000) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	chmod(path.c_str(), 0644);
+
+	ASSERT_EQ(res.getStatusCode(), FORBIDDEN);
+	ASSERT_EQ(contains(res.getBody(), "<h1>403 Forbidden</h1>"), true);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
+}
+
+// Unexpected filesystem failures are a 500, not a client error.
+static void testReadFileSystemError()
+{
+	std::string root = makeTempRoot("readloop");
+	if (root.empty())
+		return;
+
+	std::string path = root + "/loop";
+	if (symlink(path.c_str(), path.c_str()) != 0)
+	{
+		removeDirRecursive(root);
+		return;
+	}
+
+	ResponseBuilder builder;
+	Decision decision = makeReadDecision(path);
+	HttpResponse res = builder.execute(decision);
+
+	ASSERT_EQ(res.getStatusCode(), INTERNAL_ERROR);
+	ASSERT_EQ(contains(res.getBody(),
+		"<h1>500 Internal Server Error</h1>"), true);
+	assertContentType(res, "text/html");
+
+	removeDirRecursive(root);
 }
 
 // Error page handling ---------------------------------------------------------
@@ -356,6 +678,28 @@ static void testLoadFileEmpty()
 // Entry point -----------------------------------------------------------------
 void response_builder_tests()
 {
+	Tester::runTest("read file: existing file",
+		testReadExistingFile);
+	Tester::runTest("read file: mime from extension",
+		testReadFileMimeTypes);
+	Tester::runTest("read file: binary content",
+		testReadBinaryFile);
+	Tester::runTest("read file: large file",
+		testReadLargeFile);
+	Tester::runTest("read file: empty file is 200",
+		testReadEmptyFile);
+	Tester::runTest("read file: build body + content-length",
+		testReadFileResponseBuild);
+	Tester::runTest("read file: missing -> 404 default",
+		testReadMissingFile);
+	Tester::runTest("read file: directory -> 403",
+		testReadDirectory);
+	Tester::runTest("read file: missing uses configured 404 page",
+		testReadMissingFileUsesConfiguredErrorPage);
+	Tester::runTest("read file: unreadable -> 403",
+		testReadUnreadableFile);
+	Tester::runTest("read file: filesystem error -> 500",
+		testReadFileSystemError);
 	Tester::runTest("error page: configured file",
 		testConfiguredErrorPage);
 	Tester::runTest("error page: missing -> default",

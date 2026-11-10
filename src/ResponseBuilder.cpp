@@ -31,6 +31,38 @@ e_file_result buildBody(const std::string& file_path, HttpResponse& res)
 }
 
 
+// Reading File
+
+void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
+	std::string file_path = data.getDiskPath();
+	switch (buildBody(file_path, res)) {
+		case FILE_OK:
+		{
+			return;
+		}
+		case FILE_NOT_FOUND:
+		{
+			data.setError(NOT_FOUND);
+			res.setWholeStatus(NOT_FOUND);
+			errorHandler(data, res);
+			return;
+		}
+		case FILE_FORBIDDEN:
+		{
+			data.setError(FORBIDDEN);
+			res.setWholeStatus(FORBIDDEN);
+			errorHandler(data, res);
+			return;
+		}
+		case FILE_ERROR:
+		{
+			data.setError(INTERNAL_ERROR);
+			res.setWholeStatus(INTERNAL_ERROR);
+			errorHandler(data, res);
+			return;
+		}
+	}
+}
 // Error Handler
 
 void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) const
@@ -72,12 +104,13 @@ std::string ResponseBuilder::buildDefaultErrorPage(e_status_code code) const
 
 // Public methods --------------------------------------------------------------
 
-HttpResponse ResponseBuilder::execute(const Decision& data) const {
+HttpResponse ResponseBuilder::execute(Decision& data) const {
 	HttpResponse res;
 	res.setVersion(HTTP_V1_1);
 	res.setWholeStatus(data.getStatus());
 	switch (data.getHandler()) {
 		case READ_FILE:
+			readFile(data, res);
 			break;
 		case WRITE_FILE:
 			break;

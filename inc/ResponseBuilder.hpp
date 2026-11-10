@@ -14,7 +14,7 @@ class ResponseBuilder {
 		ResponseBuilder& operator=(const ResponseBuilder& other);
 
 		// Handlers
-		void readFile(HttpResponse &res) const;
+		void readFile(Decision& data, HttpResponse &res) const;
 		void writeFile(HttpResponse &res) const;
 		void removeFile(HttpResponse &res) const;
 		void listDir(HttpResponse &res) const;
@@ -28,7 +28,7 @@ class ResponseBuilder {
 		ResponseBuilder();
 		~ResponseBuilder();
 
-		HttpResponse execute(const Decision& data) const;
+		HttpResponse execute(Decision& data) const;
 };
 
 #endif // !RESPONSE_BUILDER_HPP
