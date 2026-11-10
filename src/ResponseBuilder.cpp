@@ -31,8 +31,7 @@ e_file_result buildBody(const std::string& file_path, HttpResponse& res)
 }
 
 
-// Reading File
-
+// Reading File ----------------------------------------------------------------
 void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 	std::string file_path = data.getDiskPath();
 	switch (buildBody(file_path, res)) {
@@ -63,8 +62,16 @@ void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 		}
 	}
 }
-// Error Handler
 
+// Writing file ----------------------------------------------------------------
+
+// Remove file -----------------------------------------------------------------
+
+// List directory --------------------------------------------------------------
+
+// Redirection -----------------------------------------------------------------
+
+// Error Handler ---------------------------------------------------------------
 void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) const
 {
 	std::string file_path = data.getErrorPage();
@@ -75,8 +82,8 @@ void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) cons
 		}
 		default:
 		{
-			// If the error page is not defined, file opening fails or similar return
-			// default body for error pages
+			// If the error page is not defined, file opening fails 
+			// or similar return default body for error pages
 			res.setBody(buildDefaultErrorPage(res.getStatusCode()));
 			res.addHeader("Content-Type", "text/html");
 		}
