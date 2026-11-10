@@ -3,9 +3,11 @@
 
 #include "../inc/file_utils.hpp"
 #include <cerrno>
+#include <cstddef>
 #include <string>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 static e_file_result fileError(int err) {
@@ -58,5 +60,31 @@ e_file_result loadFile(const std::string& path, std::string& out) {
 		out.append(read_buff, static_cast<size_t>(n));
 	}
 	close(fd);
+	return FILE_OK;
+}
+
+e_file_result writeToFile(const std::string& path, std::string in) {
+	e_file_result file_result = checkFile(path);
+	if (file_result != FILE_OK)
+		return file_result;
+	
+	int fd = open(path.c_str(), O_WRONLY, O_CREAT, O_TRUNC, 0644);
+	if (fd == -1)
+		return fileError(errno);
+
+	const char *data = in.data();
+	size_t size = in.size();
+	size_t written = 0;
+	while (written < size) {
+		ssize_t n = write(fd, data + written, size - written);
+
+		if (n <= 0) {
+			// TODO: report error
+			close(fd);
+			return FILE_ERROR;
+		}
+		
+		written += static_cast<size_t>(n);
+	}
 	return FILE_OK;
 }

@@ -73,6 +73,15 @@ void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 }
 
 // Writing file ----------------------------------------------------------------
+void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
+	std::string file_path = data.getDiskPath();
+	e_file_result fr = writeToFile(file_path, data.body);
+	if (fr == FILE_OK)
+		return;
+	else {
+		fileHandlingError(fr, data, res);
+	}
+}
 
 // Remove file -----------------------------------------------------------------
 

@@ -20,7 +20,7 @@ class ResponseBuilder {
 
 		// Handlers
 		void readFile(Decision& data, HttpResponse &res) const;
-		void writeFile(HttpResponse &res) const;
+		void writeFile(Decision& data, HttpResponse &res) const;
 		void removeFile(HttpResponse &res) const;
 		void listDir(HttpResponse &res) const;
 		void redirect(HttpResponse &res) const;
