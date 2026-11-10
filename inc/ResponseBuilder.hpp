@@ -7,11 +7,16 @@
 #include "Decision.hpp"
 #include "HttpResponse.hpp"
 #include "http_status_codes.hpp"
+#include "file_utils.hpp"
 
 class ResponseBuilder {
 	private:
 		ResponseBuilder(const ResponseBuilder& other);
 		ResponseBuilder& operator=(const ResponseBuilder& other);
+
+		// Helpers
+		e_file_result buildBody(const std::string& file_path, HttpResponse& res) const;
+		void fileHandlingError(e_file_result error, Decision& data, HttpResponse& res) const;
 
 		// Handlers
 		void readFile(Decision& data, HttpResponse &res) const;

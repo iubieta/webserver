@@ -2,7 +2,6 @@
 // -----------------------------------------------------------------------------
 
 #include "../inc/ResponseBuilder.hpp"
-#include "../inc/file_utils.hpp"
 #include "../inc/mime_types.hpp"
 #include <cctype>
 #include <sstream>
@@ -16,8 +15,8 @@ ResponseBuilder::ResponseBuilder() {}
 ResponseBuilder::~ResponseBuilder() {}
 
 // Helpers ---------------------------------------------------------------------
-
-e_file_result buildBody(const std::string& file_path, HttpResponse& res)
+e_file_result ResponseBuilder::buildBody
+	(const std::string& file_path, HttpResponse& res) const
 {
 	std::string content;
 	e_file_result fr = loadFile(file_path, content);
@@ -30,11 +29,10 @@ e_file_result buildBody(const std::string& file_path, HttpResponse& res)
 	return fr;
 }
 
-
-// Reading File ----------------------------------------------------------------
-void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
-	std::string file_path = data.getDiskPath();
-	switch (buildBody(file_path, res)) {
+void ResponseBuilder::fileHandlingError
+	(e_file_result error, Decision& data, HttpResponse& res) const
+{
+	switch (error) {
 		case FILE_OK:
 		{
 			return;
@@ -60,6 +58,17 @@ void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 			errorHandler(data, res);
 			return;
 		}
+	}
+}
+
+// Reading File ----------------------------------------------------------------
+void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
+	std::string file_path = data.getDiskPath();
+	e_file_result fr = buildBody(file_path, res);
+	if (fr == FILE_OK)
+		return;
+	else {
+		fileHandlingError(fr, data, res);
 	}
 }
 
