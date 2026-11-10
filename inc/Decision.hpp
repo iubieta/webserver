@@ -13,7 +13,6 @@
 // Forward declarations to avoid circular includes
 class LocationConfig;
 
-// TODO: define a handler list
 enum e_handler {
 	UNPROCESSED,
 	READ_FILE,		// Requires disk_path

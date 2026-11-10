@@ -157,6 +157,7 @@ Decision Processor::procRequest(const Request& req) {
 		disk_path = root + target;
 	res.setDiskPath(disk_path);
 
+	// TODO: refactor with file utils 
 	// Target file handling
 	struct stat stat_buf;
 	// When target fails

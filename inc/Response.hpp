@@ -48,4 +48,4 @@ class Response
 		const std::string &getBody() const;
 };
 
-#endif // !RESPONSE_HPPi
+#endif // !RESPONSE_HPP

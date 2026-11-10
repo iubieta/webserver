@@ -22,6 +22,7 @@ static const TestEntry g_tests[] = {
 	{"request-Parser", test_requestParser},
 	{ "processor" , processor_tests },
 	{"ErrorPage-config", error_page_config_tests},
+	{"ResponseBuilder", response_builder_tests},
 	{"Test-cgi-ConfigParser", cgi_tests}
 };
 

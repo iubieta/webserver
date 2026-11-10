@@ -22,9 +22,6 @@ class HttpResponse
 
 	std::string							body_;
 
-	HttpResponse(const HttpResponse &other);
-	HttpResponse &operator=(const HttpResponse &other);
-
 	std::string  getCurrentHttpDate() const;
 	std::string  sizetoString(size_t size);
 	bool	mayHasBody() const;
@@ -32,6 +29,8 @@ class HttpResponse
 	public:
 
 	HttpResponse();
+	HttpResponse(const HttpResponse &other);
+	HttpResponse &operator=(const HttpResponse &other);
 	~HttpResponse();
 
 	void setStatusCode(e_status_code status_code);

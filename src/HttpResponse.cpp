@@ -5,13 +5,32 @@
 #include <sstream>
 
 HttpResponse::HttpResponse():
-			status_code_(OK),
 			version_("HTTP/1.1"),
+			status_code_(OK),
 			reason_phrase_("ok"),
 			headers_(),
-			body_(""),
-			keep_alive_(false)
+			keep_alive_(false),
+			body_("")
 			{}
+
+HttpResponse::HttpResponse(const HttpResponse &other)
+{
+	*this = other;
+}
+
+HttpResponse &HttpResponse::operator=(const HttpResponse &other)
+{
+	if (this != &other)
+	{
+		version_ = other.version_;
+		status_code_ = other.status_code_;
+		reason_phrase_ = other.reason_phrase_;
+		headers_ = other.headers_;
+		keep_alive_ = other.keep_alive_;
+		body_ = other.body_;
+	}
+	return *this;
+}
 
 HttpResponse:: ~HttpResponse() {}
 
@@ -105,10 +124,10 @@ std::string HttpResponse::sizetoString(size_t size)
 {
 	std::string answer = "";
 
-    if (size >= 10) 
+    if (size >= 10)
         answer += sizetoString(size / 10);
-	
-	answer += static_cast<unsigned char>('0' + (size % 10));
+
+    answer += static_cast<unsigned char>('0' + (size % 10));
 
     return answer;
 }
@@ -139,7 +158,6 @@ bool HttpResponse::mayHasBody() const
 	if ((status_code_ >= 100 && status_code_ <= 199)
 		|| status_code_ == NO_CONTENT)
 		return false;
-	
 	return true;
 }
 

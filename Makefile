@@ -22,7 +22,8 @@ SRCS	:= 	main.cpp \
 			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp \
 			ListeningSocket.cpp Buffer.cpp Connection.cpp HttpParser.cpp \
 			Request.cpp RequestLine.cpp OriginForm.cpp Headers.cpp AbsoluteForm.cpp \
-			Response.cpp Decision.cpp http_status_codes.cpp \
+			Response.cpp HttpResponse.cpp Decision.cpp http_status_codes.cpp \
+			mime_types.cpp file_utils.cpp ResponseBuilder.cpp \
 			path_utils.cpp Processor.cpp
 
 OBJS	:= $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
@@ -44,6 +45,7 @@ TEST_SRCS	:= Tester.cpp test_main.cpp \
 			   processor_test.cpp \
 			   ConfigDirectiveTests.cpp\
 			   test_errorPage.cpp \
+			   response_builder_test.cpp \
 			   test_cgi.cpp
 
 TEST_OBJS	:= $(TEST_SRCS:%.cpp=$(OBJ_DIR)/tests/%.o)

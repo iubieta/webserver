@@ -14,6 +14,7 @@ void	test_chunk();
 void	test_requestParser();
 void	processor_tests();
 void error_page_config_tests();
+void	response_builder_tests();
 void	cgi_tests();
 
 #endif // !TESTLIST_HPP

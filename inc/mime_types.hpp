@@ -7,7 +7,7 @@
 
 #include <string>
 
-#define DEFAULT_MIME_TYPE "aplication/octet-stream"
+#define DEFAULT_MIME_TYPE "application/octet-stream"
 #define DEFAULT_MIME_EXT "bin"
 
 typedef struct s_mime_type {
