@@ -1,47 +1,47 @@
-1. **Etapa 1. Preparación de la ejecución CGI**
-    **Objetivo:** Construir los datos que necesitará el proceso hijo.
-    - Selección del intérprete y script.
-    - Construcción de `argv`.
-    - Construcción de `envp`.
-    - Variables CGI: `REQUEST_METHOD`, `SCRIPT_NAME`, `QUERY_STRING`, `CONTENT_LENGTH`, etc.
-2. **Etapa 2. Comunicación entre procesos**
-    **Objetivo:** Implementar la creación del proceso CGI y sus canales de comunicación.
-    - `fork()` y `execve()`.
-    - `pipe()`, `dup2()` y `close()`.
-    - Entrada del script mediante `stdin`.
-    - Salida del script mediante `stdout`.
-    - Directorio de trabajo y cierre correcto de descriptores.
-3. **Etapa 3. Comunicación no bloqueante con el Event Loop**
-    **Objetivo:** Integrar los pipes CGI con el mecanismo de multiplexación que ya utiliza Webserv.
-    - Escritura progresiva del body HTTP hacia CGI.
-    - Lectura progresiva de la salida CGI.
-    - Gestión simultánea de ambos canales.
-    - EOF, desconexiones y ciclo de vida del proceso.
-4. **Etapa 4. Parser de respuestas CGI**
-    **Objetivo:** Interpretar correctamente lo que devuelve el script.
-    - Separación de cabeceras y cuerpo.
-    - `Content-Type`, `Status` y `Location`.
-    - Respuestas normales y redirecciones.
-    - Cabeceras incorrectas, duplicadas o incompletas.
-    - Cuerpos binarios y lecturas parciales.
-5. **Etapa 5. Integración con HttpResponse**
-    **Objetivo:** Transformar el resultado CGI en una respuesta HTTP válida.
-    - Entrega del resultado al Response Builder.
-    - Tratamiento de códigos HTTP.
-    - Gestión de cabeceras y cuerpo.
-    - Respuestas de error.
-6. **Etapa 6. Robustez y gestión de errores**
-    **Objetivo:** Completar los casos que pueden comprometer la estabilidad del servidor.
+1. **Stage 1. CGI Execution Preparation**
+	**Objective:** Build the data required by the child process.
+    - Selection of the interpreter and script.
+    - Construction of `argv`.
+    - Construction of `envp`.
+    - CGI variables: `REQUEST_METHOD`, `SCRIPT_NAME`, `QUERY_STRING`, `CONTENT_LENGTH`, etc.
+2. **Stage 2. Inter-Process Communication**
+	**Objective:** Implement the creation of the CGI process and its communication channels.
+    - `fork()` and `execve()`.
+    - `pipe()`, `dup2()`, and `close()`.
+    - Script input via `stdin`.
+    - Script output via `stdout`.
+    - Working directory and proper descriptor cleanup.
+3. **Stage 3. Non-Blocking Communication with the Event Loop**
+	**Objective:** Integrate the CGI pipes with the multiplexing mechanism already used by Webserv.
+    - Progressive writing of the HTTP body to CGI.
+    - Progressive reading of the CGI output.
+    - Simultaneous management of both channels.
+    - EOF, disconnections, and process lifecycle.
+4. **Stage 4. CGI Response Parser**
+	**Objective:** Correctly interpret what the script returns.
+    - Separation of headers and body.
+    - `Content-Type`, `Status`, and `Location`.
+    - Normal responses and redirections.
+    - Incorrect, duplicate, or incomplete headers.
+    - Binary bodies and partial reads.
+5. **Stage 5. Integration with HttpResponse**
+	**Objective:** Transform the CGI result into a valid HTTP response.
+    - Delivery of the result to the Response Builder.
+    - Handling of HTTP status codes.
+    - Management of headers and body.
+    - Error responses.
+6. **Stage 6. Robustness and Error Handling**
+	**Objective:** Cover edge cases that could compromise server stability.
     - Timeouts.
-    - Fallos de `execve()`.
-    - Procesos que terminan incorrectamente.
-    - Scripts que no producen una respuesta válida.
-    - Limpieza de procesos y descriptores.
-    - Clientes que se desconectan.
-7. **Etapa 7. Validación completa**
-    **Objetivo:** Comprobar el CGI dentro del Webserv terminado.
-    - GET y QUERY_STRING.
-    - POST y transferencia del body.
-    - Más de un intérprete o programa CGI.
-    - Respuestas grandes y binarias.
-    - Varias peticiones CGI simultáneas.
+    - `execve()` failures.
+    - Abnormally terminated processes.
+    - Scripts that fail to produce a valid response.
+    - Cleanup of processes and descriptors.
+    - Disconnected clients.
+7. **Stage 7. Full Validation**
+	**Objective:** Test and verify the CGI within the completed Webserv.
+    - GET and `QUERY_STRING`.
+    - POST and body transfer.
+    - Multiple interpreters or CGI programs.
+    - Large and binary responses.
+    - Multiple simultaneous CGI requests.
