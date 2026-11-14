@@ -9,9 +9,14 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstdio>
 
 static e_file_result fileError(int err) {
-	if (err == EACCES)
+	if (err == EACCES || err == EPERM || err == EROFS)
+		return FILE_FORBIDDEN;
+	if (err == EISDIR)
+		return FILE_FORBIDDEN;
+	if (err == ENOTEMPTY || err == EEXIST)
 		return FILE_FORBIDDEN;
 	if (err == ENOTDIR || err == ENOENT)
 		return FILE_NOT_FOUND;
@@ -63,12 +68,20 @@ e_file_result loadFile(const std::string& path, std::string& out) {
 	return FILE_OK;
 }
 
-e_file_result writeToFile(const std::string& path, std::string in) {
-	e_file_result file_result = checkFile(path);
-	if (file_result != FILE_OK)
-		return file_result;
+e_file_result writeToFile(const std::string& path, std::string& in, bool& existed) {
+	e_file_result fr = checkFile(path);
+	switch (fr) {
+		case FILE_OK:
+			existed = true;
+			break;
+		case FILE_NOT_FOUND:
+			existed = false;
+			break;
+		default:
+			return fr;
+	}
 	
-	int fd = open(path.c_str(), O_WRONLY, O_CREAT, O_TRUNC, 0644);
+	int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1)
 		return fileError(errno);
 
@@ -86,5 +99,17 @@ e_file_result writeToFile(const std::string& path, std::string in) {
 		
 		written += static_cast<size_t>(n);
 	}
+	close(fd);
 	return FILE_OK;
+}
+
+e_file_result removeFileAt(const std::string& path) {
+	e_file_result fr = checkFile(path);
+	if (fr != FILE_OK)
+		return fr;
+	
+	if (std::remove(path.c_str()) != 0)
+		return fileError(errno);
+	
+	return  FILE_OK;
 }

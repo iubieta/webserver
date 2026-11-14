@@ -6,7 +6,6 @@
 
 #include "ServerConfig.hpp"
 #include "http_status_codes.hpp"
-#include <map>
 #include <string>
 #include <vector>
 
@@ -28,6 +27,7 @@ class Decision {
 		e_status_code	status_;
 		e_handler		handler_;
 		
+		std::string		target_;
 		std::string		disk_path_;
 		std::string		redir_url_;
 		std::string		error_page_;
@@ -49,6 +49,7 @@ class Decision {
 		void setStatus(e_status_code status);
 		void setHandler(e_handler handler);
 
+		void setTarget(const std::string& disk_path);
 		void setDiskPath(const std::string& disk_path);
 		void setRedirURL(const std::string& redir_url);
 		void setErrorPage(const std::string& error_page);
@@ -63,6 +64,7 @@ class Decision {
 		e_status_code getStatus() const;
 		e_handler getHandler() const;
 	
+		const std::string &getTarget() const;
 		const std::string &getDiskPath() const;
 		const std::string &getRedirURL() const;
 		const std::string &getErrorPage() const;

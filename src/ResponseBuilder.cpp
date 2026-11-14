@@ -3,7 +3,6 @@
 
 #include "../inc/ResponseBuilder.hpp"
 #include "../inc/mime_types.hpp"
-#include <cctype>
 #include <sstream>
 #include <string>
 
@@ -34,30 +33,19 @@ void ResponseBuilder::fileHandlingError
 {
 	switch (error) {
 		case FILE_OK:
-		{
 			return;
-		}
 		case FILE_NOT_FOUND:
-		{
 			data.setError(NOT_FOUND);
-			res.setWholeStatus(NOT_FOUND);
 			errorHandler(data, res);
 			return;
-		}
 		case FILE_FORBIDDEN:
-		{
 			data.setError(FORBIDDEN);
-			res.setWholeStatus(FORBIDDEN);
 			errorHandler(data, res);
 			return;
-		}
 		case FILE_ERROR:
-		{
 			data.setError(INTERNAL_ERROR);
-			res.setWholeStatus(INTERNAL_ERROR);
 			errorHandler(data, res);
 			return;
-		}
 	}
 }
 
@@ -65,25 +53,51 @@ void ResponseBuilder::fileHandlingError
 void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 	std::string file_path = data.getDiskPath();
 	e_file_result fr = buildBody(file_path, res);
-	if (fr == FILE_OK)
-		return;
-	else {
+	if (fr != FILE_OK)
 		fileHandlingError(fr, data, res);
-	}
 }
 
 // Writing file ----------------------------------------------------------------
 void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
 	std::string file_path = data.getDiskPath();
-	e_file_result fr = writeToFile(file_path, data.body);
-	if (fr == FILE_OK)
-		return;
-	else {
-		fileHandlingError(fr, data, res);
+	// TODO: pasar body a decision y de ahi a aqui
+	std::string body = "";
+
+	// Write file
+	bool existed = true;
+	e_file_result fr = writeToFile(file_path, body, existed);
+	if (fr != FILE_OK)
+		return fileHandlingError(fr, data, res);
+	
+	// Set headers
+	if (existed) {
+		if (!body.empty()){
+			std::string mime_type = getMimeType(getFileExtension(file_path));
+			res.addHeader("Content-Type", mime_type);
+		} else {
+			res.setStatusCode(NO_CONTENT);
+		}
+	} else {
+		res.setStatusCode(CREATED);
+		res.addHeader("Location", data.getTarget());
+		if (!body.empty()){
+			std::string mime_type = getMimeType(getFileExtension(file_path));
+			res.addHeader("Content-Type", mime_type);
+		}
 	}
 }
 
 // Remove file -----------------------------------------------------------------
+void ResponseBuilder::removeFile(Decision& data, HttpResponse& res) const {
+	std::string file_path = data.getDiskPath();
+	e_file_result fr = removeFileAt(file_path);
+	if (fr != FILE_OK) {
+		return fileHandlingError(fr, data, res);
+	}
+	// Set status
+	res.setWholeStatus(NO_CONTENT);
+}
+
 
 // List directory --------------------------------------------------------------
 
@@ -92,19 +106,12 @@ void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
 // Error Handler ---------------------------------------------------------------
 void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) const
 {
+	res.setWholeStatus(data.getStatus());
+
 	std::string file_path = data.getErrorPage();
-	switch (buildBody(file_path, res)) {
-		case FILE_OK:
-		{
-			return;
-		}
-		default:
-		{
-			// If the error page is not defined, file opening fails 
-			// or similar return default body for error pages
-			res.setBody(buildDefaultErrorPage(res.getStatusCode()));
-			res.addHeader("Content-Type", "text/html");
-		}
+	if (buildBody(file_path, res) != FILE_OK) {
+		res.setBody(buildDefaultErrorPage(res.getStatusCode()));
+		res.addHeader("Content-Type", "text/html");
 	}
 }
 
@@ -138,16 +145,17 @@ HttpResponse ResponseBuilder::execute(Decision& data) const {
 			readFile(data, res);
 			break;
 		case WRITE_FILE:
+			writeFile(data, res);
 			break;
 		case REMOVE_FILE:
+			removeFile(data, res);
 			break;
 		case LIST_DIR:
+			// TODO
 			break;
 		case ERROR_PAGE:
-		{
 			errorHandler(data, res);
 			break;
-		}
 		default:
 			break;
 	}

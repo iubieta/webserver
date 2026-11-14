@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sstream>
-#include <vector>
 
 // Constructors ---------------------------------------------------------------
 Connection::Connection(int fd, const ServerConfig* config) : fd_(fd), config_(config),
@@ -196,7 +195,7 @@ void	Connection::advance()
 				state_ = READING_BODY;
 			}
 			else
-			state_ = EXECUTING;
+				state_ = EXECUTING;
 			break;
 		}
 		case READING_BODY:

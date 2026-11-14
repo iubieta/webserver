@@ -85,6 +85,7 @@ Decision Processor::procRequest(const Request& req) {
 	Decision	res;
 	res.setServerConfig(serv_cfg_);
 	std::string target = resolvePath(req);
+	res.setTarget(target);
 	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	res.setLocationConfig(cfg);
 	// If a location is find fill the allowed methods in Decision
@@ -165,14 +166,11 @@ Decision Processor::procRequest(const Request& req) {
 	{
 		switch (errno) {
 			case EACCES: // Permission error
-			{
 				res.setError(FORBIDDEN);
 				return res;
-			}
 			case ENOTDIR:
 				// FALLTHROUGH
 			case ENOENT : // File not found
-			{
 				// Post method -> Create file
 				if (req.getMethod() == "POST") {
 					res.setHandler(WRITE_FILE);
@@ -182,12 +180,9 @@ Decision Processor::procRequest(const Request& req) {
 				// If GET or DELETE methods -> NOT FOUND
 				res.setError(NOT_FOUND);
 				return res;
-			}
 			default:
-			{
 				res.setError(INTERNAL_ERROR);
 				return res;
-			}
 		}
 	}
 	// When target is a dir: checks for index or autoindex
@@ -234,45 +229,31 @@ Decision Processor::procRequest(const Request& req) {
 				}
 			}
 			case 2: // POST
-			{
 				res.setError(FORBIDDEN);
 				return res;
-			}
 			case 3: // DELETE
-			{
 				res.setHandler(REMOVE_FILE);
 				return res;
-			}
 			default:
-			{
 				res.setError(METHOD_NOT_ALLOWED);
 				return res;
-			}
 		}
 	}
 	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
-			{
 				res.setHandler(READ_FILE);
 				return res;
-			}
 			case 2: // POST
-			{
 				res.setHandler(WRITE_FILE);
 				return res;
-			}
 			case 3: // DELETE
-			{
 				res.setHandler(REMOVE_FILE);
 				return res;
-			}
 			default:
-			{
 				res.setError(METHOD_NOT_ALLOWED);
 				return res;
-			}
 		}
 	}
 	// Target is neither a directory nor a regular file (fifo, socket...)

@@ -18,5 +18,7 @@ enum e_file_result {
 
 e_file_result checkFile(const std::string &path);
 e_file_result loadFile(const std::string& path, std::string& out);
+e_file_result writeToFile(const std::string& path, std::string& in, bool& existed);
+e_file_result removeFileAt(const std::string& path);
 
 #endif // !FILE_UTILS_HPP

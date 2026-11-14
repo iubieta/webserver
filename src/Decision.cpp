@@ -21,6 +21,7 @@ Decision& Decision::operator=(const Decision& other) {
 	if (this != &other) {
 		status_				= other.status_;
 		handler_			= other.handler_;
+		target_				= other.target_;
 		disk_path_			= other.disk_path_;
 		redir_url_			= other.redir_url_;
 		error_page_			= other.error_page_;
@@ -40,6 +41,10 @@ void Decision::setStatus(e_status_code status) {
 
 void Decision::setHandler(e_handler handler) {
 	handler_ = handler;
+}
+
+void Decision::setTarget(const std::string& target) {
+	target_ = target;
 }
 
 void Decision::setDiskPath(const std::string& disk_path) {
@@ -87,6 +92,10 @@ e_status_code Decision::getStatus() const {
 
 e_handler Decision::getHandler() const {
 	return handler_;
+}
+
+const std::string& Decision::getTarget() const {
+	return target_;
 }
 
 const std::string& Decision::getDiskPath() const {
