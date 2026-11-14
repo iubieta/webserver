@@ -301,7 +301,7 @@ int ServerCore::run() {
 	int					event_count;
 
 	// Server loop
-	while (true) {
+	while (!socks_.empty()) {
 		event_count = epoll_wait(epoll_fd_, events,
 				EVENTS_MAX, TIMEOUT_MS);
 		// If epoll wait fails close the server
@@ -321,5 +321,6 @@ int ServerCore::run() {
 		}
 		// TODO: close inacctive connections
 	}
+	ft_log::global().critical("No listening ports open. Closing server...");
 	return 0;
 }

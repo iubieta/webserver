@@ -25,6 +25,8 @@ int main(int argc, char** argv) {
 	std::vector<ServerConfig> servers = configParser.getServers();
 	try {
 		ServerCore core(servers);
+		core.setup();
+		core.run();
 	} catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;
 	}

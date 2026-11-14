@@ -85,7 +85,7 @@ ssize_t Connection::readFromFd()
 		while (
 			state_ == PROCESSING 
 			|| state_ == EXECUTING
-			|| state_ == READING_BODY
+			|| (state_ == READING_BODY && !read_buff_.empty())
 		);
 		
 		// Update last activity time
@@ -182,7 +182,7 @@ void	Connection::advance()
 {
 	e_parser_state	parser_state;
 	size_t client_max_body = 0;
-
+	
 	switch (state_) 
 	{
 		case READING_HEADERS:
@@ -198,7 +198,7 @@ void	Connection::advance()
 		{
 	 		decision_ = processor_.procRequest(request_);
 
-			if (parser_.getState() == BODY)
+			if (decision_.getStatus() == OK && parser_.getState() == BODY)
 			{
 				if (decision_.getLocationConfig() != NULL)
 					client_max_body = decision_.getLocationConfig()->getClientMax();

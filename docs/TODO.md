@@ -20,3 +20,6 @@
 
 ## [ListeningSocket.cpp](/src/ListeningSocket.cpp)
 - [x] No instanciar con puerto invalido
+
+## FOUND ERRORS
+- [ ] Infinite loop waiting for request body -> implement last_activity

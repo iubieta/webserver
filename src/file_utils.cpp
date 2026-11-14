@@ -68,7 +68,7 @@ e_file_result loadFile(const std::string& path, std::string& out) {
 	return FILE_OK;
 }
 
-e_file_result writeToFile(const std::string& path, std::string& in, bool& existed) {
+e_file_result writeToFile(const std::string& path, const std::string& in, bool& existed) {
 	e_file_result fr = checkFile(path);
 	switch (fr) {
 		case FILE_OK:

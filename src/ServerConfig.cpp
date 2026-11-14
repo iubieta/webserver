@@ -4,7 +4,7 @@
 #include <limits>
 
 ServerConfig::ServerConfig()
-    : listen_(80), 
+    : listen_(8080), 
       host_(0x7F000001),
       server_name_("localhost"), 
       root_(""), 

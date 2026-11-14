@@ -60,11 +60,10 @@ void ResponseBuilder::readFile(Decision& data, HttpResponse& res) const {
 // Writing file ----------------------------------------------------------------
 void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
 	std::string file_path = data.getDiskPath();
-	// TODO: pasar body a decision y de ahi a aqui
-	std::string body = "";
 
 	// Write file
 	bool existed = true;
+	const std::string body = data.getBody();
 	e_file_result fr = writeToFile(file_path, body, existed);
 	if (fr != FILE_OK)
 		return fileHandlingError(fr, data, res);
