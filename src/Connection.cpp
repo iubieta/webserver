@@ -79,14 +79,14 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
-		do {
-			advance();
-		}
-		while (
-			state_ == PROCESSING 
-			|| state_ == EXECUTING
-			|| (state_ == READING_BODY && !read_buff_.empty())
-		);
+		// do {
+		// 	advance();
+		// }
+		// while (
+		// 	state_ == PROCESSING 
+		// 	|| state_ == EXECUTING
+		// 	|| (state_ == READING_BODY && !read_buff_.empty())
+		// );
 		
 		// Update last activity time
 		last_activity_ = time(NULL);
@@ -133,10 +133,10 @@ ssize_t Connection::writeToFd() {
 		
 		write_buff_.consume(sent_bytes);
 
-		std::ostringstream msg;
-		msg << "Connection: SENT -> " <<  sent; 
-		msg << " (Last Activity: " << last_activity_ << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		// std::ostringstream msg;
+		// msg << "Connection: SENT -> " <<  sent; 
+		// msg << " (Last Activity: " << last_activity_ << ")";
+		// ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 
 	return sent_bytes;
@@ -187,6 +187,8 @@ void	Connection::advance()
 	{
 		case READING_HEADERS:
 		{
+			if (read_buff_.empty())
+				break;
 			parser_state = parser_.stateHandler(read_buff_, request_);
 			if (parser_state == BODY 
 				|| parser_state == COMPLETE 
@@ -212,6 +214,8 @@ void	Connection::advance()
 		}
 		case READING_BODY:
 		{
+			if (read_buff_.empty())
+				break;
 			parser_state = parser_.bodyParser(read_buff_, request_);
 			if (parser_state == COMPLETE) {
 				decision_.setBody(request_.getBody());
@@ -225,13 +229,14 @@ void	Connection::advance()
 		case EXECUTING:
 		{
 			response_ = builder_.execute(decision_);
+			write_buff_.append(response_.build());
 			state_ = RESPONDING;
 			break;
 		}
 		case RESPONDING: 
 		{
-			write_buff_.append(response_.build());
-			state_ = CLOSING;
+			if (write_buff_.empty())
+				state_ = CLOSING;
 			break;
 		}
 		case CLOSING: 

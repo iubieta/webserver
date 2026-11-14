@@ -32,6 +32,24 @@ ServerCore::~ServerCore() {
 
 // Private Methods ------------------------------------------------------------
 
+// Event handlers
+int ServerCore::createEvent(int fd, uint32_t mask) {
+	struct epoll_event	event = {};
+	event.events = mask;
+	event.data.fd = fd;
+	return epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event);
+}
+
+int ServerCore::modifyEvent(int fd, uint32_t mask) {
+	struct epoll_event	event = {};
+	event.events = mask;
+	event.data.fd = fd;
+	return epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, event.data.fd, &event);
+}
+
+int ServerCore::deleteEvent(int fd) {
+	return epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL);
+}
 
 // Socket init based on server config
 void ServerCore::initSockets() {
@@ -251,6 +269,23 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 	return -1;
 }
 
+void ServerCore::advanceConnections() {
+	std::map<int, Connection*>::iterator it = conns_.begin();
+	std::map<int, Connection*>::iterator ite = conns_.end();
+	for (; it != ite; ++it) {
+		int fd = it->first;
+		Connection *conn = it->second;
+		if (!conn->isClosed()) {
+			conn->advance();
+			e_conn_state st = conn->getState();
+			if (st == READING_HEADERS || st == READING_BODY)
+				modifyEvent(fd, EPOLLIN);
+			if (st == RESPONDING)
+				modifyEvent(fd, EPOLLOUT);
+		}
+	}
+}
+
 // Epoll error handling
 int	ServerCore::logEpollError() const {
 	int err = errno;
@@ -303,7 +338,7 @@ int ServerCore::run() {
 	// Server loop
 	while (!socks_.empty()) {
 		event_count = epoll_wait(epoll_fd_, events,
-				EVENTS_MAX, TIMEOUT_MS);
+				EVENTS_MAX, 500);
 		// If epoll wait fails close the server
 		if (event_count < 0) {
 			ft_log::global().critical("ServerCore: epoll wait failed", __FILE__, __LINE__);
@@ -319,6 +354,10 @@ int ServerCore::run() {
 				handleSocketEvent(cur_fd);
 			}
 		}
+
+		// Advance connections
+		advanceConnections();
+
 		// TODO: close inacctive connections
 	}
 	ft_log::global().critical("No listening ports open. Closing server...");

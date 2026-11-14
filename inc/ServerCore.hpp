@@ -33,6 +33,10 @@ private:
 	ServerCore(const ServerCore &other);
 	ServerCore& operator=(const ServerCore &other);
 
+	int		createEvent(int fd, uint32_t mask);
+	int		modifyEvent(int fd, uint32_t mask);
+	int		deleteEvent(int fd);
+
 	void	initSockets();
 	void	cleanSocket();
 	void	cleanConnection(int fd);
@@ -41,6 +45,8 @@ private:
 
 	int		handleSocketEvent(int fd);
 	int 	handleConnectionEvent(struct epoll_event &ev);
+
+	void	advanceConnections();
 
 	int		logEpollError() const;
 
