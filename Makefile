@@ -17,7 +17,7 @@ CPPFLAGS	+= -DLOG_LEVEL=$(LOG_LEVEL)
 SRC_DIR		:= src
 OBJ_DIR		:= obj
 
-SRCS	:= 	main.cpp \
+SRCS	:= 	main.cpp ServerCore.cpp \
 			Logger.cpp log_global.cpp \
 			ConfigParser.cpp LocationConfig.cpp ServerConfig.cpp \
 			ListeningSocket.cpp Buffer.cpp Connection.cpp HttpParser.cpp \

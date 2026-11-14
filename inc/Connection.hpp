@@ -9,6 +9,9 @@
 #include <sys/types.h>
 
 #include "Buffer.hpp"
+#include "HttpResponse.hpp"
+#include "Processor.hpp"
+#include "ResponseBuilder.hpp"
 #include "ServerConfig.hpp"
 #include "HttpParser.hpp"
 #include "Decision.hpp"
@@ -39,9 +42,12 @@ private:
 	e_conn_state		state_;
  
 	// Request related
-	HttpParser  parser_;
-	Request     request_;
-	Decision	decision_;
+	HttpParser		parser_;
+	Request     	request_;
+	Processor		processor_;
+	Decision		decision_;
+	ResponseBuilder	builder_;
+	HttpResponse	response_;
 
 	Connection(const Connection &other);
 	Connection& operator=(const Connection &other);
@@ -60,6 +66,7 @@ public:
 
 	// State control
 	void		setState(e_conn_state state);
+	e_conn_state getState() const;
 	void		advance();
 	
 	// System I/O

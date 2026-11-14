@@ -113,7 +113,7 @@ int ServerCore::handleSocketEvent(int fd) {
 		msg << "ServerCore: new socket event(fd: " << fd << ")";
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		
-		const ListeningSocket *ls = socks_[fd].sock_;
+		const ListeningSocket *ls = socks_.at(fd).sock_;
 
 		// accepts the connection
 		int conn_fd = ls->acceptClient();
@@ -143,18 +143,18 @@ int ServerCore::handleSocketEvent(int fd) {
 		}
 
 		// Add connection to the server connection map
-		conns_[conn_fd] = new Connection(conn_fd, socks_[fd].cfg_);
+		conns_[conn_fd] = new Connection(conn_fd, socks_.at(fd).cfg_);
 		msg << "ServerCore: connection stablished (conn fd: " << conn_fd << ")";
 		ft_log::global().info(msg.str(), __FILE__, __LINE__);
 		
 		// DEBUG: Connection stablished message sending
-		std::ostringstream response;
-		response << "SERVER: Connection succesfully stablished\n";
-		conns_[conn_fd]->appendToWrite(response.str());
-		event.events = EPOLLIN | EPOLLOUT;
-		if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
-			logEpollError();
-		}
+		// std::ostringstream response;
+		// response << "SERVER: Connection succesfully stablished\n";
+		// conns_[conn_fd]->appendToWrite(response.str());
+		// event.events = EPOLLIN | EPOLLOUT;
+		// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
+		// 	logEpollError();
+		// }
 
 		// If connection stablished successfully returns connection fd
 		return (conn_fd);
@@ -186,6 +186,7 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		
 		// Reads the data
 		int read_bytes = conns_[fd]->readFromFd();
+	
 		// Error or client disconnected
 		if (read_bytes <= 0) {
 			std::ostringstream msg;
@@ -193,15 +194,25 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 			ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 			cleanConnection(fd);
 		}
+		
 		// Data received
 		if (read_bytes > 0) {
 			// DEBUG: received bytes message
-			std::ostringstream response;
-			response << "SERVER: " << read_bytes << " bytes received\n";
-			conns_[fd]->appendToWrite(response.str());
-			event.events = EPOLLIN | EPOLLOUT;
-			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
-				logEpollError();
+			// std::ostringstream response;
+			// response << "SERVER: " << read_bytes << " bytes received\n";
+			// conns_[fd]->appendToWrite(response.str());
+			// event.events = EPOLLIN | EPOLLOUT;
+			// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+			// 	logEpollError();
+			// }
+			
+			if (conns_[fd]->getState() == RESPONDING)
+			{
+				conns_[fd]->advance();
+				event.events = EPOLLOUT;
+				if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+					logEpollError();
+				}
 			}
 		}
 		return read_bytes;
@@ -226,10 +237,14 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		int sent_bytes = conns_[fd]->writeToFd();
 		// If buffer is empty after sending uncheck the output flag
 		if (!conns_[fd]->wantsWrite()) {
-			event.events = EPOLLIN;
-			if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
-				logEpollError();
-			}
+			if (conns_[fd]->getState() == CLOSING)
+				cleanConnection(fd);
+
+			// case KEEP_ALIVE:
+			// event.events = EPOLLIN;
+			// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+			// 	logEpollError();
+			// }
 		}
 		return sent_bytes;
 	}
@@ -304,6 +319,7 @@ int ServerCore::run() {
 				handleSocketEvent(cur_fd);
 			}
 		}
+		// TODO: close inacctive connections
 	}
 	return 0;
 }

@@ -34,6 +34,8 @@ class Decision {
 	
 		std::vector<std::string>	allowed_methods_;
 
+		std::string		body_;
+
 		const ServerConfig*		server_cfg_;
 		const LocationConfig*	location_;
 	
@@ -54,9 +56,8 @@ class Decision {
 		void setRedirURL(const std::string& redir_url);
 		void setErrorPage(const std::string& error_page);
 		void setError(e_status_code error);
-
 		void addAllowedMethod(const std::string& method);
-
+		void setBody(const std::string& body);
 		void setServerConfig(const ServerConfig* server_config);
 		void setLocationConfig(const LocationConfig* location_config);
 
@@ -69,7 +70,7 @@ class Decision {
 		const std::string &getRedirURL() const;
 		const std::string &getErrorPage() const;
 		const std::vector<std::string> &getAllowedMethods() const;
-
+		const std::string &getBody() const;
 		const ServerConfig* getServerConfig() const;
 		const LocationConfig* getLocationConfig() const;
 

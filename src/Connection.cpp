@@ -10,7 +10,7 @@
 // Constructors ---------------------------------------------------------------
 Connection::Connection(int fd, const ServerConfig* config) : fd_(fd), config_(config),
 	closed_(false), last_activity_(time(NULL)), state_(READING_HEADERS), 
-	parser_(), request_()
+	parser_(), request_(), processor_(config), decision_(), response_()
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
@@ -79,15 +79,24 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
+		do {
+			advance();
+		}
+		while (
+			state_ == PROCESSING 
+			|| state_ == EXECUTING
+			|| state_ == READING_BODY
+		);
+		
 		// Update last activity time
 		last_activity_ = time(NULL);
 
 
-		std::ostringstream msg;
-		msg << "Connection: RECEIVED -> ";
-		msg.write(temp, read_bytes);
-		msg << " (Last Activity: " << last_activity_ << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		// cstd::ostringstream msg;
+		// cmsg << "Connection: RECEIVED -> ";
+		// cmsg.write(temp, read_bytes);
+		// cmsg << " (Last Activity: " << last_activity_ << ")";
+		// cft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 
 	// Client dissconnection
@@ -165,33 +174,36 @@ void Connection::appendToWrite(const char *data, size_t n) {
 	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
-
+e_conn_state Connection::getState() const {
+	return state_;
+}
 
 void	Connection::advance() 
 {
 	e_parser_state	parser_state;
+	size_t client_max_body = 0;
 
 	switch (state_) 
 	{
 		case READING_HEADERS:
 		{
 			parser_state = parser_.stateHandler(read_buff_, request_);
-			if (parser_state == BODY || parser_state == COMPLETE)
+			if (parser_state == BODY 
+				|| parser_state == COMPLETE 
+				|| parser_state == ERROR)
 				state_ = PROCESSING;
-			else if (parser_state == ERROR)
-				state_ = RESPONDING;
 			break;
 		}
 		case PROCESSING:
 		{
-			/*
-	 		*  decision_ = processor.process(request_);
-	 		*/
+	 		decision_ = processor_.procRequest(request_);
 
 			if (parser_.getState() == BODY)
 			{
-				
-				//parser_.setMaxbodySize(decision_.getClientMaxBodySize());
+				if (decision_.getLocationConfig() != NULL)
+					client_max_body = decision_.getLocationConfig()->getClientMax();
+				if (client_max_body > 0)
+					parser_.setMaxbodySize(client_max_body);
 				state_ = READING_BODY;
 			}
 			else
@@ -201,29 +213,29 @@ void	Connection::advance()
 		case READING_BODY:
 		{
 			parser_state = parser_.bodyParser(read_buff_, request_);
-			if (parser_state == COMPLETE)
-			state_ = EXECUTING;
-			else if (parser_state == ERROR)
-				state_ = RESPONDING;
+			if (parser_state == COMPLETE) {
+				decision_.setBody(request_.getBody());
+				state_ = EXECUTING;
+			}
+			else if (parser_state == ERROR) {
+				state_ = PROCESSING;
+			}
 			break;
 		}
 		case EXECUTING:
 		{
-			// Execute decision
-			// Build response
-			// Change state 
+			response_ = builder_.execute(decision_);
+			state_ = RESPONDING;
 			break;
 		}
 		case RESPONDING: 
 		{
-			// Create response
-			// Change state 
+			write_buff_.append(response_.build());
+			state_ = CLOSING;
 			break;
 		}
 		case CLOSING: 
 		{
-			// Close connection
-			// Change state 
 			break;
 		}
 		case KEEP_ALIVE:

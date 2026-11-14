@@ -153,6 +153,8 @@ HttpResponse ResponseBuilder::execute(Decision& data) const {
 		case LIST_DIR:
 			// TODO
 			break;
+		case REDIRECTION:
+			break;
 		case ERROR_PAGE:
 			errorHandler(data, res);
 			break;

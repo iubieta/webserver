@@ -26,6 +26,7 @@ Decision& Decision::operator=(const Decision& other) {
 		redir_url_			= other.redir_url_;
 		error_page_			= other.error_page_;
 		allowed_methods_	= other.allowed_methods_;
+		body_				= other.body_;
 		server_cfg_			= other.server_cfg_;
 		location_			= other.location_;
 	}
@@ -73,6 +74,10 @@ void Decision::setError(e_status_code error) {
 	}
 }
 
+void Decision::setBody(const std::string& body) {
+	body_ = body;
+}
+
 void Decision::addAllowedMethod(const std::string& method) {
 	allowed_methods_.push_back(method);
 }
@@ -112,6 +117,10 @@ const std::string& Decision::getErrorPage() const {
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {
 	return allowed_methods_;
+}
+
+const std::string& Decision::getBody() const {
+	return body_;
 }
 
 const ServerConfig* Decision::getServerConfig() const {
