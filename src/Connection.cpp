@@ -45,6 +45,11 @@ time_t Connection::getLastActivity() const {
 	return last_activity_;
 }
 
+const Buffer &Connection::getReadBuffer() const
+{
+	return read_buff_;
+}
+
 void Connection::disconnect() {
 	if (fd_ != -1) {
 		std::ostringstream msg;
@@ -79,24 +84,9 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
-		// do {
-		// 	advance();
-		// }
-		// while (
-		// 	state_ == PROCESSING 
-		// 	|| state_ == EXECUTING
-		// 	|| (state_ == READING_BODY && !read_buff_.empty())
-		// );
 		
 		// Update last activity time
 		last_activity_ = time(NULL);
-
-
-		// cstd::ostringstream msg;
-		// cmsg << "Connection: RECEIVED -> ";
-		// cmsg.write(temp, read_bytes);
-		// cmsg << " (Last Activity: " << last_activity_ << ")";
-		// cft_log::global().debug(msg.str(), __FILE__, __LINE__);
 	}
 
 	// Client dissconnection
@@ -187,8 +177,6 @@ void	Connection::advance()
 	{
 		case READING_HEADERS:
 		{
-			if (read_buff_.empty())
-				break;
 			parser_state = parser_.stateHandler(read_buff_, request_);
 			if (parser_state == BODY 
 				|| parser_state == COMPLETE 
@@ -209,45 +197,34 @@ void	Connection::advance()
 				state_ = READING_BODY;
 			}
 			else
-				state_ = EXECUTING;
+				state_ = RESPONDING;
 			break;
 		}
 		case READING_BODY:
 		{
-			if (read_buff_.empty())
-				break;
+			
 			parser_state = parser_.bodyParser(read_buff_, request_);
-			if (parser_state == COMPLETE) {
+			if (parser_state == COMPLETE) 
+			{
 				decision_.setBody(request_.getBody());
-				state_ = EXECUTING;
+				state_ = RESPONDING;
 			}
 			else if (parser_state == ERROR) {
 				state_ = PROCESSING;
 			}
 			break;
 		}
-		case EXECUTING:
+		case RESPONDING:
 		{
 			response_ = builder_.execute(decision_);
 			write_buff_.append(response_.build());
-			state_ = RESPONDING;
+			state_ = FINALIZAED;
 			break;
 		}
-		case RESPONDING: 
-		{
-			if (write_buff_.empty())
-				state_ = CLOSING;
-			break;
-		}
-		case CLOSING: 
+		case FINALIZAED: 
 		{
 			break;
 		}
-		case KEEP_ALIVE:
-		{
-			// Reset variables and states
-			// Change state 
-			break;
-		}
+		
 	}
 }

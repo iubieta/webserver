@@ -19,14 +19,13 @@
 
 #define BUFFLEN 32768 // 32 KB
 
-enum e_conn_state {
+enum e_conn_state 
+{
 	READING_HEADERS,
 	PROCESSING,
 	READING_BODY,
-	EXECUTING,
 	RESPONDING,
-	CLOSING,
-	KEEP_ALIVE,
+	FINALIZAED
 };
 
 class Connection {
@@ -68,6 +67,7 @@ public:
 	void		setState(e_conn_state state);
 	e_conn_state getState() const;
 	void		advance();
+	const Buffer &getReadBuffer() const;		
 	
 	// System I/O
 	ssize_t		readFromFd();

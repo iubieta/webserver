@@ -184,7 +184,8 @@ int ServerCore::handleSocketEvent(int fd) {
 }
 
 // Connections events handler
-int ServerCore::handleConnectionEvent(struct epoll_event &event) {
+int ServerCore::handleConnectionEvent(struct epoll_event &event) 
+{
 	int fd = event.data.fd;
 
 	// Connection errors
@@ -214,21 +215,28 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		}
 		
 		// Data received
-		if (read_bytes > 0) {
-			// DEBUG: received bytes message
-			// std::ostringstream response;
-			// response << "SERVER: " << read_bytes << " bytes received\n";
-			// conns_[fd]->appendToWrite(response.str());
-			// event.events = EPOLLIN | EPOLLOUT;
-			// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
-			// 	logEpollError();
-			// }
+		if (read_bytes > 0) 
+		{
+
 			
-			if (conns_[fd]->getState() == RESPONDING)
+			while (conns_[fd]->getState() != FINALIZAED)
 			{
 				conns_[fd]->advance();
+				if ((conns_[fd]->getState() == READING_HEADERS || 
+					conns_[fd] -> getState() == READING_BODY )&&
+					conns_[fd] -> getReadBuffer().empty())
+				{
+					break;
+				}
+			}
+			
+			
+			
+			if (conns_[fd]->getState() ==  FINALIZAED)
+			{
 				event.events = EPOLLOUT;
-				if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
+				if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) 
+				{
 					logEpollError();
 				}
 			}
@@ -254,8 +262,8 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 		int fd = event.data.fd;
 		int sent_bytes = conns_[fd]->writeToFd();
 		// If buffer is empty after sending uncheck the output flag
-		if (!conns_[fd]->wantsWrite()) {
-			if (conns_[fd]->getState() == CLOSING)
+		if (!conns_[fd]->wantsWrite()) 
+		{
 				cleanConnection(fd);
 
 			// case KEEP_ALIVE:
@@ -269,22 +277,22 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event) {
 	return -1;
 }
 
-void ServerCore::advanceConnections() {
-	std::map<int, Connection*>::iterator it = conns_.begin();
-	std::map<int, Connection*>::iterator ite = conns_.end();
-	for (; it != ite; ++it) {
-		int fd = it->first;
-		Connection *conn = it->second;
-		if (!conn->isClosed()) {
-			conn->advance();
-			e_conn_state st = conn->getState();
-			if (st == READING_HEADERS || st == READING_BODY)
-				modifyEvent(fd, EPOLLIN);
-			if (st == RESPONDING)
-				modifyEvent(fd, EPOLLOUT);
-		}
-	}
-}
+// void ServerCore::advanceConnections() {
+// 	std::map<int, Connection*>::iterator it = conns_.begin();
+// 	std::map<int, Connection*>::iterator ite = conns_.end();
+// 	for (; it != ite; ++it) {
+// 		int fd = it->first;
+// 		Connection *conn = it->second;
+// 		if (!conn->isClosed()) {
+// 			conn->advance();
+// 			e_conn_state st = conn->getState();
+// 			if (st == READING_HEADERS || st == READING_BODY)
+// 				modifyEvent(fd, EPOLLIN);
+// 			if (st == RESPONDING)
+// 				modifyEvent(fd, EPOLLOUT);
+// 		}
+// 	}
+// }
 
 // Epoll error handling
 int	ServerCore::logEpollError() const {
@@ -356,7 +364,7 @@ int ServerCore::run() {
 		}
 
 		// Advance connections
-		advanceConnections();
+		//advanceConnections();
 
 		// TODO: close inacctive connections
 	}
