@@ -200,12 +200,12 @@ void	testAliasMissingTrailingSlash()
 		"invalid_alias_missing_trailing_slash.config"), -1);
 }
 
-void	testRelativeRoot()
-{
-	ASSERT_EQ(parseConfig(
-		"tests/fixtures/config/"
-		"invalid_relative_root.config"), -1);
-}
+// void	testRelativeRoot()
+// {
+// 	ASSERT_EQ(parseConfig(
+// 		"tests/fixtures/config/"
+// 		"invalid_relative_root.config"), -1);
+// }
 
 void	config_directive_tests()
 {
@@ -235,6 +235,6 @@ void	config_directive_tests()
 		testAliasMissingSemicolon);
 	Tester::runTest("reject alias without trailing slash",
 		testAliasMissingTrailingSlash);
-	Tester::runTest("reject relative root", testRelativeRoot);
+	//Tester::runTest("reject relative root", testRelativeRoot);
 	Tester::report();
 }

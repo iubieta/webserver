@@ -7,7 +7,7 @@
 #include "../inc/ConfigParser.hpp"
 #include "../inc/ServerCore.hpp"
 
-#define DEFAULT_CONFIG "default.conf"
+#define DEFAULT_CONFIG "config/default.conf"
 
 int main(int argc, char** argv) 
 {

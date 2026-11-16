@@ -218,16 +218,19 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		if (read_bytes > 0) 
 		{
 
-			
+			e_conn_state stateOld;
+
 			while (conns_[fd]->getState() != FINALIZAED)
 			{
+				stateOld = conns_[fd]->getState();
 				conns_[fd]->advance();
-				if ((conns_[fd]->getState() == READING_HEADERS || 
-					conns_[fd] -> getState() == READING_BODY )&&
-					conns_[fd] -> getReadBuffer().empty())
-				{
+
+				if (stateOld == READING_HEADERS
+					&& conns_[fd]->getState() == READING_HEADERS)
 					break;
-				}
+				if (stateOld == READING_BODY
+					&& conns_[fd]->getState() == READING_BODY)
+					break;
 			}
 			
 			
@@ -338,15 +341,17 @@ int ServerCore::setup() {
 	return 0;
 }
 
-int ServerCore::run() {
-	ft_log::global().debug("ServerCore: loop", __FILE__, __LINE__);
+int ServerCore::run() 
+{
+	ft_log::global().info("server initialized");
 	struct epoll_event	events[EVENTS_MAX];
 	int					event_count;
 
 	// Server loop
-	while (!socks_.empty()) {
+	while (!socks_.empty()) 
+	{
 		event_count = epoll_wait(epoll_fd_, events,
-				EVENTS_MAX, 500);
+				EVENTS_MAX, -1);
 		// If epoll wait fails close the server
 		if (event_count < 0) {
 			ft_log::global().critical("ServerCore: epoll wait failed", __FILE__, __LINE__);

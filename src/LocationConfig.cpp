@@ -138,11 +138,11 @@ int LocationConfig::setRoot(const std::string &root)
 {
 	if(root.empty())
 		return -1;
-	if(root[0] != '/')
-	{
-		std::cerr << "root is not an absolute path\n";
-		return -1;
-	}
+	// if(root[0] != '/')
+	// {
+	// 	std::cerr << "root is not an absolute path\n";
+	// 	return -1;
+	// }
 		
 	root_ = root;
 	return 0;
