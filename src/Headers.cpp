@@ -10,10 +10,20 @@ Headers::~Headers()
 	ft_log::global().debug("Header destructor");
 }
 
+void Headers::normalize(std::string &key)
+{
+	for(size_t i = 0; i < key.size(); i++)
+		key[i] = std::tolower(static_cast<unsigned char>(key[i]));
+}
+
 
 int Headers::addHeader(const std::string &key,const std::string &value)
 {
-	if (headers_.count(key) != 0)
+	std::string temp_key = key;
+
+	normalize(temp_key);
+
+	if (headers_.count(temp_key) != 0)
 	{
 		ft_log::global().debug(
 			"Headers: repeated field",
@@ -21,7 +31,7 @@ int Headers::addHeader(const std::string &key,const std::string &value)
 
 		return (-1);
 	}
-	headers_.insert(std::make_pair(key, value));
+	headers_.insert(std::make_pair(temp_key, value));
 	return (0);
 }
 
@@ -94,11 +104,7 @@ bool Headers::isInvalidValue(const std::string &value)
 	return (false);
 }
 
-void Headers::normalize(std::string &key)
-{
-	for(size_t i = 0; i < key.size(); i++)
-		key[i] = std::tolower(static_cast<unsigned char>(key[i]));
-}
+
 
 const std::string *Headers::getHeader(const std::string &key) const
 {
@@ -179,8 +185,6 @@ int Headers::tokenHeader(const std::string &line)
 	
 	if (isInvalidValue(value))
 		return (-1);
-
-	normalize(key);
 
 	if (addHeader(key, value) == -1)
 		return (-1);
