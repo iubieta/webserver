@@ -257,13 +257,15 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	}
 
 	// Outputs
-	if (event.events & EPOLLOUT) {
+	if (event.events & EPOLLOUT) 
+	{
 		std::ostringstream msg;
-		msg << "ServerCore: connection has data to send (fd: " << fd << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		
 		// Sending data
 		int fd = event.data.fd;
 		int sent_bytes = conns_[fd]->writeToFd();
+		msg << "ServerCore: connection has data to send (fd: " << fd << ")";
+		ft_log::global().info(msg.str(), __FILE__, __LINE__);
 		// If buffer is empty after sending uncheck the output flag
 		if (!conns_[fd]->wantsWrite()) 
 		{
