@@ -36,7 +36,7 @@ class ConfigParse
 	ConfigParse &operator=(const ConfigParse &other);
 	~ConfigParse();
 
-	void	fileToken();
+	int	fileToken();
 	int		parseManager();
 
 	const std::vector<std::string>	&getTokens() const;

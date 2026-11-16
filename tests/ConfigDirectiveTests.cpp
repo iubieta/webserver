@@ -5,7 +5,6 @@ static int	parseConfig(const std::string &path)
 {
 	ConfigParse	config(path);
 
-	config.fileToken();
 	return (config.parseManager());
 }
 
@@ -16,7 +15,6 @@ void	testInheritedRoot()
 	const std::vector<ServerConfig>		*servers;
 	const LocationConfig				*location;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	ASSERT_EQ(servers->size(), 1);
@@ -32,7 +30,6 @@ void	testLocalRoot()
 	const std::vector<ServerConfig>		*servers;
 	const LocationConfig				*location;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	// Stores the address of the first location from the first parsed server.
@@ -48,7 +45,6 @@ void	testValidAlias()
 	const std::vector<ServerConfig>		*servers;
 	const LocationConfig				*location;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
@@ -67,7 +63,6 @@ void	testValidReturn()
 	const LocationConfig				*location;
 	const t_return						*redirect;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
@@ -128,7 +123,6 @@ void	testGlobalDirectivesAfterLocation()
 	const std::vector<ServerConfig>		*servers;
 	const LocationConfig				*location;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	ASSERT_EQ(servers->size(), 1);
@@ -153,7 +147,6 @@ void	testGlobalDirectivesAroundLocation()
 	const std::vector<ServerConfig>		*servers;
 	const LocationConfig				*location;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	ASSERT_EQ(servers->size(), 1);

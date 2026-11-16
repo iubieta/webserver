@@ -5,7 +5,6 @@ void	testBasicTokenization()
 {
 	ConfigParse				config(
 		"tests/fixtures/config/test_basicToken.config");
-	
 
 	config.fileToken();
 	const std::vector<std::string>	&token = config.getTokens();
@@ -57,7 +56,6 @@ void testValid()
 
 	ConfigParse config(
 		"tests/fixtures/config/test_valid.config");
-	config.fileToken();
 	result = config.parseManager();
 	ASSERT_EQ(result, 0);
 }
@@ -79,7 +77,6 @@ void testMissingOpenBrace()
 
 	ConfigParse config(
 		"tests/fixtures/config/test_braces_missing_open.config");
-	config.fileToken();
 	result = config.parseManager();
 	ASSERT_EQ(result, -1);
 }
@@ -102,7 +99,6 @@ void testMethodSemicolon()
 
 	ConfigParse config(
 		"tests/fixtures/config/allow_methods_missing_semicolon.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, -1);
 }
@@ -113,7 +109,6 @@ void testMethodUnkwon()
 
 	ConfigParse config(
 		"tests/fixtures/config/allow_methods_unknown_value.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, -1);
 }
@@ -124,7 +119,6 @@ void testCharacterAfterSemicolon()
 
 	ConfigParse config(
 		"tests/fixtures/config/characters_after_semicolon.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, -1);
 }
@@ -136,7 +130,6 @@ void testUnknwonDirective()
 
 	ConfigParse config(
 		"tests/fixtures/config/unknown_directive.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, -1);
 }
@@ -147,7 +140,6 @@ void testUnknwonValue()
 
 	ConfigParse config(
 		"tests/fixtures/config/unknown_value.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, -1);
 }
@@ -158,7 +150,6 @@ void testValidThreeServers()
 
 	ConfigParse config(
 		"tests/fixtures/config/valid_three_servers.config");
-		config.fileToken();
 		result = config.parseManager();
 		ASSERT_EQ(result, 0);
 }

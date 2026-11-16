@@ -10,7 +10,6 @@ void	testCgiWithLocalRoot()
 	const LocationConfig				*location;
 	std::map<std::string, std::string>	handlers;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
@@ -28,7 +27,6 @@ void	testCgiWithInheritedRoot()
 	const LocationConfig				*location;
 	std::map<std::string, std::string>	handlers;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);

@@ -89,7 +89,8 @@ void ConfigParse::ftTokenize(const std::string &line)
 		
 	}
 }
-void ConfigParse::fileToken()
+
+int ConfigParse::fileToken()
 {
 	std::ifstream file(file_name_.c_str());
 	std::string line;
@@ -98,7 +99,7 @@ void ConfigParse::fileToken()
 	if(!file.is_open())
 	{
 		std::cerr <<"Error opening the file\n";
-		return ;
+		return -1;
 	}
 
 	while(std::getline(file, line))
@@ -114,7 +115,7 @@ void ConfigParse::fileToken()
 	}
 
 	file.close();
-	
+	return 0;
 }
 
 const std::vector<std::string> &ConfigParse::getTokens() const
@@ -126,6 +127,9 @@ int ConfigParse::parseManager()
 {
 	size_t	i;
 	size_t	j;
+
+	if (fileToken() == -1)
+		return -1;
 	
 	if (token_.empty())
 		return -1;

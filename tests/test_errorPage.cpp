@@ -5,7 +5,6 @@ static int	parseConfig(const std::string &path)
 {
 	ConfigParse	config(path);
 
-	config.fileToken();
 	return (config.parseManager());
 }
 
@@ -16,7 +15,6 @@ void	testServerErrorPages()
 	const std::vector<ServerConfig>	*servers;
 	const std::string			*page;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	page = servers->at(0).getErrorPage(INTERNAL_ERROR);
@@ -38,7 +36,6 @@ void	testLocationErrorPage()
 	const LocationConfig			*location;
 	const std::string			*page;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
@@ -57,7 +54,6 @@ void	testErrorPageInheritance()
 	const LocationConfig			*location;
 	const std::string			*page;
 
-	config.fileToken();
 	ASSERT_EQ(config.parseManager(), 0);
 	servers = &config.getServers();
 	location = &servers->at(0).getLocation(0);
