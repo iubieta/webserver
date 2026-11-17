@@ -93,6 +93,10 @@ void ResponseBuilder::removeFile(Decision& data, HttpResponse& res) const {
 // List directory --------------------------------------------------------------
 
 // Redirection -----------------------------------------------------------------
+void ResponseBuilder::redirect(const Decision& data, HttpResponse &res) const
+{
+	res.addHeader("Location", data.getRedirURL());
+}
 
 // Error Handler ---------------------------------------------------------------
 void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) const
@@ -155,6 +159,7 @@ HttpResponse ResponseBuilder::execute(Decision& data) const {
 			// TODO
 			break;
 		case REDIRECTION:
+			redirect(data, res);
 			break;
 		case ERROR_PAGE:
 			errorHandler(data, res);
