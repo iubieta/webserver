@@ -114,7 +114,7 @@ Expected: POST sends eight bytes. GET returns Content-Length: 8. cmp prints noth
 ```bash
   cmp /tmp/webserv-binario.bin /tmp/webserv-binario-descargado.bin
   echo $?
-``
+``` 
 
 8. Upload and download a 100 KiB binary file
   Expected: the request and GET response report Content-Length: 102400. cmp returns exit status 0.
@@ -139,7 +139,7 @@ Expected: POST sends eight bytes. GET returns Content-Length: 8. cmp prints noth
 ```bash
 cmp /tmp/webserv-grande.bin /tmp/webserv-grande-descargado.bin
 echo $?
-``
+```
 
 9. Send text using chunked transfer encoding
   Expected: POST uses Transfer-Encoding: chunked without Content-Length. GET returns the decoded text Hola enviado con chunks with Content-Length: 23.
@@ -183,7 +183,7 @@ echo $?
   -H 'Transfer-Encoding: chunked' \
   --data-binary @/tmp/webserv-grande.bin \
   http://localhost:8080/uploads/prueba-grande-chunked.bin
-  ``
+  ``` 
 
   ```bash
   curl -4 --http1.1 -v \
