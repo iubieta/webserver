@@ -12,7 +12,8 @@
 #include "ServerConfig.hpp"
 
 #define EVENTS_MAX 100
-#define TIMEOUT_MS -1
+#define TIMEOUT_EPOLL 1000
+# define TIMEOUT_CONNECTION 15.0
 
 // Struct that associates a socket to its config
 struct Listener {
@@ -37,14 +38,18 @@ private:
 	int		modifyEvent(int fd, uint32_t mask);
 	int		deleteEvent(int fd);
 
+	
+
 	void	initSockets();
 	void	cleanSocket();
 	void	cleanConnection(int fd);
 	void	closeSockets();
 	void	closeConnections();
 
+
 	int		handleSocketEvent(int fd);
-	int 	handleConnectionEvent(struct epoll_event &ev);
+	int 	handleConnectionEvent(struct epoll_event &eve);
+	void timeConnections();
 
 	void	advanceConnections();
 

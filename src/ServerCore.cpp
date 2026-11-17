@@ -92,11 +92,12 @@ void ServerCore::initSockets() {
 }
 
 // Connection cleaning 
-void ServerCore::cleanConnection(int fd) {
+void ServerCore::cleanConnection(int fd) 
+{
 	std::ostringstream msg;
-	msg << "ServerCore: cleaning connection (fd: " << fd << ")";
-	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-
+	
+	msg << "ServerCore: connection closed (fd: " << fd << ")";
+			ft_log::global().info(msg.str(), __FILE__, __LINE__);
 	// Delete the connection fd from epoll monitoring
 	if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL) < 0) {
 		logEpollError();
@@ -165,16 +166,6 @@ int ServerCore::handleSocketEvent(int fd) {
 		msg << "ServerCore: connection stablished (conn fd: " << conn_fd << ")";
 		ft_log::global().info(msg.str(), __FILE__, __LINE__);
 		
-		// DEBUG: Connection stablished message sending
-		// std::ostringstream response;
-		// response << "SERVER: Connection succesfully stablished\n";
-		// conns_[conn_fd]->appendToWrite(response.str());
-		// event.events = EPOLLIN | EPOLLOUT;
-		// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, conn_fd, &event) < 0) {
-		// 	logEpollError();
-		// }
-
-		// If connection stablished successfully returns connection fd
 		return (conn_fd);
 	}
 	std::ostringstream msg;
@@ -269,8 +260,8 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		// If buffer is empty after sending uncheck the output flag
 		if (!conns_[fd]->wantsWrite()) 
 		{
-				cleanConnection(fd);
-
+			cleanConnection(fd);
+			
 			// case KEEP_ALIVE:
 			// event.events = EPOLLIN;
 			// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
@@ -282,25 +273,10 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	return -1;
 }
 
-// void ServerCore::advanceConnections() {
-// 	std::map<int, Connection*>::iterator it = conns_.begin();
-// 	std::map<int, Connection*>::iterator ite = conns_.end();
-// 	for (; it != ite; ++it) {
-// 		int fd = it->first;
-// 		Connection *conn = it->second;
-// 		if (!conn->isClosed()) {
-// 			conn->advance();
-// 			e_conn_state st = conn->getState();
-// 			if (st == READING_HEADERS || st == READING_BODY)
-// 				modifyEvent(fd, EPOLLIN);
-// 			if (st == RESPONDING)
-// 				modifyEvent(fd, EPOLLOUT);
-// 		}
-// 	}
-// }
 
 // Epoll error handling
-int	ServerCore::logEpollError() const {
+int	ServerCore::logEpollError() const 
+{
 	int err = errno;
 	// Warnings: system fails or similar
 	if (err == ENOMEM) {
@@ -343,6 +319,32 @@ int ServerCore::setup() {
 	return 0;
 }
 
+void ServerCore::timeConnections()
+{
+	std::map<int, Connection*>::const_iterator	it;
+	int											fd;
+
+	std::stringstream ss;
+
+
+	it = conns_.begin();
+	while (it != conns_.end())
+	{
+		if (it->second->getInactiveSeconds() >= TIMEOUT_CONNECTION
+			&& (it->second->getState() == READING_HEADERS
+				|| it->second->getState() == READING_BODY))
+		{
+			fd = it->second->getFd();
+			ss << "fd = "<< fd << ", inactive = " << it->second->getInactiveSeconds();
+			ft_log::global().debug(ss.str(), __FILE__, __LINE__);
+			++it;
+			cleanConnection(fd);
+		}
+		else
+			++it;
+	}
+}
+
 int ServerCore::run() 
 {
 	ft_log::global().info("server initialized");
@@ -353,14 +355,19 @@ int ServerCore::run()
 	while (!socks_.empty()) 
 	{
 		event_count = epoll_wait(epoll_fd_, events,
-				EVENTS_MAX, -1);
+				EVENTS_MAX, TIMEOUT_EPOLL);
+
 		// If epoll wait fails close the server
-		if (event_count < 0) {
+		if (event_count < 0) 
+		{
 			ft_log::global().critical("ServerCore: epoll wait failed", __FILE__, __LINE__);
 			return -1;
 		}
+		
 		// Handle events
-		for (int i = 0; i < event_count; ++i) {
+		for (int i = 0; i < event_count; ++i) 
+		{
+
 			int cur_fd = events[i].data.fd;
 			// If the fd is in connection map
 			if (conns_.count(cur_fd)) {
@@ -370,10 +377,8 @@ int ServerCore::run()
 			}
 		}
 
-		// Advance connections
-		//advanceConnections();
+		timeConnections();
 
-		// TODO: close inacctive connections
 	}
 	ft_log::global().critical("No listening ports open. Closing server...");
 	return 0;

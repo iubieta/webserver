@@ -50,6 +50,25 @@ const Buffer &Connection::getReadBuffer() const
 	return read_buff_;
 }
 
+void Connection::updateLastActivity()
+{
+	std::stringstream ss;
+	last_activity_ = std::time(NULL);
+
+	ss << "fd = "<< fd_  << " time reset " << last_activity_;
+	ft_log::global().debug(ss.str(), __FILE__, __LINE__);
+}
+
+double Connection::getInactiveSeconds() const
+{
+	std::time_t	now;
+	double	eleapsed;
+
+	now = std::time(NULL);
+	eleapsed = std::difftime(now, last_activity_);
+	return eleapsed;
+}
+
 void Connection::disconnect() {
 	if (fd_ != -1) {
 		std::ostringstream msg;
@@ -68,10 +87,12 @@ ssize_t Connection::readFromFd()
 	ssize_t read_bytes;
 
 	// Conncetion already closed
-	if (fd_ == -1) {
+	if (fd_ == -1) 
+	{
 		std::ostringstream msg;
 		msg << "Connection: fd already closed -> fd = " << fd_; 
 		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+
 
 		// return IO_ERROR
 		return -1;
@@ -84,13 +105,12 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
-		
-		// Update last activity time
-		last_activity_ = time(NULL);
+		updateLastActivity();
 	}
 
 	// Client dissconnection
-	if (read_bytes == 0) {
+	if (read_bytes == 0) 
+	{
 		std::ostringstream msg;
 		msg << "Connection: client disconnected "
 			<< " (Last Activity: " << last_activity_ << ")";
@@ -114,20 +134,9 @@ ssize_t Connection::writeToFd() {
 	// Sending
 	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
 	
-	// Update last activity time
-	last_activity_ = time(NULL);
-
 	// Consume sent bytes from the buffer
-	if (sent_bytes > 0) {
-		std::string sent(temp, sent_bytes);
-		
+	if (sent_bytes > 0) 
 		write_buff_.consume(sent_bytes);
-
-		// std::ostringstream msg;
-		// msg << "Connection: SENT -> " <<  sent; 
-		// msg << " (Last Activity: " << last_activity_ << ")";
-		// ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-	}
 
 	return sent_bytes;
 }

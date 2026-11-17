@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <string>
+#include <ctime>
 #include <sys/types.h>
 
 #include "Buffer.hpp"
@@ -37,7 +38,7 @@ private:
 	bool				closed_;
 	Buffer				read_buff_;
 	Buffer				write_buff_;
-	time_t				last_activity_;
+	std::time_t			last_activity_;
 	e_conn_state		state_;
  
 	// Request related
@@ -62,6 +63,9 @@ public:
 	bool		wantsWrite() const;	// There is data on the write buffer
 	time_t		getLastActivity() const;
 	void		disconnect();
+	double		getInactiveSeconds() const;
+
+	void updateLastActivity();
 
 	// State control
 	void		setState(e_conn_state state);
