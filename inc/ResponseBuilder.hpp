@@ -22,8 +22,8 @@ class ResponseBuilder {
 		void readFile(Decision& data, HttpResponse &res) const;
 		void writeFile(Decision& data, HttpResponse &res) const;
 		void removeFile(Decision& data, HttpResponse &res) const;
-		void listDir(HttpResponse &res) const;
-		void redirect(HttpResponse &res) const;
+		void listDir(Decision& data, HttpResponse &res) const;
+		void redirect(const Decision& data, HttpResponse &res) const;
 
 		// Error Handler
 		void errorHandler(const Decision& data, HttpResponse &res) const;
