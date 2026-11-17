@@ -5,6 +5,8 @@
 #include "../inc/mime_types.hpp"
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
+#include <vector>
 
 
 // Builders --------------------------------------------------------------------
@@ -111,6 +113,16 @@ void ResponseBuilder::errorHandler(const Decision& data, HttpResponse &res) cons
 	if (buildBody(file_path, res) != FILE_OK) {
 		res.setBody(buildDefaultErrorPage(res.getStatusCode()));
 		res.addHeader("Content-Type", "text/html");
+		if (data.getStatus() == METHOD_NOT_ALLOWED) {
+			std::vector<std::string> vec = data.getLocationConfig()->getMethods();
+			std::string vec_str;
+			for (size_t i = 0; i < vec.size(); ++i) {
+				vec_str += vec[i];
+				if (i < vec.size() - 1)
+					vec_str += ", ";
+			}
+			res.addHeader("Allow", vec_str);
+		}
 	}
 }
 
