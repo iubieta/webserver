@@ -38,16 +38,13 @@ void ResponseBuilder::fileHandlingError
 			return;
 		case FILE_NOT_FOUND:
 			data.setError(NOT_FOUND);
-			errorHandler(data, res);
-			return;
+			return errorHandler(data, res);
 		case FILE_FORBIDDEN:
 			data.setError(FORBIDDEN);
-			errorHandler(data, res);
-			return;
+			return errorHandler(data, res);
 		case FILE_ERROR:
 			data.setError(INTERNAL_ERROR);
-			errorHandler(data, res);
-			return;
+			return errorHandler(data, res);
 	}
 }
 
