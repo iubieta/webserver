@@ -72,19 +72,12 @@ void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
 	
 	// Set headers
 	if (existed) {
-		if (!body.empty()){
-			std::string mime_type = getMimeType(getFileExtension(file_path));
-			res.addHeader("Content-Type", mime_type);
-		} else {
+		if (body.empty()){
 			res.setStatusCode(NO_CONTENT);
 		}
 	} else {
 		res.setStatusCode(CREATED);
 		res.addHeader("Location", data.getTarget());
-		if (!body.empty()){
-			std::string mime_type = getMimeType(getFileExtension(file_path));
-			res.addHeader("Content-Type", mime_type);
-		}
 	}
 }
 
