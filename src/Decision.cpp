@@ -25,6 +25,7 @@ Decision& Decision::operator=(const Decision& other) {
 		disk_path_			= other.disk_path_;
 		redir_url_			= other.redir_url_;
 		error_page_			= other.error_page_;
+        cgi_interpreter_    = other.cgi_interpreter_;
 		allowed_methods_	= other.allowed_methods_;
 		body_				= other.body_;
 		server_cfg_			= other.server_cfg_;
@@ -58,6 +59,10 @@ void Decision::setRedirURL(const std::string& redir_url) {
 
 void Decision::setErrorPage(const std::string& error_page) {
 	error_page_ = error_page;
+}
+
+void Decision::setCgiInterpreter(const std::string& interpreter) {
+    cgi_interpreter_ = interpreter;
 }
 
 void Decision::setError(e_status_code error) {
@@ -113,6 +118,10 @@ const std::string& Decision::getRedirURL() const {
 
 const std::string& Decision::getErrorPage() const {
 	return error_page_;
+}
+
+const std::string& Decision::getCgiInterpreter() const {
+    return cgi_interpreter_;
 }
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {
