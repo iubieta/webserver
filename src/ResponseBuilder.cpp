@@ -3,6 +3,7 @@
 
 #include "../inc/ResponseBuilder.hpp"
 #include "../inc/mime_types.hpp"
+#include <dirent.h>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
@@ -91,6 +92,52 @@ void ResponseBuilder::removeFile(Decision& data, HttpResponse& res) const {
 
 
 // List directory --------------------------------------------------------------
+void ResponseBuilder::listDir(Decision& data, HttpResponse &res) const
+{
+	std::ostringstream oss;
+    oss << "<!DOCTYPE html>\n"
+    << "<html>\n"
+    << "<head><title> Index of " <<  data.getTarget() << "</title></head>\n"
+    << "<body>\n"
+    << "<h1> Index of " << data.getTarget() << "</h1>\n"
+    << "<hr>\n"
+    << "<ul>\n"
+	<< "<li><a href=\"../\">../</a></li>";
+
+	
+	std::string dir_path = data.getDiskPath();
+	DIR* dir = opendir(dir_path.c_str());
+	if (!dir) {
+		data.setError(INTERNAL_ERROR);
+		return errorHandler(data, res);
+	}
+
+	struct dirent* ent = readdir(dir);
+	while (ent != NULL) {
+		std::string name = ent->d_name;
+		ent = readdir(dir);
+		if (name == "." || name == ".." || name[0] == '.')
+			continue;
+
+		struct stat st;
+		if (stat((dir_path + name).c_str(), &st) == -1) {
+			data.setError(INTERNAL_ERROR);
+			return errorHandler(data, res);
+		}
+		if (S_ISDIR(st.st_mode))
+			name += "/";
+
+		oss << "<li><a href=\"" << name << "\">" << name << "</a></li>\n";
+	}
+    
+    oss << "</ul>\n"
+	<< "<p>webserver/0.1</p>\n"
+    << "</body>\n"
+    << "</html>\n";
+	
+	res.setBody(oss.str());
+	res.addHeader("Content-type", getMimeType("html"));
+}
 
 // Redirection -----------------------------------------------------------------
 void ResponseBuilder::redirect(const Decision& data, HttpResponse &res) const
@@ -156,7 +203,7 @@ HttpResponse ResponseBuilder::execute(Decision& data) const {
 			removeFile(data, res);
 			break;
 		case LIST_DIR:
-			// TODO
+			listDir(data, res);
 			break;
 		case REDIRECTION:
 			redirect(data, res);
