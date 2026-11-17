@@ -550,6 +550,81 @@ static void testStatRegularFile() {
 	removeDirRecursive(root);
 }
 
+// A configured extension selects CGI and carries both execution paths in Decision.
+static void testCgiRegularFile() {
+	std::string root = makeTempRoot("cgifile");
+	if (root.empty())
+		return;
+	const std::string script = root + "/test.cgi";
+	writeEmptyFile(script);
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ASSERT_EQ(loc.addCgiHandler(".cgi", "/bin/sh"), 0);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/test.cgi"));
+	ASSERT_EQ(res.getHandler(), CGI);
+	ASSERT_EQ(res.getDiskPath(), script);
+	ASSERT_EQ(res.getCgiInterpreter(), std::string("/bin/sh"));
+
+	removeDirRecursive(root);
+}
+
+// A configured CGI extension also applies to a directory index file.
+static void testCgiIndexFile() {
+	std::string root = makeTempRoot("cgiindex");
+	if (root.empty())
+		return;
+	const std::string index = root + "/index.cgi";
+	writeEmptyFile(index);
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	loc.addIndex("index.cgi");
+	ASSERT_EQ(loc.addCgiHandler(".cgi", "/bin/sh"), 0);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/"));
+	ASSERT_EQ(res.getHandler(), CGI);
+	ASSERT_EQ(res.getDiskPath(), index);
+	ASSERT_EQ(res.getCgiInterpreter(), std::string("/bin/sh"));
+
+	removeDirRecursive(root);
+}
+
+// An extension without a configured interpreter remains a normal static file.
+static void testUnconfiguredCgiExtensionIsStatic() {
+	std::string root = makeTempRoot("cginohandler");
+	if (root.empty())
+		return;
+	const std::string file = root + "/test.php";
+	writeEmptyFile(file);
+
+	LocationConfig loc = makeLocation("/");
+	loc.setRoot(root);
+	loc.addMethod("GET");
+	ASSERT_EQ(loc.addCgiHandler(".cgi", "/bin/sh"), 0);
+	ServerConfig cfg;
+	setBasicConfig(cfg);
+	cfg.addLocation(loc);
+
+	Processor proc(&cfg);
+	Decision res = proc.procRequest(makeRequest("GET", "/test.php"));
+	ASSERT_EQ(res.getHandler(), READ_FILE);
+	ASSERT_EQ(res.getDiskPath(), file);
+
+	removeDirRecursive(root);
+}
+
 // Fichero no existente -> 404
 static void testStatMissingFile() {
 	std::string root = makeTempRoot("statmiss");
