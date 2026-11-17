@@ -76,6 +76,27 @@ int methodSwitch(const std::string& method) {
 	return 0;
 }
 
+bool Processor::setCgiHandlerIfConfigured(const std::string& disk_path,
+    const LocationConfig& cfg, Decision& decision) const
+{
+    const std::string::size_type slash = disk_path.find_last_of('/');
+    const std::string::size_type filename_start = (slash == std::string::npos) ? 0 : slash + 1;
+    const std::string::size_type dot = disk_path.find_last_of('.');
+
+    // A dot in a parent directory or at the start of a hidden filename
+    // does not identify a file extension.
+    if (dot == std::string::npos || dot <= filename_start)
+        return false;
+
+    const std::string extension = disk_path.substr(dot);
+    const std::string* interpreter = cfg.getCgiInterprete(extension);
+    if (interpreter == NULL)
+        return false;
+
+    decision.setCgiInterpreter(*interpreter);
+    decision.setHandler(CGI);
+    return true;
+}
 
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
@@ -211,6 +232,8 @@ Decision Processor::procRequest(const Request& req) {
 						if (stat(index_file.c_str(), &stat_buf) != -1
 							&& S_ISREG(stat_buf.st_mode)) {
 							res.setDiskPath(index_file);
+                            if (setCgiHandlerIfConfigured(index_file, *cfg, res))
+                                return res;
 							res.setHandler(READ_FILE);
 							return res;
 						}
@@ -241,6 +264,8 @@ Decision Processor::procRequest(const Request& req) {
 	}
 	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
+        if (setCgiHandlerIfConfigured(disk_path, *cfg, res))
+            return res;
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 				res.setHandler(READ_FILE);

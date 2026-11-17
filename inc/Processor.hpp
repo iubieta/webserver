@@ -32,6 +32,10 @@ class Processor {
 		int checkContentLength(const Request& req,
 			const LocationConfig& cfg) const;
 
+        // Configure CGI when the file extension has an interpreter in the location.
+        bool setCgiHandlerIfConfigured(const std::string& disk_path,
+            const LocationConfig& cfg, Decision& decision) const;
+
 		// Define handler for the request
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
 
