@@ -86,4 +86,5 @@ $(OBJ_DIR)/tests/%.o: $(TEST_DIR)/%.cpp | $(OBJ_DIR)/tests
 $(OBJ_DIR)/tests:
 	mkdir -p $@
 
+-include $(DEPS)
 .PHONY: all clean fclean re test

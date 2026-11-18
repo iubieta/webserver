@@ -92,21 +92,41 @@ void ServerCore::initSockets() {
 }
 
 // Connection cleaning 
-void ServerCore::cleanConnection(int fd) 
+void ServerCore::cleanConnection(int fd)
 {
-	std::ostringstream msg;
-	
-	msg << "ServerCore: connection closed (fd: " << fd << ")";
-			ft_log::global().info(msg.str(), __FILE__, __LINE__);
-	// Delete the connection fd from epoll monitoring
-	if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, NULL) < 0) {
-		logEpollError();
+	std::map<int, Connection*>::iterator	it;
+	std::ostringstream					msg;
+	int									saved_error;
+
+	it = conns_.find(fd);
+	if (it == conns_.end())
+	{
+		// operator[] insertaría una entrada si el fd no existe.
+		// find() permite comprobarlo sin modificar el mapa.
+		msg << "ServerCore: cleanup requested for unknown fd=" << fd;
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		return;
 	}
-	
-	// Clean the connection
-	conns_[fd]->disconnect();
-	delete conns_[fd];
-	conns_.erase(fd);
+
+	if (deleteEvent(fd) < 0)
+	{
+		saved_error = errno;
+		msg << "ServerCore: epoll DEL failed fd=" << fd
+			<< " errno=" << saved_error
+			<< " (" << std::strerror(saved_error) << ")";
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+		msg.str("");
+		msg.clear();
+	}
+
+	// Aunque falle la retirada de epoll, intentamos liberar el cliente.
+	it->second->disconnect();
+	delete it->second;
+	conns_.erase(it);
+
+	// Confirmamos la limpieza después de realizarla.
+	msg << "ServerCore: connection cleaned fd=" << fd;
+	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 void ServerCore::closeSockets() {
@@ -125,154 +145,261 @@ void ServerCore::closeConnections() {
 	}
 }
 
-int ServerCore::handleSocketEvent(int fd) {
-	// Search the socket of the event
-	if (socks_.count(fd)) {
-		std::ostringstream msg;
-		msg << "ServerCore: new socket event(fd: " << fd << ")";
+int ServerCore::handleSocketEvent(int fd)
+{
+	std::map<int, Listener>::iterator	it;
+	const ListeningSocket				*ls;
+	std::ostringstream					msg;
+	int									conn_fd;
+	int									flags;
+	int									saved_error;
+
+	it = socks_.find(fd);
+	if (it == socks_.end())
+	{
+		msg << "ServerCore: event for unknown descriptor fd=" << fd;
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-		
-		const ListeningSocket *ls = socks_.at(fd).sock_;
-
-		// accepts the connection
-		int conn_fd = ls->acceptClient();
-		if (conn_fd < 0) {
-			ft_log::global().warning("ServerCore: connection failed", __FILE__, __LINE__);
-			return -1;
-		}
-
-		// Sets connection socket as nonblocking
-		if (fcntl(conn_fd, F_SETFL, O_NONBLOCK) < 0) {
-			ft_log::global().warning("ServerCore: set connection as nonblocking failed", __FILE__, __LINE__);
-			close(conn_fd);
-			return -1;
-		}
-
-		// Adds connection to epoll monitoring
-		struct epoll_event	event;
-		memset(&event, 0, sizeof(event));
-		event.events = EPOLLIN;
-		event.data.fd = conn_fd;
-		if (epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, event.data.fd, &event) < 0) {
-			// If the fail is not caused by fd repetition close it
-			if (logEpollError() != EEXIST) {
-				close(conn_fd);
-			}
-			return -1;
-		}
-
-		// Add connection to the server connection map
-		conns_[conn_fd] = new Connection(conn_fd, socks_.at(fd).cfg_);
-		msg << "ServerCore: connection stablished (conn fd: " << conn_fd << ")";
-		ft_log::global().info(msg.str(), __FILE__, __LINE__);
-		
-		return (conn_fd);
+		return -1;
 	}
-	std::ostringstream msg;
-	msg << "ServerCore: socket not found (socket fd: " << fd << ")";
-	ft_log::global().error(msg.str(), __FILE__, __LINE__);
-	return -1;
+
+	ls = it->second.sock_;
+	conn_fd = ls->acceptClient();
+	if (conn_fd < 0)
+	{
+		saved_error = errno;
+
+		// No siempre hay un cliente disponible cuando llegamos a accept().
+		if (saved_error == EAGAIN || saved_error == EWOULDBLOCK
+			|| saved_error == EINTR)
+			return 0;
+
+		msg << "ServerCore: accept failed listener_fd=" << fd
+			<< " errno=" << saved_error
+			<< " (" << std::strerror(saved_error) << ")";
+		ft_log::global().warning(msg.str(), __FILE__, __LINE__);
+		return -1;
+	}
+
+	flags = fcntl(conn_fd, F_GETFL, 0);
+	if (flags < 0)
+	{
+		saved_error = errno;
+		msg << "ServerCore: fcntl GETFL failed fd=" << conn_fd
+			<< " errno=" << saved_error
+			<< " (" << std::strerror(saved_error) << ")";
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+		close(conn_fd);
+		return -1;
+	}
+
+	if (fcntl(conn_fd, F_SETFL, flags | O_NONBLOCK) < 0)
+	{
+		saved_error = errno;
+		msg << "ServerCore: fcntl SETFL failed fd=" << conn_fd
+			<< " errno=" << saved_error
+			<< " (" << std::strerror(saved_error) << ")";
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+		close(conn_fd);
+		return -1;
+	}
+
+	if (createEvent(conn_fd, EPOLLIN) < 0)
+	{
+		saved_error = errno;
+		msg << "ServerCore: epoll ADD failed fd=" << conn_fd
+			<< " errno=" << saved_error
+			<< " (" << std::strerror(saved_error) << ")";
+		ft_log::global().error(msg.str(), __FILE__, __LINE__);
+
+		// Todavía no hay una Connection propietaria de este descriptor.
+		// Lo cerramos para no dejarlo abierto en esta salida de error.
+		close(conn_fd);
+		return -1;
+	}
+
+	conns_[conn_fd] = new Connection(conn_fd, it->second.cfg_);
+
+	msg << "ServerCore: connection accepted listener_fd=" << fd
+		<< " client_fd=" << conn_fd;
+	ft_log::global().info(msg.str(), __FILE__, __LINE__);
+	return conn_fd;
 }
 
 // Connections events handler
-int ServerCore::handleConnectionEvent(struct epoll_event &event) 
+int ServerCore::handleConnectionEvent(struct epoll_event &event)
 {
-	int fd = event.data.fd;
+	std::map<int, Connection*>::iterator	it;
+	Connection							*conn;
+	std::ostringstream					msg;
+	ssize_t								io_bytes;
+	e_conn_state						state_old;
+	int									fd;
+	int									saved_error;
 
-	// Connection errors
-	if (event.events & EPOLLERR) {
-		std::ostringstream msg;
-		msg << "ServerCore: connection error (fd: " << event.data.fd << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+	fd = event.data.fd;
+	it = conns_.find(fd);
+	if (it == conns_.end())
+		return -1;
+	conn = it->second;
+
+	if (event.events & EPOLLERR)
+	{
+		msg << "ServerCore: socket error event fd=" << fd;
+		ft_log::global().warning(msg.str(), __FILE__, __LINE__);
 		cleanConnection(fd);
 		return -1;
 	}
 
-	// Inputs
-	if (event.events & EPOLLIN) {
-		std::ostringstream msg;
-		msg << "ServerCore: connection has data to read (fd: " << fd << ")";
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-		
-		// Reads the data
-		int read_bytes = conns_[fd]->readFromFd();
-	
-		// Error or client disconnected
-		if (read_bytes <= 0) {
-			std::ostringstream msg;
-			msg << "ServerCore: 0 bytes read, closing connection (fd: " << fd << ")";
-			ft_log::global().debug(msg.str(), __FILE__, __LINE__);
-			cleanConnection(fd);
-		}
-		
-		// Data received
-		if (read_bytes > 0) 
+	if (event.events & EPOLLIN)
+	{
+		io_bytes = conn->readFromFd();
+
+		if (io_bytes < 0)
 		{
+			saved_error = conn->getLastIoError();
 
-			e_conn_state stateOld;
+			// No es una desconexión: no hay datos ahora, o hubo una señal.
+			// Regresamos al bucle sin borrar la conexión.
+			if (saved_error == EAGAIN || saved_error == EWOULDBLOCK
+				|| saved_error == EINTR)
+				return 0;
 
-			while (conns_[fd]->getState() != FINALIZAED)
+			msg << "ServerCore: recv failed fd=" << fd
+				<< " errno=" << saved_error
+				<< " (" << std::strerror(saved_error) << ")";
+			ft_log::global().warning(msg.str(), __FILE__, __LINE__);
+			cleanConnection(fd);
+			return -1;
+		}
+
+		if (io_bytes == 0)
+		{
+			msg << "ServerCore: peer finished sending fd=" << fd
+				<< " state=" << conn->getState();
+			ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+
+			// Si ya hay una respuesta pendiente, conservamos el socket
+			// para enviarla. El fin de lectura no prohíbe escribir.
+			if (conn->wantsWrite())
 			{
-				stateOld = conns_[fd]->getState();
-				conns_[fd]->advance();
-
-				if (stateOld == READING_HEADERS
-					&& conns_[fd]->getState() == READING_HEADERS)
-					break;
-				if (stateOld == READING_BODY
-					&& conns_[fd]->getState() == READING_BODY)
-					break;
-			}
-			
-			
-			
-			if (conns_[fd]->getState() ==  FINALIZAED)
-			{
-				event.events = EPOLLOUT;
-				if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) 
+				if (modifyEvent(fd, EPOLLOUT) < 0)
 				{
-					logEpollError();
+					saved_error = errno;
+					msg.str("");
+					msg.clear();
+					msg << "ServerCore: epoll MOD failed fd=" << fd
+						<< " errno=" << saved_error
+						<< " (" << std::strerror(saved_error) << ")";
+					ft_log::global().error(msg.str(), __FILE__, __LINE__);
+					cleanConnection(fd);
+					return -1;
 				}
+				return 0;
+			}
+
+			// Política actual: sin respuesta pendiente, cerramos.
+			// No completamos una petición truncada usando EOF.
+			cleanConnection(fd);
+			return 0;
+		}
+
+		msg << "ServerCore: received fd=" << fd
+			<< " bytes=" << io_bytes;
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+
+		while (conn->getState() != FINALIZAED)
+		{
+			state_old = conn->getState();
+			conn->advance();
+
+			if (state_old == READING_HEADERS
+				&& conn->getState() == READING_HEADERS)
+				break;
+			if (state_old == READING_BODY
+				&& conn->getState() == READING_BODY)
+				break;
+		}
+
+		if (conn->getState() == FINALIZAED)
+		{
+			if (modifyEvent(fd, EPOLLOUT) < 0)
+			{
+				saved_error = errno;
+				msg.str("");
+				msg.clear();
+				msg << "ServerCore: epoll MOD failed fd=" << fd
+					<< " errno=" << saved_error
+					<< " (" << std::strerror(saved_error) << ")";
+				ft_log::global().error(msg.str(), __FILE__, __LINE__);
+
+				// No dejamos una respuesta esperando sin una vigilancia
+				// de escritura que sepamos que se instaló correctamente.
+				cleanConnection(fd);
+				return -1;
 			}
 		}
-		return read_bytes;
+		return static_cast<int>(io_bytes);
 	}
 
-	// Client disconnected
-	if (event.events & EPOLLHUP) {
-		std::ostringstream msg;
-		msg << "ServerCore: client closed connection(fd: " << event.data.fd << ")";
+	if (event.events & EPOLLHUP)
+	{
+		msg << "ServerCore: socket hangup fd=" << fd;
 		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 		cleanConnection(fd);
 		return 0;
 	}
 
-	// Outputs
-	if (event.events & EPOLLOUT) 
+	if (event.events & EPOLLOUT)
 	{
-		std::ostringstream msg;
-		
-		// Sending data
-		int fd = event.data.fd;
-		int sent_bytes = conns_[fd]->writeToFd();
-		msg << "ServerCore: connection has data to send (fd: " << fd << ")";
-		ft_log::global().info(msg.str(), __FILE__, __LINE__);
-		// If buffer is empty after sending uncheck the output flag
-		if (!conns_[fd]->wantsWrite()) 
-		{
-			cleanConnection(fd);
-			
-			// case KEEP_ALIVE:
-			// event.events = EPOLLIN;
-			// if (epoll_ctl(epoll_fd_, EPOLL_CTL_MOD, fd, &event) < 0) {
-			// 	logEpollError();
-			// }
-		}
-		return sent_bytes;
-	}
-	return -1;
-}
+		io_bytes = conn->writeToFd();
 
+		if (io_bytes < 0)
+		{
+			saved_error = conn->getLastIoError();
+
+			// Conservamos el buffer y EPOLLOUT.
+			// Con epoll en modo level-triggered habrá otra oportunidad.
+			if (saved_error == EAGAIN || saved_error == EWOULDBLOCK
+				|| saved_error == EINTR)
+				return 0;
+
+			msg << "ServerCore: send failed fd=" << fd
+				<< " errno=" << saved_error
+				<< " (" << std::strerror(saved_error) << ")";
+			ft_log::global().warning(msg.str(), __FILE__, __LINE__);
+			cleanConnection(fd);
+			return -1;
+		}
+
+		if (io_bytes == 0 && conn->wantsWrite())
+		{
+			// No es una respuesta completada ni una confirmación de
+			// desconexión. Cerramos por política para evitar repetir
+			// indefinidamente una escritura sin progreso.
+			msg << "ServerCore: send made no progress fd=" << fd;
+			ft_log::global().warning(msg.str(), __FILE__, __LINE__);
+			cleanConnection(fd);
+			return -1;
+		}
+
+		msg << "ServerCore: sent fd=" << fd
+			<< " bytes=" << io_bytes;
+		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+
+		if (!conn->wantsWrite())
+		{
+			msg.str("");
+			msg.clear();
+			msg << "ServerCore: response sent, closing fd=" << fd;
+			ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+			cleanConnection(fd);
+		}
+		return static_cast<int>(io_bytes);
+	}
+
+	
+	return 0;
+}
 
 // Epoll error handling
 int	ServerCore::logEpollError() const 
@@ -335,8 +462,13 @@ void ServerCore::timeConnections()
 				|| it->second->getState() == READING_BODY))
 		{
 			fd = it->second->getFd();
-			ss << "fd = "<< fd << ", inactive = " << it->second->getInactiveSeconds();
-			ft_log::global().debug(ss.str(), __FILE__, __LINE__);
+			ss.str("");
+			ss.clear();
+
+			ss << "ServerCore: receive timeout fd=" << fd
+				<< " inactive_seconds=" << it->second->getInactiveSeconds();
+
+			ft_log::global().info(ss.str(), __FILE__, __LINE__);
 			++it;
 			cleanConnection(fd);
 		}
@@ -350,6 +482,8 @@ int ServerCore::run()
 	ft_log::global().info("server initialized");
 	struct epoll_event	events[EVENTS_MAX];
 	int					event_count;
+	int					saved_error;
+	std::ostringstream	msg;
 
 	// Server loop
 	while (!socks_.empty()) 
@@ -357,10 +491,20 @@ int ServerCore::run()
 		event_count = epoll_wait(epoll_fd_, events,
 				EVENTS_MAX, TIMEOUT_EPOLL);
 
-		// If epoll wait fails close the server
-		if (event_count < 0) 
+		if (event_count < 0)
 		{
-			ft_log::global().critical("ServerCore: epoll wait failed", __FILE__, __LINE__);
+			saved_error = errno;
+
+			// Una señal puede interrumpir epoll_wait() sin que epoll esté roto.
+			if (saved_error == EINTR)
+			{
+				timeConnections();
+				continue;
+			}
+
+			msg << "ServerCore: epoll_wait failed errno=" << saved_error
+				<< " (" << std::strerror(saved_error) << ")";
+			ft_log::global().critical(msg.str(), __FILE__, __LINE__);
 			return -1;
 		}
 		
@@ -370,11 +514,11 @@ int ServerCore::run()
 
 			int cur_fd = events[i].data.fd;
 			// If the fd is in connection map
-			if (conns_.count(cur_fd)) {
+			if (conns_.count(cur_fd)) 
 				handleConnectionEvent(events[i]);
-			} else {
+			else 
 				handleSocketEvent(cur_fd);
-			}
+			
 		}
 
 		timeConnections();

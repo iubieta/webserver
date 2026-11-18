@@ -6,11 +6,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sstream>
+#include <cerrno>
 
 // Constructors ---------------------------------------------------------------
 Connection::Connection(int fd, const ServerConfig* config) : fd_(fd), config_(config),
 	closed_(false), last_activity_(time(NULL)), state_(READING_HEADERS), 
-	parser_(), request_(), processor_(config), decision_(), response_()
+	parser_(), request_(), processor_(config), decision_(), response_(),
+	last_io_error_(0)
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
@@ -59,6 +61,11 @@ void Connection::updateLastActivity()
 	ft_log::global().debug(ss.str(), __FILE__, __LINE__);
 }
 
+int Connection::getLastIoError() const
+{
+	return last_io_error_;
+}
+
 double Connection::getInactiveSeconds() const
 {
 	std::time_t	now;
@@ -86,21 +93,22 @@ ssize_t Connection::readFromFd()
 	char	temp[BUFFLEN];
 	ssize_t read_bytes;
 
-	// Conncetion already closed
+	last_io_error_ = 0;
+
 	if (fd_ == -1) 
 	{
-		std::ostringstream msg;
-		msg << "Connection: fd already closed -> fd = " << fd_; 
-		ft_log::global().error(msg.str(), __FILE__, __LINE__);
-
-
-		// return IO_ERROR
+		last_io_error_ = EBADF;
 		return -1;
 	}
 
 	
 	read_bytes = recv(fd_, temp, BUFFLEN, 0);
 	
+	if (read_bytes < 0)
+	{
+		last_io_error_ = errno;
+		return read_bytes;
+	}
 	// Normal receive
 	if (read_bytes > 0) 
 	{
@@ -108,34 +116,42 @@ ssize_t Connection::readFromFd()
 		updateLastActivity();
 	}
 
-	// Client dissconnection
-	if (read_bytes == 0) 
-	{
-		std::ostringstream msg;
-		msg << "Connection: client disconnected "
-			<< " (Last Activity: " << last_activity_ << ")";
-		ft_log::global().error(msg.str(), __FILE__, __LINE__);
-
-		// return IO_CLOSING;
-		return 0;
-	}
 	return read_bytes;
 }
 
-ssize_t Connection::writeToFd() {
-	const char *temp = write_buff_.data();
-	ssize_t write_len = BUFFLEN;
+ssize_t Connection::writeToFd()
+{
+	const char	*data;
+	size_t		write_len;
+	ssize_t		sent_bytes;
 
-	// Adjust sending buffer length
-	if (write_buff_.size() < BUFFLEN) {
-		write_len = write_buff_.size(); 
+	last_io_error_ = 0;
+
+	if (fd_ == -1)
+	{
+		last_io_error_ = EBADF;
+		return -1;
 	}
 
-	// Sending
-	ssize_t sent_bytes = send(fd_, temp, write_len, 0);
-	
-	// Consume sent bytes from the buffer
-	if (sent_bytes > 0) 
+	if (write_buff_.empty())
+		return 0;
+
+	data = write_buff_.data();
+	write_len = write_buff_.size();
+	if (write_len > BUFFLEN)
+		write_len = BUFFLEN;
+
+	// En Linux, MSG_NOSIGNAL evita que una escritura en un socket roto
+	// termine el proceso por SIGPIPE. send() seguirá devolviendo el error.
+	sent_bytes = send(fd_, data, write_len, MSG_NOSIGNAL);
+
+	if (sent_bytes < 0)
+	{
+		last_io_error_ = errno;
+		return sent_bytes;
+	}
+
+	if (sent_bytes > 0)
 		write_buff_.consume(sent_bytes);
 
 	return sent_bytes;

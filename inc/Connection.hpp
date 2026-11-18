@@ -40,6 +40,7 @@ private:
 	Buffer				write_buff_;
 	std::time_t			last_activity_;
 	e_conn_state		state_;
+	
  
 	// Request related
 	HttpParser		parser_;
@@ -48,6 +49,8 @@ private:
 	Decision		decision_;
 	ResponseBuilder	builder_;
 	HttpResponse	response_;
+
+	int					last_io_error_;
 
 	Connection(const Connection &other);
 	Connection& operator=(const Connection &other);
@@ -64,6 +67,7 @@ public:
 	time_t		getLastActivity() const;
 	void		disconnect();
 	double		getInactiveSeconds() const;
+	int			getLastIoError() const;
 
 	void updateLastActivity();
 
