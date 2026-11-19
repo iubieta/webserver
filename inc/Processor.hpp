@@ -36,6 +36,14 @@ class Processor {
         bool setCgiHandlerIfConfigured(const std::string& disk_path,
             const LocationConfig& cfg, Decision& decision) const;
 
+        // Join the configured document root with an absolute URI path.
+        std::string joinRootAndUri(const std::string& root, 
+            const std::string& uri) const;
+
+        // Find the longest eligible CGI script prefix and derive PATH_INFO.
+        bool resolveCgiPathInfo(const std::string& target,
+            const LocationConfig& cfg, Decision& decision) const;
+
 		// Define handler for the request
 		int	selectHandler(const Request& req, const LocationConfig& cfg) const;
 

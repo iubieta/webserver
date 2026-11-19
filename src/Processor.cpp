@@ -98,6 +98,49 @@ bool Processor::setCgiHandlerIfConfigured(const std::string& disk_path,
     return true;
 }
 
+// Keep the existing root + URI mapping used by Processor.
+std::string Processor::joinRootAndUri(const std::string& root,
+    const std::string& uri) const
+{
+    if (!root.empty() && root[root.size() - 1] == '/' && !uri.empty() && uri[0] == '/')
+        return root.substr(0, root.size() - 1) + uri;
+    return root + uri;
+}
+
+// Resolve a CGI script embedded in a longer URI (RFC 3875 PATH_INFO).
+// Only candidates in the already-selected location are eligible: a suffix
+// must never change the routing, allowed methods or CGI interpreter policy.
+bool Processor::resolveCgiPathInfo(const std::string& target,
+    const LocationConfig& cfg, Decision& decision) const
+{
+    std::string::size_type boundary = target.rfind('/');
+    const std::string root = PathUtils::resolveRoot(&cfg, serv_cfg_);
+
+    while (boundary != std::string::npos && boundary > 0) {
+        const std::string script_uri = target.substr(0, boundary);
+        if (PathUtils::findLocation(script_uri, *serv_cfg_) == &cfg) {
+            const std::string script_disk = joinRootAndUri(root, script_uri);
+            struct stat candidate_stat;
+            if (stat(script_disk.c_str(), &candidate_stat) == 0
+                && S_ISREG(candidate_stat.st_mode)
+                && setCgiHandlerIfConfigured(script_disk, cfg, decision)) {
+                const std::string info = target.substr(boundary);
+                decision.setDiskPath(script_disk);
+                decision.setCgiScriptName(script_uri);
+                decision.setCgiPathInfo(info);
+                // PATH_TRANSLATED is a URI-to-filesystem translation of
+                // PATH_INFO, not a suffix appended to the script filename.
+                const LocationConfig* info_cfg = PathUtils::findLocation(info, *serv_cfg_);
+                decision.setCgiPathTranslated(joinRootAndUri(
+                    PathUtils::resolveRoot(info_cfg, serv_cfg_), info));
+                return true;
+            }
+        }
+        boundary = script_uri.rfind('/');
+    }
+    return false;
+}
+
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
 
@@ -192,6 +235,10 @@ Decision Processor::procRequest(const Request& req) {
 			case ENOTDIR:
 				// FALLTHROUGH
 			case ENOENT : // File not found
+                // A URI may have PATH_INFO after an existing CGI script.
+                // Try that before treating POST as a new static file.
+                if (resolveCgiPathInfo(target, *cfg, res))
+                    return res;
 				// Post method -> Create file
 				if (req.getMethod() == "POST") {
 					res.setHandler(WRITE_FILE);
