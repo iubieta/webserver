@@ -1,14 +1,9 @@
-#include <sstream>
-#include <new>
-
 #include "../inc/CgiEnvironmentBuilder.hpp"
-#include "../inc/Request.hpp"
-#include "../inc/Decision.hpp"
-#include "../inc/ServerConfig.hpp"
 
 CgiEnvironmentBuilder::CgiEnvironmentBuilder() : variables_(), bytes_(0) {}
 CgiEnvironmentBuilder::~CgiEnvironmentBuilder() {}
 
+// Reset both stored entries and their accumulated byte count.
 void CgiEnvironmentBuilder::clear()
 {
     variables_.clear();
@@ -20,6 +15,7 @@ const std::vector<std::string>& CgiEnvironmentBuilder::getVariables() const
     return variables_;
 }
 
+// Require a portable, unambiguous CGI variable name.
 bool CgiEnvironmentBuilder::validName(const std::string& name)
 {
     if (name.empty())
@@ -33,6 +29,7 @@ bool CgiEnvironmentBuilder::validName(const std::string& name)
     return true;
 }
 
+// Avoid embedded NUL and line breaks in exported metadata.
 bool CgiEnvironmentBuilder::validValue(const std::string& value)
 {
     return value.find('\0') == std::string::npos
@@ -40,6 +37,7 @@ bool CgiEnvironmentBuilder::validValue(const std::string& value)
         && value.find('\n') == std::string::npos;
 }
 
+// Validate a single entry before it is committed to the environment.
 CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::add(const std::string& name, 
     const std::string& value)
 {
@@ -63,6 +61,98 @@ CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::add(const std::string& name,
     return CGI_ENV_OK;
 }
 
+// Convert an HTTP field name to its CGI HTTP_* environment name.
+// Reject non-token characters rather than silently changing their meaning.
+std::string CgiEnvironmentBuilder::headerVariableName(const std::string& header) {
+    if (header.empty()) 
+        return "";
+
+    std::string name = "HTTP_";
+    for (size_t i = 0; i < header.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(header[i]);
+        if (c >= 'a' && c <= 'z') 
+            name += static_cast<char>(c - 'a' + 'A');
+        else if (c >= 'A' && c <= 'Z') 
+            name += static_cast<char>(c);
+        else if (c >= '0' && c <= '9') 
+            name += static_cast<char>(c);
+        else if (c == '-') 
+            name += '_';
+        else 
+            return "";
+    }
+    return name;
+}
+
+// Export request headers without forwarding hop-by-hop or credential fields.
+// Request currently stores one value per key; no duplicate merging is attempted.
+CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::addHeaders(const Request& request) {
+    const std::map<std::string, std::string>& headers = request.getHeaders();
+
+    // Connection can nominate additional hop-by-hop headers. Reject such
+    // requests here until a complete connection-token filter is available.
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        std::string key = it->first;
+        for (size_t i = 0; i < key.size(); ++i) {
+            if (key[i] >= 'A' && key[i] <= 'Z') 
+                key[i] = key[i] - 'A' + 'a';
+        }
+        if (key == "connection" && !it->second.empty()) {
+            std::string value = it->second;
+            for (size_t i = 0; i < value.size(); ++i) {
+                if (value[i] >= 'A' && value[i] <= 'Z') 
+                    value[i] = value[i] - 'A' + 'a';
+            }
+            // Accept only simple known values until a complete token parser
+            // can safely suppress all nominated hop-by-hop fields.
+            if (value != "keep-alive" && value != "close")
+                return CGI_ENV_INVALID_VALUE;
+        }
+    }
+
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        std::string lower = it->first;
+        for (size_t i = 0; i < lower.size(); ++i) {
+            const unsigned char c = static_cast<unsigned char>(lower[i]);
+            if (c >= 'A' && c <= 'Z') 
+                lower[i] = static_cast<char>(c - 'A' + 'a');
+        }
+        // These fields have dedicated CGI variables or are not forwarded.
+        if (lower == "content-length" || lower == "content-type" ||
+            lower == "authorization" || lower == "proxy-authorization" ||
+            lower == "connection" || lower == "proxy-connection" ||
+            lower == "keep-alive" || lower == "transfer-encoding" ||
+            lower == "te" || lower == "trailer" || lower == "upgrade")
+            continue;
+        const std::string name = headerVariableName(lower);
+        if (name.empty()) 
+            return CGI_ENV_INVALID_NAME;
+        const Error err = add(name, it->second);
+        if (err != CGI_ENV_OK) 
+            return err;
+    }
+
+    // CONTENT_TYPE is not prefixed with HTTP_ in CGI.
+    std::map<std::string, std::string>::const_iterator found = headers.end();
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        std::string key = it->first;
+        for (size_t i = 0; i < key.size(); ++i) {
+            const unsigned char c = static_cast<unsigned char>(key[i]);
+            if (c >= 'A' && c <= 'Z') 
+                key[i] = static_cast<char>(c - 'A' + 'a');
+        }
+        if (key == "content-type") {
+            if (found != headers.end()) 
+                return CGI_ENV_NAME_COLLISION;
+            found = it;
+        }
+    }
+    if (found != headers.end()) 
+        return add("CONTENT_TYPE", found->second);
+    return CGI_ENV_OK;
+}
+
+// Build all CGI metadata or leave an empty environment on any failure.
 CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::build(const Request& request, 
     const Decision& decision)
 {
