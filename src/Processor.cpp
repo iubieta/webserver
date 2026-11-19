@@ -6,6 +6,8 @@
 #include <vector>
 #include <sstream>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "../inc/Processor.hpp"
 #include "../inc/path_utils.hpp"
@@ -74,6 +76,43 @@ int methodSwitch(const std::string& method) {
 	if (method == "DELETE")
 		return 3;
 	return 0;
+}
+
+// Check the undecoded request path, not the normalized CGI target.
+bool Processor::hasEncodedSlash(const std::string& raw_path) const
+{
+    for (std::string::size_type i = 0; i + 2 < raw_path.size(); ++i) {
+        if (raw_path[i] == '%' && raw_path[i + 1] == '2'
+            && (raw_path[i + 2] == 'F' || raw_path[i + 2] == 'f'))
+            return true;
+    }
+    return false;
+}
+
+// Fail closed on symbolic links at any component, including the document root.
+// This is a routing-time check, NOT an atomic guarantee against concurrent
+// filesystem replacement before a later execve(path).
+bool Processor::cgiScriptPathAllowed(const std::string& disk_path) const
+{
+    if (disk_path.empty() || disk_path[0] != '/')
+        return false;
+    std::string::size_type start = 1;
+    while (start < disk_path.size()) {
+        const std::string::size_type end = disk_path.find('/', start);
+        const bool last = end == std::string::npos;
+        const std::string prefix = last ? disk_path : disk_path.substr(0, end);
+        const int flags = O_RDONLY | O_NONBLOCK | O_NOFOLLOW | (last ? 0 : O_DIRECTORY);
+        const int fd = open(prefix.c_str(), flags);
+        if (fd < 0)
+            return false;
+        close(fd);
+        if (last)
+            return true;
+        start = end + 1;
+        if (start == disk_path.size())
+            return false;
+    }
+    return false;
 }
 
 bool Processor::setCgiHandlerIfConfigured(const std::string& disk_path,
@@ -237,8 +276,11 @@ Decision Processor::procRequest(const Request& req) {
 			case ENOENT : // File not found
                 // A URI may have PATH_INFO after an existing CGI script.
                 // Try that before treating POST as a new static file.
-                if (resolveCgiPathInfo(target, *cfg, res))
+                if (resolveCgiPathInfo(target, *cfg, res)) {
+                    if (hasEncodedSlash(req.getPath()))
+                        res.setError(BAD_REQUEST);
                     return res;
+                }
 				// Post method -> Create file
 				if (req.getMethod() == "POST") {
 					res.setHandler(WRITE_FILE);
@@ -281,6 +323,8 @@ Decision Processor::procRequest(const Request& req) {
 							res.setDiskPath(index_file);
                             if (setCgiHandlerIfConfigured(index_file, *cfg, res)) {
                                 res.setCgiScriptName(target + indexs[i]);
+                                if (hasEncodedSlash(req.getPath()))
+                                    res.setError(BAD_REQUEST);
                                 return res;
                             }
 							res.setHandler(READ_FILE);
@@ -315,6 +359,8 @@ Decision Processor::procRequest(const Request& req) {
 	else if (S_ISREG(stat_buf.st_mode)) {
         if (setCgiHandlerIfConfigured(disk_path, *cfg, res)) {
             res.setCgiScriptName(target);
+            if (hasEncodedSlash(req.getPath()))
+                res.setError(BAD_REQUEST);
             return res;
         }
 		switch (methodSwitch(req.getMethod())) {

@@ -36,6 +36,12 @@ class Processor {
         bool setCgiHandlerIfConfigured(const std::string& disk_path,
             const LocationConfig& cfg, Decision& decision) const;
 
+        // Reject ambiguous encoded separators in the original CGI URI.
+        bool hasEncodedSlash(const std::string& raw_path) const;
+
+        // Conservative no-symlink check for every path component.
+        bool cgiScriptPathAllowed(const std::string& disk_path) const;
+
         // Join the configured document root with an absolute URI path.
         std::string joinRootAndUri(const std::string& root, 
             const std::string& uri) const;
