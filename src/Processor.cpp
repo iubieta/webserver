@@ -232,8 +232,10 @@ Decision Processor::procRequest(const Request& req) {
 						if (stat(index_file.c_str(), &stat_buf) != -1
 							&& S_ISREG(stat_buf.st_mode)) {
 							res.setDiskPath(index_file);
-                            if (setCgiHandlerIfConfigured(index_file, *cfg, res))
+                            if (setCgiHandlerIfConfigured(index_file, *cfg, res)) {
+                                res.setCgiScriptName(target + indexs[i]);
                                 return res;
+                            }
 							res.setHandler(READ_FILE);
 							return res;
 						}
@@ -264,8 +266,10 @@ Decision Processor::procRequest(const Request& req) {
 	}
 	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
-        if (setCgiHandlerIfConfigured(disk_path, *cfg, res))
+        if (setCgiHandlerIfConfigured(disk_path, *cfg, res)) {
+            res.setCgiScriptName(target);
             return res;
+        }
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 				res.setHandler(READ_FILE);
