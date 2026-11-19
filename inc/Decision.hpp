@@ -33,6 +33,9 @@ class Decision {
 		std::string		redir_url_;
 		std::string		error_page_;
         std::string     cgi_interpreter_;
+        std::string     cgi_script_name_;
+        std::string     cgi_path_info_;
+        std::string     cgi_path_translated_;
 	
 		std::vector<std::string>	allowed_methods_;
 
@@ -58,6 +61,9 @@ class Decision {
 		void setRedirURL(const std::string& redir_url);
 		void setErrorPage(const std::string& error_page);
         void setCgiInterpreter(const std::string& interpreter);
+        void setCgiScriptName(const std::string& name);
+        void setCgiPathInfo(const std::string& info);
+        void setCgiPathTranslated(const std::string& translated);
 		void setError(e_status_code error);
 		void addAllowedMethod(const std::string& method);
 		void setBody(const std::string& body);
@@ -73,6 +79,9 @@ class Decision {
 		const std::string &getRedirURL() const;
 		const std::string &getErrorPage() const;
         const std::string &getCgiInterpreter() const;
+        const std::string &getCgiScriptName() const;
+        const std::string &getCgiPathInfo() const;
+        const std::string &getCgiPathTranslated() const;
 		const std::vector<std::string> &getAllowedMethods() const;
 		const std::string &getBody() const;
 		const ServerConfig* getServerConfig() const;

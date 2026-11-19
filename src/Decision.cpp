@@ -26,6 +26,9 @@ Decision& Decision::operator=(const Decision& other) {
 		redir_url_			= other.redir_url_;
 		error_page_			= other.error_page_;
         cgi_interpreter_    = other.cgi_interpreter_;
+        cgi_script_name_    = other.cgi_script_name_;
+        cgi_path_info_      = other.cgi_path_info_;
+        cgi_path_translated_= other.cgi_path_translated_;
 		allowed_methods_	= other.allowed_methods_;
 		body_				= other.body_;
 		server_cfg_			= other.server_cfg_;
@@ -63,6 +66,18 @@ void Decision::setErrorPage(const std::string& error_page) {
 
 void Decision::setCgiInterpreter(const std::string& interpreter) {
     cgi_interpreter_ = interpreter;
+}
+
+void Decision::setCgiScriptName(const std::string& name) {
+    cgi_script_name_ = name;
+}
+
+void Decision::setCgiPathInfo(const std::string& info) {
+    cgi_path_info_ = info;
+}
+
+void Decision::setCgiPathTranslated(const std::string& translated) {
+    cgi_path_translated_ = translated;
 }
 
 void Decision::setError(e_status_code error) {
@@ -122,6 +137,18 @@ const std::string& Decision::getErrorPage() const {
 
 const std::string& Decision::getCgiInterpreter() const {
     return cgi_interpreter_;
+}
+
+const std::string& Decision::getCgiScriptName() const {
+    return cgi_script_name_;
+}
+
+const std::string& Decision::getCgiPathInfo() const {
+    return cgi_path_info_;
+}
+
+const std::string& Decision::getCgiPathTranslated() const {
+    return cgi_path_translated_;
 }
 
 const std::vector<std::string>& Decision::getAllowedMethods() const {
