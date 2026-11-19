@@ -258,12 +258,6 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		{
 			saved_error = conn->getLastIoError();
 
-			// No es una desconexión: no hay datos ahora, o hubo una señal.
-			// Regresamos al bucle sin borrar la conexión.
-			if (saved_error == EAGAIN || saved_error == EWOULDBLOCK
-				|| saved_error == EINTR)
-				return 0;
-
 			msg << "ServerCore: recv failed fd=" << fd
 				<< " errno=" << saved_error
 				<< " (" << std::strerror(saved_error) << ")";
@@ -356,12 +350,6 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		if (io_bytes < 0)
 		{
 			saved_error = conn->getLastIoError();
-
-			// Conservamos el buffer y EPOLLOUT.
-			// Con epoll en modo level-triggered habrá otra oportunidad.
-			if (saved_error == EAGAIN || saved_error == EWOULDBLOCK
-				|| saved_error == EINTR)
-				return 0;
 
 			msg << "ServerCore: send failed fd=" << fd
 				<< " errno=" << saved_error
