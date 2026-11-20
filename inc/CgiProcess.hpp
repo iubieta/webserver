@@ -1,0 +1,84 @@
+#ifndef CGI_PROCESS_HPP
+#define CGI_PROCESS_HPP
+
+#include <cstddef>
+#include <string>
+#include <sys/types.h>
+
+// Track one CGI execution independently from the server event loop.
+// Increment 3A models state and buffers; it does not create processes or FDs.
+class CgiProcess {
+public:
+    enum State {
+        CGI_CREATED,
+        CGI_RUNNING,
+        CGI_FINISHED,
+        CGI_FAILED,
+        CGI_TIMED_OUT,
+        CGI_CANCELLED
+    };
+
+    enum OutputResult {
+        CGI_OUTPUT_OK,
+        CGI_OUTPUT_TOO_LARGE,
+        CGI_OUTPUT_INVALID_STATE
+    };
+
+    static const std::size_t MAX_OUTPUT_BYTES = 10u * 1024u * 1024u;
+
+    CgiProcess();
+    ~CgiProcess();
+
+    // Prepare a process-owned copy of the request body before any fork.
+    bool prepare(unsigned long connectionId, const std::string& requestBody);
+
+    // Record the child PID only after a successful fork in a later increment.
+    bool markRunning(pid_t childPid);
+
+    // Record independent lifecycle signals; neither alone finishes the CGI.
+    void markChildExited(int waitStatus);
+    void markStdoutEof();
+    void markStdinClosed();
+
+    // Append binary-safe stdout without exceeding the per-CGI budget.
+    OutputResult appendOutput(const char* bytes, std::size_t length);
+
+    // Terminal failures cannot be overwritten by late child or pipe events.
+    void fail();
+    void timeOut();
+    void cancel();
+
+    State state() const;
+    pid_t pid() const;
+    unsigned long connectionId() const;
+    bool stdinClosed() const;
+    bool stdoutEof() const;
+    bool childExited() const;
+    int childExitStatus() const;
+    const std::string& inputBuffer() const;
+    const std::string& outputBuffer() const;
+    std::size_t inputOffset() const;
+
+    // Record bytes already written to CGI stdin; never exceed body length.
+    bool advanceInput(std::size_t count);
+
+private:
+    State state_;
+    pid_t pid_;
+    unsigned long connection_id_;
+    bool stdin_closed_;
+    bool stdout_eof_;
+    bool child_exited_;
+    int child_exit_status_;
+    std::string input_buffer_;
+    std::size_t input_offset_;
+    std::string output_buffer_;
+
+    CgiProcess(const CgiProcess& other);
+    CgiProcess& operator=(const CgiProcess& other);
+
+    bool terminal() const;
+    void tryFinish();
+};
+
+#endif
