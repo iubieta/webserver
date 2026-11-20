@@ -214,8 +214,40 @@ CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::build(const Request& request
             clear();
             return err;
         }
+        err = addHeaders(request);
+        if (err != CGI_ENV_OK) {
+            clear();
+            return err;
+        }
     } catch (const std::bad_alloc&) {
         // Preserve the all-or-nothing contract on allocation failure.
+        clear();
+        return CGI_ENV_MEMORY_ERROR;
+    }
+    return CGI_ENV_OK;
+}
+
+// Extend the validated core environment with trusted socket metadata.
+// Reject missing peer addresses instead of fabricating them from Host/X-Forwarded-For.
+CgiEnvironmentBuilder::Error CgiEnvironmentBuilder::build( const Request& request, 
+    const Decision& decision, const ConnectionInfo& connection) {
+    if (connection.remoteAddress.empty()) {
+        clear();
+        return CGI_ENV_MISSING_VARIABLE;
+    }
+
+    const Error base = build(request, decision);
+    if (base != CGI_ENV_OK) 
+        return base;
+    try {
+        Error err = add("REMOTE_ADDR", connection.remoteAddress);
+        if (err == CGI_ENV_OK && !connection.remoteHost.empty())
+            err = add("REMOTE_HOST", connection.remoteHost);
+        if (err != CGI_ENV_OK) {
+            clear();
+            return err;
+        }
+    } catch (const std::bad_alloc&) {
         clear();
         return CGI_ENV_MEMORY_ERROR;
     }

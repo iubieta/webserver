@@ -27,11 +27,21 @@ public:
         CGI_ENV_MEMORY_ERROR
     };
 
+    // Connection metadata supplied by the socket owner, never HTTP headers.
+    struct ConnectionInfo {
+        std::string remoteAddress;
+        std::string remoteHost;
+    };
+
     CgiEnvironmentBuilder();
     ~CgiEnvironmentBuilder();
 
     // Build the CGI environment from the parsed request and routing decision.
     Error build(const Request& request, const Decision& decision);
+    // Add socket-derived REMOTE_ADDR and optional REMOTE_HOST to CGI metadata.
+    // The caller must obtain these from the accepted connection, not headers.
+    Error build(const Request& request, const Decision& decision, 
+        const ConnectionInfo& connection);
     // Return NAME=value entries; conversion to envp happens later.
     const std::vector<std::string>& getVariables() const;
     // Discard all entries and reset the byte budget.
