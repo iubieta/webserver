@@ -226,3 +226,62 @@ void CgiProcess::tryFinish() {
     if (state_ == CGI_RUNNING && child_exited_ && stdout_eof_)
         state_ = CGI_FINISHED;
 }
+
+// Launch a child after creating all pipes. The parent retains only its ends.
+// No std::string/vector operations or allocations are performed in the child.
+CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
+    char* const* argv, char* const* envp) {
+    if (state_ != CGI_CREATED || executable.empty() ||
+        executable.find('\0') != std::string::npos ||
+        argv == NULL || argv[0] == NULL || envp == NULL ||
+        stdin_pipe_[0] >= 0 || stdin_pipe_[1] >= 0 ||
+        stdout_pipe_[0] >= 0 || stdout_pipe_[1] >= 0 ||
+        exec_error_pipe_[0] >= 0 || exec_error_pipe_[1] >= 0)
+        return CGI_LAUNCH_INVALID;
+
+    if (!createPipes())
+        return CGI_LAUNCH_PIPE_ERROR;
+
+    const pid_t child = fork();
+    if (child < 0) {
+        closePipes();
+        return CGI_LAUNCH_FORK_ERROR;
+    }
+    if (child == 0) {
+        closeParentEndsInChild();
+        // Duplicate source descriptors above stdio before dup2: this also
+        // handles a server launched with stdin or stdout initially closed.
+        int input = fcntl(stdin_pipe_[0], F_DUPFD, 3);
+        int output = fcntl(stdout_pipe_[1], F_DUPFD, 3);
+        int errorFd = fcntl(exec_error_pipe_[1], F_DUPFD, 3);
+        int failure = errno;
+        if (input < 0 || output < 0 || errorFd < 0) {
+            if (errorFd >= 0) 
+                write(errorFd, &failure, sizeof(failure));
+            else 
+                write(exec_error_pipe_[1], &failure, sizeof(failure));
+            std::terminate();
+        }
+        closeFd(stdin_pipe_[0]);
+        closeFd(stdout_pipe_[1]);
+        closeFd(exec_error_pipe_[1]);
+        // F_DUPFD does not preserve FD_CLOEXEC; restore it for the error pipe.
+        const int flags = fcntl(errorFd, F_GETFD);
+        if (flags == -1 || fcntl(errorFd, F_SETFD, flags | FD_CLOEXEC) == -1 ||
+            dup2(input, STDIN_FILENO) == -1 ||
+            dup2(output, STDOUT_FILENO) == -1) {
+            failure = errno;
+            write(errorFd, &failure, sizeof(failure));
+            std::terminate();
+        }
+        close(input);
+        close(output);
+        execve(executable.c_str(), argv, envp);
+        failure = errno;
+        write(errorFd, &failure, sizeof(failure));
+        std::terminate();
+    }
+    closeChildEndsInParent();
+    markRunning(child);
+    return CGI_LAUNCH_STARTED;
+}

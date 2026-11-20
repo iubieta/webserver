@@ -6,6 +6,8 @@
 #include <cerrno>
 #include <cstddef>
 #include <string>
+#include <cstdlib>
+#include <exception>
 #include <sys/types.h>
 
 // Track one CGI execution independently from the server event loop.
@@ -31,6 +33,18 @@ public:
 
     CgiProcess();
     ~CgiProcess();
+
+    enum LaunchResult {
+        CGI_LAUNCH_STARTED,
+        CGI_LAUNCH_INVALID,
+        CGI_LAUNCH_PIPE_ERROR,
+        CGI_LAUNCH_FORK_ERROR
+    };
+
+    // Fork a CGI child using previously built execve arrays.
+    // The caller owns launchData and must keep it valid through this call.
+    LaunchResult launch(const std::string& executable, char* const* argv,
+        char* const* envp);
 
     // Allocate three pipes and make only the future parent ends nonblocking.
     // On failure all descriptors are closed and the object stays CREATED.
