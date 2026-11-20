@@ -1,6 +1,9 @@
 #ifndef CGI_PROCESS_HPP
 #define CGI_PROCESS_HPP
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <cerrno>
 #include <cstddef>
 #include <string>
 #include <sys/types.h>
@@ -28,6 +31,24 @@ public:
 
     CgiProcess();
     ~CgiProcess();
+
+    // Allocate three pipes and make only the future parent ends nonblocking.
+    // On failure all descriptors are closed and the object stays CREATED.
+    bool createPipes();
+
+    // Close ends that belong to the other process after fork succeeds.
+    void closeChildEndsInParent();
+    void closeParentEndsInChild();
+
+    // Close every descriptor still owned by this object (idempotent).
+    void closePipes();
+
+    int parentStdinFd() const;
+    int parentStdoutFd() const;
+    int parentExecErrorFd() const;
+    int childStdinFd() const;
+    int childStdoutFd() const;
+    int childExecErrorFd() const;
 
     // Prepare a process-owned copy of the request body before any fork.
     bool prepare(unsigned long connectionId, const std::string& requestBody);
@@ -63,6 +84,9 @@ public:
     bool advanceInput(std::size_t count);
 
 private:
+    int stdin_pipe_[2];
+    int stdout_pipe_[2];
+    int exec_error_pipe_[2];
     State state_;
     pid_t pid_;
     unsigned long connection_id_;
@@ -77,6 +101,8 @@ private:
     CgiProcess(const CgiProcess& other);
     CgiProcess& operator=(const CgiProcess& other);
 
+    static void closeFd(int& fd);
+    static bool setNonBlocking(int fd);
     bool terminal() const;
     void tryFinish();
 };

@@ -4,10 +4,77 @@
 CgiProcess::CgiProcess()
     : state_(CGI_CREATED), pid_(-1), connection_id_(0),
       stdin_closed_(false), stdout_eof_(false), child_exited_(false),
-      child_exit_status_(0), input_offset_(0) {}
+      child_exit_status_(0), input_offset_(0) {
+          stdin_pipe_[0] = stdin_pipe_[1] = -1;
+          stdout_pipe_[0] = stdout_pipe_[1] = -1;
+          exec_error_pipe_[0] = exec_error_pipe_[1] = -1;
+      }
 
 // Increment 3A has no owned file descriptors or child to release.
 CgiProcess::~CgiProcess() {}
+
+// Retry close after EINTR is unsafe because the descriptor may already be reused.
+void CgiProcess::closeFd(int& fd) {
+    if (fd >= 0) {
+        const int old = fd;
+        fd = -1;
+        close(old);
+    }
+}
+
+// Preserve existing file status flags while enabling nonblocking I/O.
+bool CgiProcess::setNonBlocking(int fd) {
+    const int flags = fcntl(fd, F_GETFL);
+    return flags != -1 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
+}
+
+// Create stdin, stdout, and exec-error pipes atomically from the caller's view.
+// Parent uses stdin[1], stdout[0], exec_error[0]; the child uses opposite ends.
+bool CgiProcess::createPipes() {
+    if (state_ != CGI_CREATED || stdin_pipe_[0] >= 0 || stdout_pipe_[0] >= 0 ||
+        exec_error_pipe_[0] >= 0)
+        return false;
+
+    if (pipe(stdin_pipe_) == -1 || pipe(stdout_pipe_) == -1 ||
+        pipe(exec_error_pipe_) == -1 ||
+        !setNonBlocking(stdin_pipe_[1]) ||
+        !setNonBlocking(stdout_pipe_[0]) ||
+        !setNonBlocking(exec_error_pipe_[0])) {
+        closePipes();
+        return false;
+    }
+
+    // Only the child's exec-error writer should survive until execve; a
+    // successful execve automatically closes it, allowing the parent to see EOF.
+    const int flags = fcntl(exec_error_pipe_[1], F_GETFD);
+    if (flags == -1 || fcntl(exec_error_pipe_[1], F_SETFD, flags | FD_CLOEXEC) == -1) {
+        closePipes();
+        return false;
+    }
+    return true;
+}
+
+// The parent must not retain child-only ends, otherwise EOF can be delayed.
+void CgiProcess::closeChildEndsInParent() {
+    closeFd(stdin_pipe_[0]);
+    closeFd(stdout_pipe_[1]);
+    closeFd(exec_error_pipe_[1]);
+}
+
+// The forked child must not retain the parent ends.
+void CgiProcess::closeParentEndsInChild() {
+    closeFd(stdin_pipe_[1]);
+    closeFd(stdout_pipe_[0]);
+    closeFd(exec_error_pipe_[0]);
+}
+
+// Safe to invoke repeatedly, including after partial pipe creation.
+void CgiProcess::closePipes() {
+    closeFd(stdin_pipe_[0]); closeFd(stdin_pipe_[1]);
+    closeFd(stdout_pipe_[0]); closeFd(stdout_pipe_[1]);
+    closeFd(exec_error_pipe_[0]); closeFd(exec_error_pipe_[1]);
+}
+
 
 // Replace the initial body only while the process has not started.
 bool CgiProcess::prepare(unsigned long connectionId, const std::string& requestBody) {
@@ -115,6 +182,30 @@ const std::string& CgiProcess::outputBuffer() const {
 
 std::size_t CgiProcess::inputOffset() const { 
     return input_offset_; 
+}
+
+int CgiProcess::parentStdinFd() const { 
+    return stdin_pipe_[1]; 
+}
+
+int CgiProcess::parentStdoutFd() const { 
+    return stdout_pipe_[0]; 
+}
+
+int CgiProcess::parentExecErrorFd() const { 
+    return exec_error_pipe_[0]; 
+}
+
+int CgiProcess::childStdinFd() const { 
+    return stdin_pipe_[0]; 
+}
+
+int CgiProcess::childStdoutFd() const { 
+    return stdout_pipe_[1]; 
+}
+
+int CgiProcess::childExecErrorFd() const { 
+    return exec_error_pipe_[1]; 
 }
 
 // Advance only by the number of bytes confirmed written to the stdin pipe.
