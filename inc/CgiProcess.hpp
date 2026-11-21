@@ -5,9 +5,11 @@
 #include <fcntl.h>
 #include <cerrno>
 #include <cstddef>
+#include <cstring>
 #include <string>
 #include <cstdlib>
 #include <exception>
+#include <iostream>
 #include <sys/types.h>
 
 // Track one CGI execution independently from the server event loop.
@@ -27,6 +29,15 @@ public:
         CGI_OUTPUT_OK,
         CGI_OUTPUT_TOO_LARGE,
         CGI_OUTPUT_INVALID_STATE
+    };
+
+    enum IoResult {
+        CGI_IO_PROGRESS,
+        CGI_IO_AGAIN,
+        CGI_IO_CLOSED,
+        CGI_IO_ERROR,
+        CGI_IO_TOO_LARGE,
+        CGI_IO_INVALID
     };
 
     static const std::size_t MAX_OUTPUT_BYTES = 10u * 1024u * 1024u;
@@ -63,6 +74,14 @@ public:
     int childStdinFd() const;
     int childStdoutFd() const;
     int childExecErrorFd() const;
+
+    // Transfer one nonblocking chunk; the caller schedules subsequent readiness.
+    IoResult writeInput();
+    IoResult readOutput();
+    IoResult readExecError();
+    bool execErrorReceived() const;
+    int execErrorCode() const;
+    bool execErrorEof() const;
 
     // Prepare a process-owned copy of the request body before any fork.
     bool prepare(unsigned long connectionId, const std::string& requestBody);
@@ -111,6 +130,11 @@ private:
     std::string input_buffer_;
     std::size_t input_offset_;
     std::string output_buffer_;
+    unsigned char exec_error_bytes_[sizeof(int)];
+    std::size_t exec_error_offset_;
+    bool exec_error_received_;
+    bool exec_error_eof_;
+    int exec_error_code_;
 
     CgiProcess(const CgiProcess& other);
     CgiProcess& operator=(const CgiProcess& other);

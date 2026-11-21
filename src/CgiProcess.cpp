@@ -4,14 +4,15 @@
 CgiProcess::CgiProcess()
     : state_(CGI_CREATED), pid_(-1), connection_id_(0),
       stdin_closed_(false), stdout_eof_(false), child_exited_(false),
-      child_exit_status_(0), input_offset_(0) {
-          stdin_pipe_[0] = stdin_pipe_[1] = -1;
-          stdout_pipe_[0] = stdout_pipe_[1] = -1;
-          exec_error_pipe_[0] = exec_error_pipe_[1] = -1;
-      }
+      child_exit_status_(0), input_offset_(0), exec_error_offset_(0),
+      exec_error_received_(false), exec_error_eof_(false), exec_error_code_(0) {
+    stdin_pipe_[0] = stdin_pipe_[1] = -1;
+    stdout_pipe_[0] = stdout_pipe_[1] = -1;
+    exec_error_pipe_[0] = exec_error_pipe_[1] = -1;
+}
 
 // Increment 3A has no owned file descriptors or child to release.
-CgiProcess::~CgiProcess() {}
+CgiProcess::~CgiProcess() { closePipes(); }
 
 // Retry close after EINTR is unsafe because the descriptor may already be reused.
 void CgiProcess::closeFd(int& fd) {
@@ -144,70 +145,6 @@ void CgiProcess::cancel() {
     if (!terminal()) state_ = CGI_CANCELLED;
 }
 
-CgiProcess::State CgiProcess::state() const { 
-    return state_; 
-}
-
-pid_t CgiProcess::pid() const { 
-    return pid_; 
-}
-
-unsigned long CgiProcess::connectionId() const { 
-    return connection_id_; 
-}
-
-bool CgiProcess::stdinClosed() const { 
-    return stdin_closed_; 
-}
-
-bool CgiProcess::stdoutEof() const { 
-    return stdout_eof_; 
-}
-
-bool CgiProcess::childExited() const { 
-    return child_exited_; 
-}
-
-int CgiProcess::childExitStatus() const { 
-    return child_exit_status_; 
-}
-
-const std::string& CgiProcess::inputBuffer() const { 
-    return input_buffer_; 
-}
-
-const std::string& CgiProcess::outputBuffer() const { 
-    return output_buffer_; 
-}
-
-std::size_t CgiProcess::inputOffset() const { 
-    return input_offset_; 
-}
-
-int CgiProcess::parentStdinFd() const { 
-    return stdin_pipe_[1]; 
-}
-
-int CgiProcess::parentStdoutFd() const { 
-    return stdout_pipe_[0]; 
-}
-
-int CgiProcess::parentExecErrorFd() const { 
-    return exec_error_pipe_[0]; 
-}
-
-int CgiProcess::childStdinFd() const { 
-    return stdin_pipe_[0]; 
-}
-
-int CgiProcess::childStdoutFd() const { 
-    return stdout_pipe_[1]; 
-}
-
-int CgiProcess::childExecErrorFd() const { 
-    return exec_error_pipe_[1]; 
-}
-
 // Advance only by the number of bytes confirmed written to the stdin pipe.
 bool CgiProcess::advanceInput(std::size_t count) {
     if (state_ != CGI_RUNNING || stdin_closed_ || count > input_buffer_.size() - input_offset_)
@@ -284,4 +221,166 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
     closeChildEndsInParent();
     markRunning(child);
     return CGI_LAUNCH_STARTED;
+}
+
+// Write at most one chunk; progress is recorded only after a successful write.
+// SIGPIPE must be ignored or otherwise handled by the hosting server.
+CgiProcess::IoResult CgiProcess::writeInput() {
+    if (state_ != CGI_RUNNING || stdin_closed_ || stdin_pipe_[1] < 0)
+        return CGI_IO_INVALID;
+    if (input_offset_ == input_buffer_.size()) {
+        closeFd(stdin_pipe_[1]);
+        markStdinClosed();
+        return CGI_IO_CLOSED;
+    }
+    const std::size_t remaining = input_buffer_.size() - input_offset_;
+    const std::size_t count = remaining < 16384u ? remaining : 16384u;
+    const ssize_t n = write(stdin_pipe_[1], input_buffer_.data() + input_offset_, count);
+    if (n > 0) {
+        input_offset_ += static_cast<std::size_t>(n);
+        if (input_offset_ == input_buffer_.size()) {
+            closeFd(stdin_pipe_[1]);
+            markStdinClosed();
+        }
+        return CGI_IO_PROGRESS;
+    }
+    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
+        return CGI_IO_AGAIN;
+    closeFd(stdin_pipe_[1]);
+    markStdinClosed();
+    fail();
+    return CGI_IO_ERROR;
+}
+
+// Read one chunk and retain binary bytes; EOF is distinct from child reaping.
+CgiProcess::IoResult CgiProcess::readOutput() {
+    if (state_ != CGI_RUNNING || stdout_eof_ || stdout_pipe_[0] < 0)
+        return CGI_IO_INVALID;
+    char buffer[8192];
+    const ssize_t n = read(stdout_pipe_[0], buffer, sizeof(buffer));
+    if (n > 0) {
+        if (appendOutput(buffer, static_cast<std::size_t>(n)) == CGI_OUTPUT_TOO_LARGE) {
+            fail();
+            return CGI_IO_TOO_LARGE;
+        }
+        return CGI_IO_PROGRESS;
+    }
+    if (n == 0) {
+        closeFd(stdout_pipe_[0]);
+        markStdoutEof();
+        return CGI_IO_CLOSED;
+    }
+    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+        return CGI_IO_AGAIN;
+    fail();
+    return CGI_IO_ERROR;
+}
+
+// Read a possibly fragmented native int; EOF without data indicates exec success.
+// An incomplete integer at EOF is a protocol error, not a successful exec.
+CgiProcess::IoResult CgiProcess::readExecError() {
+    if (state_ != CGI_RUNNING || exec_error_eof_ || exec_error_received_ ||
+        exec_error_pipe_[0] < 0)
+        return CGI_IO_INVALID;
+    const ssize_t n = read(exec_error_pipe_[0],
+        exec_error_bytes_ + exec_error_offset_, sizeof(int) - exec_error_offset_);
+    if (n > 0) {
+        exec_error_offset_ += static_cast<std::size_t>(n);
+        if (exec_error_offset_ == sizeof(int)) {
+            std::memcpy(&exec_error_code_, exec_error_bytes_, sizeof(int));
+            exec_error_received_ = true;
+            closeFd(exec_error_pipe_[0]);
+            fail();
+        }
+        return CGI_IO_PROGRESS;
+    }
+    if (n == 0) {
+        exec_error_eof_ = true;
+        closeFd(exec_error_pipe_[0]);
+        if (exec_error_offset_ != 0) {
+            fail();
+            return CGI_IO_ERROR;
+        }
+        return CGI_IO_CLOSED;
+    }
+    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+        return CGI_IO_AGAIN;
+    fail();
+    return CGI_IO_ERROR;
+}
+
+CgiProcess::State CgiProcess::state() const { 
+    return state_; 
+}
+
+pid_t CgiProcess::pid() const { 
+    return pid_; 
+}
+
+unsigned long CgiProcess::connectionId() const { 
+    return connection_id_; 
+}
+
+bool CgiProcess::stdinClosed() const { 
+    return stdin_closed_; 
+}
+
+bool CgiProcess::stdoutEof() const { 
+    return stdout_eof_; 
+}
+
+bool CgiProcess::childExited() const { 
+    return child_exited_; 
+}
+
+int CgiProcess::childExitStatus() const { 
+    return child_exit_status_; 
+}
+
+const std::string& CgiProcess::inputBuffer() const { 
+    return input_buffer_; 
+}
+
+const std::string& CgiProcess::outputBuffer() const { 
+    return output_buffer_; 
+}
+
+std::size_t CgiProcess::inputOffset() const { 
+    return input_offset_; 
+}
+
+int CgiProcess::parentStdinFd() const { 
+    return stdin_pipe_[1]; 
+}
+
+int CgiProcess::parentStdoutFd() const { 
+    return stdout_pipe_[0]; 
+}
+
+int CgiProcess::parentExecErrorFd() const { 
+    return exec_error_pipe_[0]; 
+}
+
+int CgiProcess::childStdinFd() const { 
+    return stdin_pipe_[0]; 
+}
+
+int CgiProcess::childStdoutFd() const { 
+    return stdout_pipe_[1]; 
+}
+
+int CgiProcess::childExecErrorFd() const { 
+    return exec_error_pipe_[1]; 
+}
+
+bool CgiProcess::execErrorReceived() const { 
+    return exec_error_received_; 
+}
+
+int CgiProcess::execErrorCode() const { 
+    return exec_error_code_; 
+}
+
+bool CgiProcess::execErrorEof() const { 
+    return exec_error_eof_; 
 }
