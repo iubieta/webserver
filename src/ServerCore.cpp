@@ -126,7 +126,7 @@ void ServerCore::cleanConnection(int fd)
 
 	// Confirmamos la limpieza después de realizarla.
 	msg << "ServerCore: connection cleaned fd=" << fd;
-	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+	ft_log::global().info(msg.str(), __FILE__, __LINE__);
 }
 
 void ServerCore::closeSockets() {

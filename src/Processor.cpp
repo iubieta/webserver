@@ -180,6 +180,9 @@ Decision Processor::procRequest(const Request& req) {
 				// If GET or DELETE methods -> NOT FOUND
 				res.setError(NOT_FOUND);
 				return res;
+			case ENAMETOOLONG:
+				res.setError(URI_TOO_LONG);
+				return res;
 			default:
 				res.setError(INTERNAL_ERROR);
 				return res;

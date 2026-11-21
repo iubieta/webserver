@@ -22,6 +22,7 @@ static const  t_status_message status_messages[] =
 	{ REQUEST_TIMEOUT , 		"Request Timeout" },
 	{ LENGTH_REQUIRED , 		"Length Required" },
 	{ PAYLOAD_TOO_LARGE , 		"Payload Too Large" },
+	{ URI_TOO_LONG,				"URI Too Long"},
 	{ UNSUPPORTED_MEDIA_TYPE , 	"Unsupported Media Type" },
 	{ HEADERS_TOO_LARGE , 		"Request Header Field Too Large" },
 	{ INTERNAL_ERROR , 			"Internal Server Error" },

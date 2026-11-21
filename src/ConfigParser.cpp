@@ -227,7 +227,7 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 				return -1;
 			if(location.setAutoindex(temp) == -1)
 				return -1;
-			location.setAutoindexSet(true);
+			location.setAutoindexSet(true); //It has been set.
 		}
 		else if (token_[index] == "root")
 		{
