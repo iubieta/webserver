@@ -133,22 +133,6 @@ Decision Processor::procRequest(const Request& req) {
 		return res;
 	}
 
-	// Checks request content length -- PARSER RESPONSABILITY
-	// switch (checkContentLength(req, *cfg)) {
-	// 	case 1: // Data error
-	// 	{
-	// 		ft_log::global().error("Content length data error");
-	// 		res.setError(BAD_REQUEST);
-	// 		return res;
-	// 	}
-	// 	case 2: // Content length greater than max body size
-	// 	{
-	// 		ft_log::global().warning("Request content-length too long");
-	// 		res.setError(PAYLOAD_TOO_LARGE);
-	// 		return res;
-	// 	}
-	// }
-
 	// Resolves disk path: location root + target
 	std::string root = PathUtils::resolveRoot(cfg, serv_cfg_);
 	std::string disk_path;
@@ -191,6 +175,8 @@ Decision Processor::procRequest(const Request& req) {
 	// When target is a dir: checks for index or autoindex
 	else if (S_ISDIR(stat_buf.st_mode))
 	{
+		if (disk_path[disk_path.size() - 1] != '/')
+			disk_path += "/";
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{

@@ -1,8 +1,6 @@
 #ifndef CONFIG_PARSE_HPP
 #define CONFIG_PARSE_HPP
 
-#include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 #include "ServerConfig.hpp"

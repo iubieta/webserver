@@ -1,5 +1,8 @@
 #include "../inc/ConfigParser.hpp"
 
+#include <fstream>
+#include <iostream>
+
 ConfigParse::ConfigParse(const std::string &file_name)
 	:	file_name_(file_name),
 		token_(),

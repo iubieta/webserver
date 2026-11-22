@@ -27,6 +27,7 @@ static const  t_status_message status_messages[] =
 	{ HEADERS_TOO_LARGE , 		"Request Header Field Too Large" },
 	{ INTERNAL_ERROR , 			"Internal Server Error" },
 	{ NOT_IMPLEMENTED , 		"Not Implemented" },
+	{ BAD_GATEWAY , 			"Bad Gateway" },
 	{ SERVICE_UNAVAILABLE , 	"Service Unavailable" },
 	{ VERSION_NOT_SUPPORTED , 	"HTTP Version Not Supported" },
 
