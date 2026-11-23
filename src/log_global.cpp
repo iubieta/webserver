@@ -7,7 +7,7 @@
 
 namespace ft_log {
 	Logger& global() {
-		static Logger instance;
+		static Logger instance("webserv.log");
 		//instance.setConsoleLevel(DEBUG);
 		return instance;
 	}
