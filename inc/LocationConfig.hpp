@@ -86,7 +86,7 @@ class	LocationConfig
 		int setAutoindex(bool autoindex);
 		int	setClientMax(const std::string &client_max);
 		int setClientMax(size_t clienMax);
-		void addIndex(const std::string &index);
+		int addIndex(const std::string &index);
 		int addMethod(const std::string &method);
 		int setVecIndex(const std::vector<std::string> &index);
 		int setTarget(const std::string &target);

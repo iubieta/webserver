@@ -58,7 +58,7 @@ class ServerConfig
         int addErrorPage(const std::string &code, const std::string &page);
         void setErrorPages(const std::map<e_status_code, std::string> &erro_pages);
 
-        void addIndex(const std::string &index_file);
+        int addIndex(const std::string &index);
         void addLocation(const LocationConfig &location);
 };
 

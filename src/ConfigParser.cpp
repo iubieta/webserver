@@ -272,7 +272,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			while (index < token_.size()
 				&& !endSemicolon(token_[index]))
 			{
-				location.addIndex(token_[index]);
+				if (location.addIndex(token_[index]) == -1)
+					return -1;
 				index++;
 			}
 			if (index >= token_.size())
@@ -280,7 +281,8 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			temp = clearSemicolon(token_[index]);
 			if (temp.empty())
 				return -1;
-			location.addIndex(temp);
+			if (location.addIndex(temp) == -1)
+				return -1;
 		}
 		else if(token_[index] == "alias")
 		{
@@ -447,7 +449,8 @@ int ConfigParse::serverBlocks(size_t &index)
 			while (index < token_.size()
 				&& !endSemicolon(token_[index]))
 			{
-				server.addIndex(token_[index]);
+				if (server.addIndex(token_[index]) == -1)
+					return -1;
 				index++;
 			}
 			if (index >= token_.size())
@@ -455,7 +458,8 @@ int ConfigParse::serverBlocks(size_t &index)
 			temp = clearSemicolon(token_[index]);
 			if (temp.empty())
 				return -1;
-			server.addIndex(temp);
+			if (server.addIndex(temp) == -1)
+				return -1;
 		}
 		else if (token_[index] == "location")
 		{

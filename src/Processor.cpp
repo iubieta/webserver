@@ -175,8 +175,12 @@ Decision Processor::procRequest(const Request& req) {
 	// When target is a dir: checks for index or autoindex
 	else if (S_ISDIR(stat_buf.st_mode))
 	{
-		if (disk_path[disk_path.size() - 1] != '/')
-			disk_path += "/";
+		// if (disk_path[disk_path.size() - 1] != '/')
+		// {
+		// 	disk_path += "/";
+		// 	res.setDiskPath(disk_path);
+		// }
+			
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{

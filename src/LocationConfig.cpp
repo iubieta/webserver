@@ -254,10 +254,18 @@ void LocationConfig::setReturnSet(bool returnSet)
 	return_set_ = returnSet;
 }
 
-void LocationConfig::addIndex(const std::string &index)
+int LocationConfig::addIndex(const std::string &index)
 {
-	if(!index.empty())
-		index_.push_back(index);
+
+	if (index.size() < 3 || index[0] == '.'  || 
+		index[index.size() - 1] == '.')
+		return -1;
+	if (index.find('.') == std::string::npos)
+		return -1;
+		
+	index_.push_back(index);
+	return 0;
+
 }
 
 int LocationConfig::addMethod(const std::string &method)
