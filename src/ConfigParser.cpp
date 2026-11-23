@@ -1,4 +1,5 @@
 #include "../inc/ConfigParser.hpp"
+#include "../inc/log_macros.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -7,8 +8,7 @@ ConfigParse::ConfigParse(const std::string &file_name)
 	:	file_name_(file_name),
 		token_(),
 		server_()
-{
-}
+{}
 
 ConfigParse::ConfigParse(const ConfigParse &other)
 	: file_name_(other.file_name_),
@@ -101,7 +101,7 @@ int ConfigParse::fileToken()
 
 	if(!file.is_open())
 	{
-		std::cerr <<"Error opening the file\n";
+		LOG_ERROR("error opening file");
 		return -1;
 	}
 
@@ -111,7 +111,7 @@ int ConfigParse::fileToken()
 		while(i < line.size() && isDelimiter(line[i]))
 			i++;
 		line = line.substr(i);
-		if(line.empty() ||line[0] == '#')
+		if(line.empty() || line[0] == '#')
 			continue;
 	
 		ftTokenize(line);
@@ -133,19 +133,26 @@ int ConfigParse::parseManager()
 
 	if (fileToken() == -1)
 		return -1;
+	LOG_DEBUG("file correctly tokenized");
 	
 	if (token_.empty())
+	{
+		LOG_ERROR("tokenization returned an empty vector");
 		return -1;
+	}
+
 	i = 0;
 	while (i < token_.size())
 	{
-		if (token_[i] != "server")
+		if (token_[i] != "server") {
+			LOG_ERROR("no server directive found");
 			return -1;
-		if (i + 1 >= token_.size() || token_[i + 1] != "{")
+		}
+		if (i + 1 >= token_.size() || token_[i + 1] != "{") {
+			LOG_ERROR("server block not closed");
 			return -1;
-		if (serverBlocks(i) == -1)
-		{
-			std::cerr << "Syntax error in the configuration file\n";
+		}
+		if (serverBlocks(i) == -1) {
 			return -1;
 		}
 		i++;
@@ -207,14 +214,23 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 
 	if (index >= token_.size() || token_[index].empty()
 		|| token_[index][0] != '/')
+	{
+		LOG_ERROR("syntax error -> location directive");
 		return -1;
+	}
 
 	if(location.setTarget(token_[index]) == -1)
+	{
+		LOG_ERROR("syntax error -> location directive");
 		return -1;
+	}
 	index++;
 
 	if (index >= token_.size() || token_[index] != "{")
+	{
+		LOG_ERROR("syntax error -> location directive");
 		return -1;
+	}
 	
 	index++;
 	while (index < token_.size() && token_[index] != "}")
@@ -224,12 +240,27 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", autoindex directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (location.getAutoindexSet())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", autoindex directive ");
 				return -1;
+			}
 			if(location.setAutoindex(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", autoindex directive ");
 				return -1;
+			}
 			location.setAutoindexSet(true); //It has been set.
 		}
 		else if (token_[index] == "root")
@@ -237,38 +268,78 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", root directive ");
 				return -1;
+			}
 			if (location.getRootSet()|| location.getAliasSet() ||
 				location.getReturnSet())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", root directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (location.setRoot(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", root directive ");
 				return -1;
+			}
 			location.setRootSet(true);
 		}
 		else if (token_[index] == "allow_methods")
 		{
 			index++;
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", allow_methods directive ");
 				return -1;
+			}
 			while (index < token_.size()
 				&& !endSemicolon(token_[index]))
 			{
 				if (location.addMethod(token_[index]) == -1)
-					return -1;
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", allow_methods directive ");
+				return -1;
+			}
 				index++;
 			}
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", allow_methods directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (location.addMethod(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", allow_methods directive ");
 				return -1;
+			}
 		}
 		else if (token_[index] == "index")
 		{
 			index++;
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", index directive ");
 				return -1;
+			}
 			while (index < token_.size()
 				&& !endSemicolon(token_[index]))
 			{
@@ -277,10 +348,20 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 				index++;
 			}
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", index directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (temp.empty())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", index directive ");
 				return -1;
+			}
 			if (location.addIndex(temp) == -1)
 				return -1;
 		}
@@ -289,16 +370,36 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", alias directive ");
 				return -1;
+			}
 			if(location.getRootSet() || location.getAliasSet() ||
 				location.getReturnSet())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", alias directive ");
 				return -1;
+			}
 			temp = location.getTarget();
 			if (temp[temp.size() - 1] != '/')
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", alias directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (location.setAlias(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", alias directive ");
 				return -1;
+			}
 			location.setAliasSet(true);
 		}
 		else if (token_[index] == "client_max_body_size")
@@ -306,43 +407,93 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 			index ++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", client_max_body_size directive ");
 				return -1;
+			}
 			if (location.getClientMaxbodySet())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", client_max_body_size directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (location.setClientMax(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", client_max_body_size directive ");
 				return -1;
+			}
 			location.setClientMaxBodySet(true);
 		}
 		else if(token_[index] == "return")
 		{
 			index++;
 			if (index >= token_.size() || endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", return directive ");
 				return -1;
+			}
 			temp = token_[index];
 			index++;
 			if (index >= token_.size() || !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", return directive ");
 				return -1;
+			}
 			if(location.getAliasSet() || location.getRootSet() ||
 				location.getReturnSet())
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", return directive ");
 				return -1;
+			}
 			if (location.setReturn(temp, clearSemicolon(token_[index])) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", return directive ");
 				return -1;
+			}
 			location.setReturnSet(true);
 		}
 		else if(token_[index] ==  "cgi")
 		{
 			index++;
 			if(index >= token_.size() || endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", cgi directive ");
 				return -1;
+			}
 			temp = token_[index];
 			index++;
 			if(index >= token_.size() || !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", cgi directive ");
 				return -1;
+			}
 			
 			if(location.addCgiHandler(temp, clearSemicolon(token_[index]))
 				== -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", cgi directive ");
 				return -1;
+			}
 		}
 		else if (token_[index] == "error_page")
 		{
@@ -354,17 +505,37 @@ int ConfigParse::locationBlocks(size_t &index, ServerConfig &server)
 				index ++;
 			}
 			if (index >= token_.size() || !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", error_page directive ");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (loadErrorPage(code, temp, location) == -1)
+			{
+				LOG_ERROR("syntax error -> "
+					<< "location: "	<< location.getTarget() 
+					<< ", error_page directive ");
 				return -1;
+			}
 		}
 		else
+		{
+			LOG_ERROR("syntax error -> "
+				<< "location: "	<< location.getTarget() 
+				<< ", unknown directive");
 			return -1;
+		}
 		index++;
 	}
 	if (index >= token_.size() || token_[index] != "}")
+	{
+		LOG_ERROR("syntax error -> "
+			<< "location: "	<< location.getTarget() 
+			<< ", location block not closed");
 		return -1;
+	}
 	server.addLocation(location);
 	return 0;
 }
@@ -386,66 +557,105 @@ int ConfigParse::serverBlocks(size_t &index)
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> server_name directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setServerName(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> server_name directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "host")
 		{
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> host directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setHost(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> host directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "listen")
 		{
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> listen directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setListen(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> listen directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "root")
 		{
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> root directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setRoot(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> root directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "autoindex")
 		{
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> autoindex directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setAutoindex(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> autoindex directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "client_max_body_size")
 		{
 			index++;
 			if (index >= token_.size()
 				|| !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> client_max_body_size directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (server.setClientMax(temp) == -1)
+			{
+				LOG_ERROR("syntax error -> client_max_body_size directive");
 				return -1;
+			}
 		}
 		else if (token_[index] == "index")
 		{
 			index++;
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> index directive");
 				return -1;
+			}
 			while (index < token_.size()
 				&& !endSemicolon(token_[index]))
 			{
@@ -454,10 +664,16 @@ int ConfigParse::serverBlocks(size_t &index)
 				index++;
 			}
 			if (index >= token_.size())
+			{
+				LOG_ERROR("syntax error -> index directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (temp.empty())
+			{
+				LOG_ERROR("syntax error -> index directive");
 				return -1;
+			}
 			if (server.addIndex(temp) == -1)
 				return -1;
 		}
@@ -465,7 +681,9 @@ int ConfigParse::serverBlocks(size_t &index)
 		{
 			index++;
 			if (locationBlocks(index, server) == -1)
+			{
 				return -1;
+			}
 		}
 		else if(token_[index] == "error_page")
 		{
@@ -477,17 +695,28 @@ int ConfigParse::serverBlocks(size_t &index)
 				index ++;
 			}
 			if (index >= token_.size() || !endSemicolon(token_[index]))
+			{
+				LOG_ERROR("syntax error -> error_page directive");
 				return -1;
+			}
 			temp = clearSemicolon(token_[index]);
 			if (loadErrorPage(code, temp, server) == -1)
+			{
+				LOG_ERROR("syntax error -> error_page directive");
 				return -1;
+			}
 		}
 		else
+		{
+			LOG_ERROR("syntax error -> unknown token found");
 			return -1;
+		}
 		index++;
 	}
-	if (index >= token_.size() || token_[index] != "}")
+	if (index >= token_.size() || token_[index] != "}") {
+		LOG_ERROR("syntax error -> server block not closed");
 		return -1;
+	}
 	if (normalizeConfigurationFile(server) == -1)
 		return -1;
 	this->server_.push_back(server);
@@ -509,11 +738,7 @@ int	ConfigParse::normalizeConfigurationFile(ServerConfig &server)
 			&& !it->getReturnSet())
 		{
 			if (server.getRoot().empty())
-			{
-				std::cerr << "No effective root for location."
-					<< std::endl;
 				return (-1);
-			}
 			it->setRoot(server.getRoot());
 		}
 		if (!it->getCgiHandlers().empty() && it->getRoot().empty())

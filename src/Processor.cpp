@@ -79,9 +79,6 @@ int methodSwitch(const std::string& method) {
 
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
-
-	ft_log::global().debug("Processing request");
-
 	Decision	res;
 	res.setServerConfig(serv_cfg_);
 	std::string target = resolvePath(req);
