@@ -51,6 +51,7 @@ private:
 	HttpResponse	response_;
 
 	int					last_io_error_;
+	bool				process_data_;
 
 	Connection(const Connection &other);
 	Connection& operator=(const Connection &other);
@@ -68,14 +69,15 @@ public:
 	void		disconnect();
 	double		getInactiveSeconds() const;
 	int			getLastIoError() const;
-
-	void updateLastActivity();
+	void		updateLastActivity();
+	bool		getProcessData() const;
+	void		setProcessData(bool processData);
 
 	// State control
 	void		setState(e_conn_state state);
 	e_conn_state getState() const;
 	void		advance();
-	const Buffer &getReadBuffer() const;		
+	const Buffer &getReadBuffer() const;
 	
 	// System I/O
 	ssize_t		readFromFd();

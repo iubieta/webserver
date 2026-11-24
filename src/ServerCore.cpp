@@ -210,7 +210,6 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	Connection							*conn;
 	std::ostringstream					msg;
 	ssize_t								io_bytes;
-	//e_conn_state						state_old;
 	int									fd;
 	int									saved_error;
 
@@ -269,31 +268,6 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 			return 0;
 		}
 
-		// while (conn->getState() != FINALIZAED)
-		// {
-		// 	state_old = conn->getState();
-		// 	conn->advance();
-
-		// 	if (state_old == READING_HEADERS
-		// 		&& conn->getState() == READING_HEADERS)
-		// 		break;
-		// 	if (state_old == READING_BODY
-		// 		&& conn->getState() == READING_BODY)
-		// 		break;
-		// }
-
-		// if (conn->getState() == FINALIZAED)
-		// {
-		// 	if (modifyEvent(fd, EPOLLOUT) < 0)
-		// 	{
-		// 		saved_error = errno;
-
-		// 		// No dejamos una respuesta esperando sin una vigilancia
-		// 		// de escritura que sepamos que se instaló correctamente.
-		// 		cleanConnection(fd);
-		// 		return -1;
-		// 	}
-		// }
 		return static_cast<int>(io_bytes);
 	}
 
@@ -352,33 +326,38 @@ int ServerCore::processConnections()
 	std::map<int, Connection *>::const_iterator it;
 	int fd;
 	e_conn_state state_old;
-	//int saved_error;
 
 	it = conns_.begin();
 	for(; it != conns_.end(); ++it)
 	{
-		while (it->second->getState() != FINALIZAED)
+		if (it->second->getProcessData())
 		{
-			state_old = it->second->getState();
-			it->second->advance();
-
-			if (state_old == READING_HEADERS
-				&& it->second->getState() == READING_HEADERS)
-				break;
-			if (state_old == READING_BODY
-				&& it->second->getState() == READING_BODY)
-				break;
-		}
-
-		if (it->second->getState() == FINALIZAED)
-		{
-			fd = it->second->getFd();
-			if (modifyEvent(fd, EPOLLOUT) < 0)
+			while (it->second->getState() != FINALIZAED)
 			{
-				cleanConnection(fd);
-				return -1;
+				state_old = it->second->getState();
+				it->second->advance();
+
+				if (state_old == READING_HEADERS
+					&& it->second->getState() == READING_HEADERS)
+					break;
+				if (state_old == READING_BODY
+					&& it->second->getState() == READING_BODY)
+					break;
 			}
+
+			if (it->second->getState() == FINALIZAED)
+			{
+				fd = it->second->getFd();
+				if (modifyEvent(fd, EPOLLOUT) < 0)
+				{
+					cleanConnection(fd);
+					return -1;
+				}
+			}
+
+			it->second->setProcessData(false);
 		}
+		
 	}
 	
 	return 0;

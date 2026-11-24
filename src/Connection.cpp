@@ -12,7 +12,7 @@
 Connection::Connection(int fd, const ServerConfig* config) : fd_(fd), config_(config),
 	closed_(false), last_activity_(time(NULL)), state_(READING_HEADERS), 
 	parser_(), request_(), processor_(config), decision_(), response_(),
-	last_io_error_(0)
+	last_io_error_(0), process_data_(false)
 {
 	std::ostringstream msg;
 	msg << "Connection: obj created (fd: " << fd_ << ")"; 
@@ -87,6 +87,17 @@ void Connection::disconnect() {
 	closed_ = true;
 }
 
+
+bool Connection::getProcessData() const
+{
+	return process_data_;
+}
+
+void Connection::setProcessData(bool processData)
+{
+	process_data_ = processData;
+}
+
 // System I/0
 ssize_t Connection::readFromFd() 
 {
@@ -113,6 +124,7 @@ ssize_t Connection::readFromFd()
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
+		process_data_ = true;
 		updateLastActivity();
 	}
 
