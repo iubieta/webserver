@@ -210,7 +210,7 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	Connection							*conn;
 	std::ostringstream					msg;
 	ssize_t								io_bytes;
-	e_conn_state						state_old;
+	//e_conn_state						state_old;
 	int									fd;
 	int									saved_error;
 
@@ -269,32 +269,32 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 			return 0;
 		}
 
-		while (conn->getState() != FINALIZAED)
-		{
-			state_old = conn->getState();
-			conn->advance();
+		// while (conn->getState() != FINALIZAED)
+		// {
+		// 	state_old = conn->getState();
+		// 	conn->advance();
 
-			if (state_old == READING_HEADERS
-				&& conn->getState() == READING_HEADERS)
-				break;
-			if (state_old == READING_BODY
-				&& conn->getState() == READING_BODY)
-				break;
-		}
+		// 	if (state_old == READING_HEADERS
+		// 		&& conn->getState() == READING_HEADERS)
+		// 		break;
+		// 	if (state_old == READING_BODY
+		// 		&& conn->getState() == READING_BODY)
+		// 		break;
+		// }
 
-		if (conn->getState() == FINALIZAED)
-		{
-			if (modifyEvent(fd, EPOLLOUT) < 0)
-			{
-				saved_error = errno;
+		// if (conn->getState() == FINALIZAED)
+		// {
+		// 	if (modifyEvent(fd, EPOLLOUT) < 0)
+		// 	{
+		// 		saved_error = errno;
 
-				// No dejamos una respuesta esperando sin una vigilancia
-				// de escritura que sepamos que se instaló correctamente.
-				cleanConnection(fd);
-				return -1;
-			}
-		}
-		return static_cast<int>(io_bytes);
+		// 		// No dejamos una respuesta esperando sin una vigilancia
+		// 		// de escritura que sepamos que se instaló correctamente.
+		// 		cleanConnection(fd);
+		// 		return -1;
+		// 	}
+		// }
+		// return static_cast<int>(io_bytes);
 	}
 
 	if (event.events & EPOLLHUP)
@@ -344,6 +344,34 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		return static_cast<int>(io_bytes);
 	}
 	
+	return 0;
+}
+
+int ServerCore::processConnections()
+{
+	std::map<int, Connection *>::const_iterator it;
+	int fd;
+	//int saved_error;
+
+	it = conns_.begin();
+	for(; it != conns_.end(); ++it)
+	{
+		it->second->advance();
+		fd = it->second->getFd();
+		if (it->second->getState() == FINALIZAED)
+		{
+
+			if (modifyEvent(fd, EPOLLOUT) < 0)
+			{
+				//saved_error = errno;
+
+				// No dejamos una respuesta esperando sin una vigilancia
+				// de escritura que sepamos que se instaló correctamente.
+				cleanConnection(fd);
+				return -1;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -463,7 +491,7 @@ int ServerCore::run()
 				handleSocketEvent(cur_fd);
 			
 		}
-
+		processConnections();
 		timeConnections();
 
 	}

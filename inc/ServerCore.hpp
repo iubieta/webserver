@@ -51,6 +51,9 @@ private:
 	int 	handleConnectionEvent(struct epoll_event &eve);
 	void timeConnections();
 
+	int processConnections();
+ 
+
 	void	advanceConnections();
 
 	int		logEpollError() const;
