@@ -294,7 +294,7 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 		// 		return -1;
 		// 	}
 		// }
-		// return static_cast<int>(io_bytes);
+		return static_cast<int>(io_bytes);
 	}
 
 	if (event.events & EPOLLHUP)
@@ -351,27 +351,36 @@ int ServerCore::processConnections()
 {
 	std::map<int, Connection *>::const_iterator it;
 	int fd;
+	e_conn_state state_old;
 	//int saved_error;
 
 	it = conns_.begin();
 	for(; it != conns_.end(); ++it)
 	{
-		it->second->advance();
-		fd = it->second->getFd();
+		while (it->second->getState() != FINALIZAED)
+		{
+			state_old = it->second->getState();
+			it->second->advance();
+
+			if (state_old == READING_HEADERS
+				&& it->second->getState() == READING_HEADERS)
+				break;
+			if (state_old == READING_BODY
+				&& it->second->getState() == READING_BODY)
+				break;
+		}
+
 		if (it->second->getState() == FINALIZAED)
 		{
-
+			fd = it->second->getFd();
 			if (modifyEvent(fd, EPOLLOUT) < 0)
 			{
-				//saved_error = errno;
-
-				// No dejamos una respuesta esperando sin una vigilancia
-				// de escritura que sepamos que se instaló correctamente.
 				cleanConnection(fd);
 				return -1;
 			}
 		}
 	}
+	
 	return 0;
 }
 
