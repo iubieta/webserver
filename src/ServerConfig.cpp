@@ -5,7 +5,7 @@
 
 ServerConfig::ServerConfig()
     : listen_(8080), 
-      host_(0x7F000001),
+      host_(htonl(0x7F000001)),
       server_name_("localhost"), 
       root_(""), 
       client_max_body_size_(0),
