@@ -430,8 +430,9 @@ void ServerCore::timeConnections()
 				<< ", inactive time: " << timeout << "s"
 			);
 
-			cleanConnection(fd);
 			++it;
+			cleanConnection(fd);
+			
 		}
 		else
 			++it;
