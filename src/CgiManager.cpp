@@ -21,12 +21,56 @@ CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& bo
             delete process;
             return NULL;
         }
-        processes_.insert(std::make_pair(connectionId, process));
+        if (!processes_.insert(std::make_pair(connectionId, process)).second) {
+            delete process;
+            return NULL;
+        }
     } catch (...) {
         delete process;
         throw;
     }
     return process;
+}
+
+// Build launch data before registration and retain ownership before forking.
+// No event registrations exist yet, so a pre-fork failure can be rolled back.
+CgiManager::StartResult CgiManager::start(unsigned long connectionId,
+    const Request& request, const Decision& decision,
+    const CgiEnvironmentBuilder::ConnectionInfo& connection) {
+    if (find(connectionId) != NULL)
+        return CGI_START_DUPLICATE;
+    try {
+        CgiLaunchData data;
+        const CgiLaunchData::Error built = data.build(request, decision, connection);
+        if (built == CgiLaunchData::CGI_LAUNCH_ENV_ERROR) {
+            if (data.environmentError() == CgiEnvironmentBuilder::CGI_ENV_MEMORY_ERROR)
+                return CGI_START_MEMORY_ERROR;
+            return CGI_START_ENV_ERROR;
+        }
+        if (built == CgiLaunchData::CGI_LAUNCH_ARGS_ERROR) {
+            if (data.argumentsError() == CgiExecArguments::CGI_ARGS_MEMORY_ERROR)
+                return CGI_START_MEMORY_ERROR;
+            return CGI_START_ARGS_ERROR;
+        }
+        // Resolve the executable reference before publishing the process.
+        const std::string executable = decision.getCgiInterpreter();
+        CgiProcess* process = create(connectionId, request.getBody());
+        if (process == NULL)
+            return CGI_START_PREPARE_ERROR;
+        const CgiProcess::LaunchResult launched = process->launch(
+            executable, data.argv(), data.envp());
+        if (launched == CgiProcess::CGI_LAUNCH_STARTED)
+            return CGI_START_STARTED;
+        // All current launch failures occur before a child is owned.
+        remove(connectionId);
+        if (launched == CgiProcess::CGI_LAUNCH_PIPE_ERROR)
+            return CGI_START_PIPE_ERROR;
+        if (launched == CgiProcess::CGI_LAUNCH_FORK_ERROR)
+            return CGI_START_FORK_ERROR;
+        return CGI_START_INVALID;
+    } catch (const std::bad_alloc&) {
+        return CGI_START_MEMORY_ERROR;
+    }
 }
 
 // Return a borrowed pointer, never transfer ownership.
