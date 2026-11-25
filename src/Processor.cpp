@@ -2,6 +2,7 @@
 // -----------------------------------------------------------------------------
 
 #include <cerrno>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -9,7 +10,7 @@
 
 #include "../inc/Processor.hpp"
 #include "../inc/path_utils.hpp"
-#include "../inc/log_global.hpp"
+#include "../inc/log_macros.hpp"
 
 // Builders --------------------------------------------------------------------
 // The builder has the server configs corresponding to the connection as input
@@ -79,24 +80,28 @@ int methodSwitch(const std::string& method) {
 
 // Public methods --------------------------------------------------------------
 Decision Processor::procRequest(const Request& req) {
+	LOG_DEBUG("Processor: processing request...");
 	Decision	res;
 	res.setServerConfig(serv_cfg_);
 	std::string target = resolvePath(req);
 	res.setTarget(target);
+	LOG_DEBUG("Processor: Target: " << res.getTarget());
 	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	res.setLocationConfig(cfg);
 	// If a location is find fill the allowed methods in Decision
 	if (cfg)
 	{
 		const std::vector<std::string>& methods = cfg->getMethods();
-		for (size_t i = 0; i < methods.size(); ++i)
+		for (size_t i = 0; i < methods.size(); ++i) {
 			res.addAllowedMethod(methods[i]);
+		}
 	}
 
 	// Check request status
 	if (req.getStatus() != OK)
 	{
 		res.setError(req.getStatus());
+		LOG_WARNING("Processor: request error -> status: " << res.getStatus());
 		return res;
 	}
 
@@ -104,6 +109,7 @@ Decision Processor::procRequest(const Request& req) {
 	if (target.empty())
 	{
 		res.setError(BAD_REQUEST);
+		LOG_WARNING("Processor: target path scapes root -> " << BAD_REQUEST);
 		return res;
 	}
 
@@ -111,6 +117,8 @@ Decision Processor::procRequest(const Request& req) {
 	if (cfg == NULL)
 	{
 		res.setError(NOT_FOUND);
+		LOG_WARNING("Processor: target path location not found -> " 
+			<< res.getStatus());
 		return res;
 	}
 
@@ -120,6 +128,8 @@ Decision Processor::procRequest(const Request& req) {
 		res.setStatus(static_cast<e_status_code>(ret.code));
 		res.setRedirURL(ret.destination);
 		res.setHandler(REDIRECTION);
+		LOG_DEBUG("Processor: REDIRECTION -> " 
+			<< res.getStatus() << " " << res.getRedirURL());
 		return res;
 	}
 
@@ -127,6 +137,7 @@ Decision Processor::procRequest(const Request& req) {
 	if (!methodIsAllowed(req, *cfg))
 	{
 		res.setError(METHOD_NOT_ALLOWED);
+		LOG_DEBUG("Processor: METHOD NOT ALLOWED -> " << req.getMethod());
 		return res;
 	}
 
@@ -138,6 +149,7 @@ Decision Processor::procRequest(const Request& req) {
 	else
 		disk_path = root + target;
 	res.setDiskPath(disk_path);
+	LOG_DEBUG("Processor: disk path: " << disk_path);
 
 	// TODO: refactor with file utils 
 	// Target file handling
@@ -145,7 +157,9 @@ Decision Processor::procRequest(const Request& req) {
 	// When target fails
 	if (stat(disk_path.c_str(), &stat_buf) == -1)
 	{
-		switch (errno) {
+		int err = errno;
+		LOG_WARNING("Processor: stat error -> " << strerror(err));
+		switch (err) {
 			case EACCES: // Permission error
 				res.setError(FORBIDDEN);
 				return res;
@@ -155,6 +169,7 @@ Decision Processor::procRequest(const Request& req) {
 				// Post method -> Create file
 				if (req.getMethod() == "POST") {
 					res.setHandler(WRITE_FILE);
+					LOG_DEBUG("Processor: POST method for non existing file -> CREATE FILE");
 					return res;
 				}
 
@@ -177,7 +192,7 @@ Decision Processor::procRequest(const Request& req) {
 		// 	disk_path += "/";
 		// 	res.setDiskPath(disk_path);
 		// }
-			
+		LOG_DEBUG("Processor: path corresponds to a directory");
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 			{
@@ -190,6 +205,8 @@ Decision Processor::procRequest(const Request& req) {
 					res.setStatus(MOVED_PERMANENTLY);
 					res.setRedirURL(redir);
 					res.setHandler(REDIRECTION);
+					LOG_DEBUG("Processor: REDIRECTION -> " 
+						<< res.getStatus() << " " << res.getRedirURL());
 					return res;
 				}
 				// If there is a definded index file search it and read it
@@ -202,35 +219,47 @@ Decision Processor::procRequest(const Request& req) {
 							&& S_ISREG(stat_buf.st_mode)) {
 							res.setDiskPath(index_file);
 							res.setHandler(READ_FILE);
+							LOG_DEBUG("Processor: index file found -> path: "
+								<< disk_path);
 							return res;
 						}
 					}
+					LOG_DEBUG("Processor: no valid index file found");
 				}
 
 				// If there is no index file tries autoindex
 				if (cfg->getAutoindex()) {
 					res.setHandler(LIST_DIR);
+					LOG_DEBUG("Processor: autoindex is on -> LIST DIR");
 					return res;
 
 				// If autoindex is off return 403
 				} else {
 					res.setError(FORBIDDEN);
+					LOG_DEBUG("Processor: autoindex is off -> " << res.getStatus());
 					return res;
 				}
 			}
 			case 2: // POST
 				res.setError(FORBIDDEN);
+				LOG_DEBUG("Processor: POST method not valid on dirs -> " 
+					<< res.getStatus());
 				return res;
 			case 3: // DELETE
 				res.setHandler(REMOVE_FILE);
+				LOG_DEBUG("Processor: DELETE method not valid on dirs -> "
+					<< res.getStatus());
 				return res;
 			default:
 				res.setError(METHOD_NOT_ALLOWED);
+				LOG_DEBUG("Processor: unknown method -> "
+					<< res.getStatus());
 				return res;
 		}
 	}
 	// When target is an accesible file
 	else if (S_ISREG(stat_buf.st_mode)) {
+		LOG_DEBUG("Processor: path corresponds to a regular file");
 		switch (methodSwitch(req.getMethod())) {
 			case 1: // GET
 				res.setHandler(READ_FILE);
@@ -249,6 +278,7 @@ Decision Processor::procRequest(const Request& req) {
 	// Target is neither a directory nor a regular file (fifo, socket...)
 	else
 	{
+		LOG_WARNING("Processor: path corresponds to a forbidden resource");
 		res.setError(FORBIDDEN);
 		return res;
 	}
