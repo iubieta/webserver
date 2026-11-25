@@ -1,6 +1,5 @@
 #include "../inc/CgiProcess.hpp"
 
-// Initialize all state without allocating OS resources.
 CgiProcess::CgiProcess()
     : state_(CGI_CREATED), pid_(-1), connection_id_(0),
       stdin_closed_(false), stdout_eof_(false), child_exited_(false),
@@ -11,8 +10,9 @@ CgiProcess::CgiProcess()
     exec_error_pipe_[0] = exec_error_pipe_[1] = -1;
 }
 
-// Increment 3A has no owned file descriptors or child to release.
-CgiProcess::~CgiProcess() { closePipes(); }
+CgiProcess::~CgiProcess() { 
+    closePipes(); 
+}
 
 // Retry close after EINTR is unsafe because the descriptor may already be reused.
 void CgiProcess::closeFd(int& fd) {
@@ -71,9 +71,12 @@ void CgiProcess::closeParentEndsInChild() {
 
 // Safe to invoke repeatedly, including after partial pipe creation.
 void CgiProcess::closePipes() {
-    closeFd(stdin_pipe_[0]); closeFd(stdin_pipe_[1]);
-    closeFd(stdout_pipe_[0]); closeFd(stdout_pipe_[1]);
-    closeFd(exec_error_pipe_[0]); closeFd(exec_error_pipe_[1]);
+    closeFd(stdin_pipe_[0]); 
+    closeFd(stdin_pipe_[1]);
+    closeFd(stdout_pipe_[0]); 
+    closeFd(stdout_pipe_[1]);
+    closeFd(exec_error_pipe_[0]); 
+    closeFd(exec_error_pipe_[1]);
 }
 
 
@@ -98,7 +101,7 @@ bool CgiProcess::markRunning(pid_t childPid) {
 
 // A reaped child is not sufficient to finish until stdout also reaches EOF.
 void CgiProcess::markChildExited(int waitStatus) {
-    if (state_ != CGI_RUNNING || child_exited_)
+    if (pid_ <= 0 || child_exited_)
         return;
     child_exited_ = true;
     child_exit_status_ = waitStatus;
@@ -132,24 +135,27 @@ CgiProcess::OutputResult CgiProcess::appendOutput(const char* bytes, std::size_t
 
 // Record a terminal transport failure; resource cleanup comes in later steps.
 void CgiProcess::fail() {
-    if (!terminal()) state_ = CGI_FAILED;
+    if (!terminal()) 
+        state_ = CGI_FAILED;
 }
 
 // Record a terminal timeout without overwriting an earlier terminal state.
 void CgiProcess::timeOut() {
-    if (!terminal()) state_ = CGI_TIMED_OUT;
+    if (!terminal()) 
+        state_ = CGI_TIMED_OUT;
 }
 
 // Record a disconnected client without overwriting an earlier terminal state.
 void CgiProcess::cancel() {
-    if (!terminal()) state_ = CGI_CANCELLED;
+    if (!terminal()) 
+        state_ = CGI_CANCELLED;
 }
 
 // Advance only by the number of bytes confirmed written to the stdin pipe.
 bool CgiProcess::advanceInput(std::size_t count) {
     if (state_ != CGI_RUNNING || stdin_closed_ || count > input_buffer_.size() - input_offset_)
         return false;
-    input_offset_ += count;
+    input_offset_ = input_offset_ + count;
     return true;
 }
 
@@ -233,11 +239,12 @@ CgiProcess::IoResult CgiProcess::writeInput() {
         markStdinClosed();
         return CGI_IO_CLOSED;
     }
+
     const std::size_t remaining = input_buffer_.size() - input_offset_;
     const std::size_t count = remaining < 16384u ? remaining : 16384u;
     const ssize_t n = write(stdin_pipe_[1], input_buffer_.data() + input_offset_, count);
     if (n > 0) {
-        input_offset_ += static_cast<std::size_t>(n);
+        input_offset_ = input_offset_ + static_cast<std::size_t>(n);
         if (input_offset_ == input_buffer_.size()) {
             closeFd(stdin_pipe_[1]);
             markStdinClosed();
@@ -285,7 +292,7 @@ CgiProcess::IoResult CgiProcess::readExecError() {
     const ssize_t n = read(exec_error_pipe_[0],
         exec_error_bytes_ + exec_error_offset_, sizeof(int) - exec_error_offset_);
     if (n > 0) {
-        exec_error_offset_ += static_cast<std::size_t>(n);
+        exec_error_offset_ = exec_error_offset_ + static_cast<std::size_t>(n);
         if (exec_error_offset_ == sizeof(int)) {
             std::memcpy(&exec_error_code_, exec_error_bytes_, sizeof(int));
             exec_error_received_ = true;
@@ -307,6 +314,49 @@ CgiProcess::IoResult CgiProcess::readExecError() {
         return CGI_IO_AGAIN;
     fail();
     return CGI_IO_ERROR;
+}
+
+// Check only this object's direct child; WNOHANG keeps the event loop responsive.
+// EINTR means that no child status was collected during this call.
+CgiProcess::WaitResult CgiProcess::pollChild() {
+    if (pid_ <= 0 || child_exited_)
+        return CGI_WAIT_INVALID;
+
+    int status = 0;
+    const pid_t result = waitpid(pid_, &status, WNOHANG);
+    if (result == 0)
+        return CGI_WAIT_RUNNING;
+    if (result == pid_) {
+        markChildExited(status);
+        return CGI_WAIT_REAPED;
+    }
+    if (result == -1 && errno == EINTR)
+        return CGI_WAIT_INTERRUPTED;
+    // An unexpected waitpid error requires the manager to reconcile ownership.
+    // In particular, ECHILD is not proof that this object reaped the child.
+    return CGI_WAIT_ERROR;
+}
+
+// Send a signal only to our positive PID while the child is not reaped.
+// ESRCH means the process no longer exists; it still needs waitpid reconciliation.
+CgiProcess::SignalResult CgiProcess::signalChild(int signalNumber) {
+    if (pid_ <= 0 || child_exited_)
+        return CGI_SIGNAL_INVALID;
+    if (kill(pid_, signalNumber) == 0)
+        return CGI_SIGNAL_SENT;
+    if (errno == ESRCH)
+        return CGI_SIGNAL_ALREADY_EXITED;
+    return CGI_SIGNAL_ERROR;
+}
+
+// Ask a running or terminal-but-unreaped child to exit gracefully.
+CgiProcess::SignalResult CgiProcess::requestTermination() {
+    return signalChild(SIGTERM);
+}
+
+// Escalate termination for a child that has not yet been reaped.
+CgiProcess::SignalResult CgiProcess::forceKill() {
+    return signalChild(SIGKILL);
 }
 
 CgiProcess::State CgiProcess::state() const { 

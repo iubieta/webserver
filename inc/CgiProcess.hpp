@@ -4,13 +4,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cerrno>
-#include <cstddef>
 #include <cstring>
-#include <string>
 #include <cstdlib>
 #include <exception>
-#include <iostream>
+#include <signal.h>
+#include <cstring>
+#include <cstddef>
+#include <string>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 // Track one CGI execution independently from the server event loop.
 // Increment 3A models state and buffers; it does not create processes or FDs.
@@ -83,6 +85,29 @@ public:
     int execErrorCode() const;
     bool execErrorEof() const;
 
+    enum WaitResult {
+        CGI_WAIT_RUNNING,
+        CGI_WAIT_REAPED,
+        CGI_WAIT_INTERRUPTED,
+        CGI_WAIT_ERROR,
+        CGI_WAIT_INVALID
+    };
+
+    enum SignalResult {
+        CGI_SIGNAL_SENT,
+        CGI_SIGNAL_ALREADY_EXITED,
+        CGI_SIGNAL_ERROR,
+        CGI_SIGNAL_INVALID
+    };
+
+    // Poll the direct child once without blocking; preserve terminal states.
+    WaitResult pollChild();
+
+    // Signal only the known, not-yet-reaped direct child.
+    // The manager chooses when to request termination or escalate to SIGKILL.
+    SignalResult requestTermination();
+    SignalResult forceKill();
+
     // Prepare a process-owned copy of the request body before any fork.
     bool prepare(unsigned long connectionId, const std::string& requestBody);
 
@@ -143,6 +168,7 @@ private:
     static bool setNonBlocking(int fd);
     bool terminal() const;
     void tryFinish();
+    SignalResult signalChild(int signalNumber);
 };
 
 #endif
