@@ -90,7 +90,11 @@ void	Logger::log(Level level, const std::string &message,
 		log_file_ << std::endl;
 	}
 	if (console_ && checkConsoleLevel(level)) {
-		std::cerr << logstr << std::endl;;
+		if (level > INFO) {
+			std::cerr << levelstr << " " << message << std::endl;;
+		} else {
+			std::cout << message << std::endl;
+		}
 	}
 }
 
