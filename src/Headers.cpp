@@ -7,7 +7,7 @@ Headers::Headers():headers_(), bytes_header(0) {}
 
 Headers::~Headers()
 {
-	ft_log::global().debug("Header destructor");
+	// ft_log::global().debug("Header destructor");
 }
 
 void Headers::normalize(std::string &key)
@@ -25,9 +25,8 @@ int Headers::addHeader(const std::string &key,const std::string &value)
 
 	if (headers_.count(temp_key) != 0)
 	{
-		ft_log::global().debug(
-			"Headers: repeated field",
-			__FILE__, __LINE__);
+		// ft_log::global().debug("Headers: repeated field",
+		// 	__FILE__, __LINE__);
 
 		return (-1);
 	}
@@ -75,9 +74,8 @@ bool Headers::isInvalidKey(const std::string &key)
 	{
 		if (isInvalidKeyCharacter(key[i]))
 		{
-			ft_log::global().debug(
-				"Headers: invalid field name",
-				__FILE__, __LINE__);
+			// ft_log::global().debug(
+			// 	"Headers: invalid field name",__FILE__, __LINE__);
 			return (true);
 		}
 		i++;
@@ -94,9 +92,8 @@ bool Headers::isInvalidValue(const std::string &value)
 	{
 		if (isInvalidValueCharacter(value[i]))
 		{
-			ft_log::global().debug(
-				"Headers: invalid field value",
-				__FILE__, __LINE__);
+			// ft_log::global().debug(
+			// 	"Headers: invalid field value", __FILE__, __LINE__);
 			return (true);
 		}
 		i++;
@@ -141,8 +138,8 @@ int Headers::tokenHeader(const std::string &line)
 
 	if (line.empty())
 	{
-		ft_log::global().debug(
-			"Headers: empty string", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"Headers: empty string", __FILE__, __LINE__);
 		return -1;
 	}
 		
@@ -150,8 +147,8 @@ int Headers::tokenHeader(const std::string &line)
 	if (pos < 2 || line[pos - 2] != '\r'
 					|| line[pos - 1] != '\n')
 	{
-		ft_log::global().debug(
-			"Headers: Incorrect line ending", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"Headers: Incorrect line ending", __FILE__, __LINE__);
 		return -1;
 	}
 
@@ -159,9 +156,8 @@ int Headers::tokenHeader(const std::string &line)
 	pos = line.find(':');
 	if (pos == std::string::npos)
 	{
-		ft_log::global().debug(
-			"Headers: separator character not found", __FILE__, __LINE__
-		);
+		// ft_log::global().debug(
+		// 	"Headers: separator character not found", __FILE__, __LINE__);
 		return -1;
 	}
 	

@@ -12,7 +12,7 @@
 
 int main(int argc, char** argv) 
 {
-	LOG_INFO("========= WEBSERVER STARTED ==========");
+	LOG_INFO("============== WEBSERVER ===============");
 	std::string conf_path = DEFAULT_CONFIG;
 
 	if (argc > 2) 
@@ -32,7 +32,6 @@ int main(int argc, char** argv)
 		return 2;
 	}
 	std::vector<ServerConfig> servers = configParser.getServers();
-	LOG_INFO("config file loaded correctly, starting server...");
 	try 
 	{
 		ServerCore core(servers);

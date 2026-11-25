@@ -52,7 +52,7 @@ int ServerCore::deleteEvent(int fd) {
 
 // Socket init based on server config
 void ServerCore::initSockets() {
-	LOG_INFO("ServerCore: initializing server sockets");
+	LOG_DEBUG("ServerCore: initializing server sockets");
 
 	std::vector<ServerConfig>::iterator it;
 	std::vector<ServerConfig>::iterator ite = configs_.end();
@@ -88,7 +88,7 @@ void ServerCore::initSockets() {
 		socks_.insert(
 			std::pair<int, Listener>(ls->getFd(), Listener(ls, &(*it)))
 		);
-		LOG_INFO("ServerCore: socket initiated -> fd: " << ls->getFd());
+		LOG_DEBUG("ServerCore: socket initiated -> fd: " << ls->getFd());
 	}
 }
 
@@ -99,7 +99,7 @@ void ServerCore::cleanConnection(int fd)
 	std::ostringstream					msg;
 	int									saved_error;
 
-	LOG_INFO("ServerCore: cleaning connection -> fd: " << fd);
+	LOG_DEBUG("ServerCore: cleaning connection -> fd: " << fd);
 	it = conns_.find(fd);
 	if (it == conns_.end())
 	{
@@ -117,7 +117,7 @@ void ServerCore::cleanConnection(int fd)
 	it->second->disconnect();
 	delete it->second;
 	conns_.erase(it);
-	LOG_INFO("ServerCore: connection cleaned");
+	LOG_INFO("connection closed");
 }
 
 void ServerCore::closeSockets() {
@@ -145,7 +145,7 @@ int ServerCore::handleSocketEvent(int fd)
 	int									flags;
 	int									saved_error;
 
-	LOG_INFO("ServerCore: handling socket event -> port: " 
+	LOG_DEBUG("ServerCore: handling socket event -> port: " 
 		<< socks_.at(fd).cfg_->getListen());
 	it = socks_.find(fd);
 	if (it == socks_.end())
@@ -200,7 +200,9 @@ int ServerCore::handleSocketEvent(int fd)
 	}
 
 	conns_[conn_fd] = new Connection(conn_fd, it->second.cfg_);
-	LOG_INFO("ServerCore: new connection stablished -> fd: " << conn_fd);
+	LOG_INFO("port " << ls->getPort() 
+		<< ": new connection stablished"
+	);
 	return conn_fd;
 }
 
@@ -235,12 +237,11 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	{
 		LOG_DEBUG("ServerCore: event type -> EPOLLIN");
 		io_bytes = conn->readFromFd();
-		LOG_DEBUG("ServerCore: read bytes -> " << io_bytes);
+		// LOG_DEBUG("ServerCore: read bytes -> " << io_bytes);
 
 		if (io_bytes < 0)
 		{
-			saved_error = conn->getLastIoError();
-			LOG_WARNING("ServerCore: recv failed, " << strerror(saved_error));
+			//LOG_WARNING("ServerCore: recv failed, ");
 			cleanConnection(fd);
 			return -1;
 		}
@@ -283,12 +284,11 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 	{
 		LOG_DEBUG("ServerCore: event type -> EPOLLOUT");
 		io_bytes = conn->writeToFd();
-		LOG_DEBUG("ServerCore: sent bytes -> " << io_bytes);
+		// LOG_DEBUG("ServerCore: sent bytes -> " << io_bytes);
 
 		if (io_bytes < 0)
 		{
-			saved_error = conn->getLastIoError();
-			LOG_WARNING("ServerCore: send failed, " << strerror(saved_error));
+			// LOG_WARNING("ServerCore: send failed, ");
 			cleanConnection(fd);
 			return -1;
 		}
@@ -313,7 +313,6 @@ int ServerCore::handleConnectionEvent(struct epoll_event &event)
 				cleanConnection(fd);
 				return -1;
 			}
-			LOG_INFO("ServerCore: connection finished, closing...");
 			cleanConnection(fd);
 		}
 		return static_cast<int>(io_bytes);
@@ -375,7 +374,7 @@ int	ServerCore::logEpollError() const
 
 // Public Methods -------------------------------------------------------------
 int ServerCore::setup() {
-	LOG_DEBUG("ServerCore: setting up...");
+	LOG_INFO("setting up...");
 	initSockets();
 	return 0;
 }
@@ -396,7 +395,7 @@ void ServerCore::timeConnections()
 
 			fd = it->second->getFd();
 			timeout = it->second->getInactiveSeconds();
-			LOG_INFO("ServerCore: connection timeout -> "
+			LOG_INFO("connection timeout -> "
 				<< "fd: " << fd
 				<< ", inactive time: " << timeout << "s"
 			);
@@ -412,7 +411,7 @@ void ServerCore::timeConnections()
 
 int ServerCore::run() 
 {
-	LOG_INFO("ServerCore: running...");
+	LOG_INFO("running...");
 	struct epoll_event	events[EVENTS_MAX];
 	int					event_count;
 	int					saved_error;

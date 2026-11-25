@@ -76,7 +76,7 @@ int HttpResponse::addHeader(const std::string &key, const std::string &value)
 	Headers::normalize(key_temp);
 	if(headers_.count(key_temp) > 0)
 	{
-		ft_log::global().debug("header: duplicate field");
+		// ft_log::global().debug("header: duplicate field");
 		return -1;
 	}
 	headers_.insert(std::make_pair(key_temp, value));

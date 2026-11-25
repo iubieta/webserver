@@ -2,7 +2,7 @@
 // ----------------------------------------------------------------------------
 
 #include "../inc/Connection.hpp"
-#include "../inc/log_global.hpp"
+#include "../inc/log_macros.hpp"
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sstream>
@@ -20,11 +20,10 @@ Connection::Connection(int fd, const ServerConfig* config) : fd_(fd), config_(co
 }
 
 Connection::~Connection() {
+	LOG_DEBUG("Connection: destructor called");
 	if (fd_ != -1) {
 		close(fd_);
-		std::ostringstream msg;
-		msg << "Connection: closing (fd: " << fd_ << ")"; 
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		LOG_DEBUG("Connection: closing fd: " << fd_);
 	}
 }
 
@@ -56,9 +55,7 @@ void Connection::updateLastActivity()
 {
 	std::stringstream ss;
 	last_activity_ = std::time(NULL);
-
-	ss << "fd = "<< fd_  << " time reset " << last_activity_;
-	ft_log::global().debug(ss.str(), __FILE__, __LINE__);
+	LOG_DEBUG("Connection: updated last activity time: " << last_activity_);
 }
 
 int Connection::getLastIoError() const
@@ -78,9 +75,7 @@ double Connection::getInactiveSeconds() const
 
 void Connection::disconnect() {
 	if (fd_ != -1) {
-		std::ostringstream msg;
-		msg << "Connection: closing fd (fd: " << fd_ << ")"; 
-		ft_log::global().debug(msg.str(), __FILE__, __LINE__);
+		LOG_DEBUG("Connection: closing fd: " << fd_);
 		close(fd_);
 		fd_ = -1;
 	}
@@ -108,22 +103,22 @@ ssize_t Connection::readFromFd()
 
 	if (fd_ == -1) 
 	{
+		LOG_WARNING("Connection: imposible to read, no open fd");
 		last_io_error_ = EBADF;
 		return -1;
 	}
 
-	
 	read_bytes = recv(fd_, temp, BUFFLEN, 0);
-	
+	LOG_DEBUG("Connection " << read_bytes << " bytes read");
 	if (read_bytes < 0)
 	{
-		last_io_error_ = errno;
-		return read_bytes;
+		LOG_WARNING("Connection: receiving failed");
 	}
 	// Normal receive
 	if (read_bytes > 0) 
 	{
 		read_buff_.append(temp, read_bytes);
+		LOG_DEBUG("Connection: bytes appended to read buffer");
 		process_data_ = true;
 		updateLastActivity();
 	}
@@ -142,11 +137,14 @@ ssize_t Connection::writeToFd()
 	if (fd_ == -1)
 	{
 		last_io_error_ = EBADF;
+		LOG_WARNING("Connection: imposible to write, no open fd");
 		return -1;
 	}
 
-	if (write_buff_.empty())
+	if (write_buff_.empty()) {
+		LOG_WARNING("Connection: imposible to write, buffer empty");
 		return 0;
+	}
 
 	data = write_buff_.data();
 	write_len = write_buff_.size();
@@ -156,15 +154,18 @@ ssize_t Connection::writeToFd()
 	// En Linux, MSG_NOSIGNAL evita que una escritura en un socket roto
 	// termine el proceso por SIGPIPE. send() seguirá devolviendo el error.
 	sent_bytes = send(fd_, data, write_len, MSG_NOSIGNAL);
+	LOG_DEBUG("Connection: " << sent_bytes << " bytes sent");
 
 	if (sent_bytes < 0)
 	{
-		last_io_error_ = errno;
+		LOG_WARNING("Connection: sending failed");
 		return sent_bytes;
 	}
 
-	if (sent_bytes > 0)
+	if (sent_bytes > 0) {
 		write_buff_.consume(sent_bytes);
+		LOG_DEBUG("Connection: bytes consumed from write buffer");
+	}
 
 	return sent_bytes;
 }
@@ -185,20 +186,10 @@ void Connection::consume(size_t n) {
 // Write buffer
 void Connection::appendToWrite(const std::string &data) {
 	write_buff_.append(data);
-	
-	std::ostringstream msg;
-	msg << "Connection: WRITE BUFFER -> ";
-	msg.write(write_buff_.data(), write_buff_.size());
-	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 void Connection::appendToWrite(const char *data, size_t n) {
 	write_buff_.append(data, n);
-	
-	std::ostringstream msg;
-	msg << "Connection: WRITE BUFFER -> "; 
-	msg.write(write_buff_.data(), write_buff_.size());
-	ft_log::global().debug(msg.str(), __FILE__, __LINE__);
 }
 
 e_conn_state Connection::getState() const {
@@ -218,12 +209,23 @@ void	Connection::advance()
 			if (parser_state == BODY 
 				|| parser_state == COMPLETE 
 				|| parser_state == ERROR)
+			{
+				LOG_DEBUG("Connection: request received -> fd: " << fd_);
+				LOG_INFO("Request: "
+					<< request_.getMethod() << " "
+					<< request_.getPath() << " "
+					<< request_.getQuery() << " "
+					<< request_.getVersion() << " "
+				);
 				state_ = PROCESSING;
+				LOG_DEBUG("Connection: switched to PROCESSING state");
+			}
 			break;
 		}
 		case PROCESSING:
 		{
 	 		decision_ = processor_.procRequest(request_);
+			LOG_DEBUG("Connection: decision took");
 
 			if (decision_.getStatus() == OK && parser_.getState() == BODY)
 			{
@@ -232,34 +234,47 @@ void	Connection::advance()
 				if (client_max_body > 0)
 					parser_.setMaxbodySize(client_max_body);
 				state_ = READING_BODY;
+				LOG_DEBUG("Connection: switched to READING_BODY state");
 			}
 			else
+			{
 				state_ = RESPONDING;
+				LOG_DEBUG("Connection: switched to RESPONDING state");
+			}
 			break;
 		}
 		case READING_BODY:
 		{
-			
 			parser_state = parser_.bodyParser(read_buff_, request_);
 			if (parser_state == COMPLETE) 
 			{
 				decision_.setBody(request_.getBody());
 				state_ = RESPONDING;
+				LOG_DEBUG("Connection: switched to RESPONDING state");
 			}
 			else if (parser_state == ERROR) {
 				state_ = PROCESSING;
+				LOG_DEBUG("Connection: switched to PROCESSING state");
 			}
 			break;
 		}
 		case RESPONDING:
 		{
 			response_ = builder_.execute(decision_);
+			LOG_DEBUG("Connection: response generated");
+			LOG_INFO("Response: "
+				<< response_.getVersion() << " "
+				<< request_.getStatus() << " "
+			);
 			write_buff_.append(response_.build());
+			// TODO: decide to remove finalized state
 			state_ = FINALIZAED;
+			LOG_DEBUG("Connection: switch to process ending");
 			break;
 		}
 		case FINALIZAED: 
 		{
+			//LOG_DEBUG("Connection: PROCESS FINISHED");
 			break;
 		}
 		

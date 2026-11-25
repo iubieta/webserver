@@ -183,29 +183,29 @@ int AbsoluteForm::requestLine(const std::vector<std::string> &tokens)
 
 	if (!isValidMethod(getMethod()))
 	{
-		ft_log::global().debug(
-			"request: invalid method", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid method", __FILE__, __LINE__);
 		return (-1);
 	}
 
 	if(!isVaildVersion(getVersion()))
 	{
-		ft_log::global().debug(
-			"request: invalid version", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid version", __FILE__, __LINE__);
 		return (-1);
 	}
 	
 	
 	if (tokens[1].empty() || tokens[1].substr(0, 4) != "http")
 	{
-		ft_log::global().debug(
-			"request: invalid target", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid target", __FILE__, __LINE__);
 		return (-1);
 	}
 	if (requestTarget(tokens[1]) == -1)
 	{
-		ft_log::global().debug(
-			"request: invalid target", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid target", __FILE__, __LINE__);
 		return (-1);
 	}
 	return 0;

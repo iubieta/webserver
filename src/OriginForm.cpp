@@ -59,23 +59,23 @@ int OriginForm::requestLine(const std::vector<std::string> &token)
 
 	if (!isValidMethod(getMethod()))
 	{
-		ft_log::global().debug(
-			"request: invalid method", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid method", __FILE__, __LINE__);
 		return (-1);
 	}
 
 	if(!isVaildVersion(getVersion()))
 	{
-		ft_log::global().debug(
-			"request: invalid version", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid version", __FILE__, __LINE__);
 		return (-1);
 	}
 	
 	
 	if (token[1].empty() || token[1][0] != '/')
 	{
-		ft_log::global().debug(
-			"request: invalid target", __FILE__, __LINE__);
+		// ft_log::global().debug(
+		// 	"request: invalid target", __FILE__, __LINE__);
 		return (-1);
 	}
 

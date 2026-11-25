@@ -26,7 +26,7 @@ HttpParser::~HttpParser()
 	{
 		delete request_line_;
 	}
-	ft_log::global().debug("HTTP Parser destructor");	
+	// ft_log::global().debug("HTTP Parser destructor");	
 }
 
 void HttpParser::setState(e_parser_state state)

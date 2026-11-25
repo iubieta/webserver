@@ -91,7 +91,7 @@ bool	ListeningSocket::setup() {
 		LOG_DEBUG("ListeningSocket: socket listening");
 		return true;
 	} else {
-		ft_log::global().warning("ListeningSocket: socket failed to start listening", __FILE__, __LINE__);
+		LOG_WARNING("ListeningSocket: socket failed to start listening");
 		close(sock_fd);
 		return false;
 	}

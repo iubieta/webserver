@@ -39,7 +39,7 @@ Request& Request::operator=(const Request &other) {
 
 Request::~Request() 
 {
-	ft_log::global().debug("Api request destructor");
+	// ft_log::global().debug("Api request destructor");
 }
 
 // Setters ---------------------------------------------------------------------
