@@ -13,6 +13,7 @@
 
 #include "../inc/ServerCore.hpp"
 #include "../inc/log_macros.hpp"
+#include "../inc/signal.hpp"
 
 // Constructors ---------------------------------------------------------------
 ServerCore::ServerCore(std::vector<ServerConfig> configs) : configs_(configs) {
@@ -368,37 +369,7 @@ int	ServerCore::logEpollError() const
 {
 	int err = errno;
 	LOG_WARNING("ServerCore: epoll_ctl failed, " << strerror(err));
-	// Warnings: system fails or similar
-	// if (err == ENOMEM) {
-	// 	ft_log::global().warning("ServerCore: epoll_ctl failed,	no memory left on the device (ENOMEM)");
-	// 	return 0;
-	// }
-	// if (err == ENOSPC) {
-	// 	ft_log::global().warning("ServerCore: epoll_ctl failed,	max_users_watches limit reachede (ENOSPC)");
-	// 	return 0;
-	// }
-	// // Real errors: bad epoll_ctl usage
-	// if (err == EBADF) {
-	// 	ft_log::global().error("ServerCore: epoll_ctl failed, not valid fd specified (EBADFD)");
-	// 	return EBADF;
-	// }
-	// if (err == EEXIST) {
-	// 	ft_log::global().error("ServerCore: epoll_ctl failed, fd is already on the epoll list (EEXIST)");
-	// 	return EEXIST;
-	// }
-	// if (err == EINVAL) {
-	// 	ft_log::global().error("ServerCore: epoll_ctl failed, invalid epoll operation tried (EINVAL)");
-	// 	return EINVAL;
-	// }
-	// if (err == ENOENT) {
-	// 	ft_log::global().error("ServerCore: epoll_ctl failed, tried to modify a non-registered fd (ENOENT)");
-	// 	return ENOENT;
-	// }
-	// if (err == EPERM) {
-	// 	ft_log::global().warning("ServerCore: epoll_ctl failed,	target fd doesnt support epoll (EPERM)");
-	// 	return EPERM;
-	// }
-	// ft_log::global().critical("ServerCore: epoll_ctl failed, UNKNOWN ERROR");
+	
 	return -1;
 }
 
@@ -446,9 +417,12 @@ int ServerCore::run()
 	int					event_count;
 	int					saved_error;
 	std::ostringstream	msg;
+	
 
+	if (signalHandler() == -1)
+		return -1;
 	//fd_ Serverfd_ loop
-	while (!socks_.empty()) 
+	while (!socks_.empty() && !stop_requested) 
 	{
 		event_count = epoll_wait(epoll_fd_, events,
 				EVENTS_MAX, TIMEOUT_EPOLL);
@@ -460,11 +434,14 @@ int ServerCore::run()
 			// Una señal puede interrumpir epoll_wait() sin que epoll esté roto.
 			if (saved_error == EINTR)
 			{
+				if (stop_requested)
+					continue;
 				timeConnections();
 				continue;
 			}
-
-			LOG_CRITICAL("ServerCore: epoll_wait failed, " << strerror(saved_error));
+		
+			if (!stop_requested)
+				LOG_CRITICAL("ServerCore: epoll_wait failed, " << strerror(saved_error));
 			return -1;
 		}
 		
@@ -479,11 +456,18 @@ int ServerCore::run()
 			else 
 				handleSocketEvent(cur_fd);
 			
+			if (stop_requested == 1)
+				break;
+			
 		}
+
+		if (stop_requested == 1)
+			continue;
 		processConnections();
 		timeConnections();
-
+		
 	}
-	LOG_CRITICAL("No listening ports left open. Closing server...");
+	if (!stop_requested)
+		LOG_CRITICAL("No listening ports left open. Closing server...");
 	return 0;
 }

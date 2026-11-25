@@ -24,7 +24,7 @@ SRCS	:= 	main.cpp ServerCore.cpp \
 			Request.cpp RequestLine.cpp OriginForm.cpp Headers.cpp AbsoluteForm.cpp \
 			Response.cpp HttpResponse.cpp Decision.cpp http_status_codes.cpp \
 			mime_types.cpp file_utils.cpp ResponseBuilder.cpp \
-			path_utils.cpp Processor.cpp
+			path_utils.cpp Processor.cpp signal.cpp
 
 OBJS	:= $(SRCS:%.cpp=$(OBJ_DIR)/%.o)
 DEPS	:= $(OBJS:.o=.d)

@@ -37,7 +37,8 @@ int main(int argc, char** argv)
 	{
 		ServerCore core(servers);
 		core.setup();
-		core.run();
+		if (core.run() == -1)
+			return 3;
 	} catch (const std::exception& e) 
 	{
 		LOG_ERROR("failed to init server. Error:");
