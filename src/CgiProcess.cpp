@@ -30,10 +30,16 @@ bool CgiProcess::setNonBlocking(int fd) {
     return flags != -1 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1;
 }
 
+// Close this descriptor automatically when a child successfully executes a program.
+bool CgiProcess::setCloseOnExec(int fd) {
+    const int flags = fcntl(fd, F_GETFD);
+    return flags != -1 && fcntl(fd, F_SETFD, flags | FD_CLOEXEC) != -1;
+}
+
 // Create stdin, stdout, and exec-error pipes atomically from the caller's view.
 // Parent uses stdin[1], stdout[0], exec_error[0]; the child uses opposite ends.
 bool CgiProcess::createPipes() {
-    if (state_ != CGI_CREATED || stdin_pipe_[0] >= 0 || stdout_pipe_[0] >= 0 ||
+    if (cleanup_started_ || state_ != CGI_CREATED || stdin_pipe_[0] >= 0 || stdout_pipe_[0] >= 0 ||
         exec_error_pipe_[0] >= 0)
         return false;
 
@@ -46,10 +52,10 @@ bool CgiProcess::createPipes() {
         return false;
     }
 
-    // Only the child's exec-error writer should survive until execve; a
-    // successful execve automatically closes it, allowing the parent to see EOF.
-    const int flags = fcntl(exec_error_pipe_[1], F_GETFD);
-    if (flags == -1 || fcntl(exec_error_pipe_[1], F_SETFD, flags | FD_CLOEXEC) == -1) {
+    // All original endpoints must disappear from unrelated executed children.
+    if (!setCloseOnExec(stdin_pipe_[0]) || !setCloseOnExec(stdin_pipe_[1]) ||
+        !setCloseOnExec(stdout_pipe_[0]) || !setCloseOnExec(stdout_pipe_[1]) ||
+        !setCloseOnExec(exec_error_pipe_[0]) || !setCloseOnExec(exec_error_pipe_[1])) {
         closePipes();
         return false;
     }
@@ -83,7 +89,7 @@ void CgiProcess::closePipes() {
 
 // Replace the initial body only while the process has not started.
 bool CgiProcess::prepare(unsigned long connectionId, const std::string& requestBody) {
-    if (state_ != CGI_CREATED)
+    if (cleanup_started_ || state_ != CGI_CREATED)
         return false;
     input_buffer_ = requestBody;
     connection_id_ = connectionId;
@@ -93,7 +99,7 @@ bool CgiProcess::prepare(unsigned long connectionId, const std::string& requestB
 
 // Mark a successfully forked child; PID zero is not a valid child PID.
 bool CgiProcess::markRunning(pid_t childPid) {
-    if (state_ != CGI_CREATED || childPid <= 0)
+    if (cleanup_started_ || state_ != CGI_CREATED || childPid <= 0)
         return false;
     pid_ = childPid;
     state_ = CGI_RUNNING;
@@ -167,7 +173,8 @@ bool CgiProcess::terminal() const {
 
 // Only both child reaping and stdout EOF can complete a running process.
 void CgiProcess::tryFinish() {
-    if (state_ == CGI_RUNNING && child_exited_ && stdout_eof_)
+    if (state_ == CGI_RUNNING && child_exited_ && stdout_eof_ &&
+        exec_error_eof_ && !exec_error_received_ && exec_error_offset_ == 0)
         state_ = CGI_FINISHED;
 }
 
@@ -310,6 +317,7 @@ CgiProcess::IoResult CgiProcess::readExecError() {
             fail();
             return CGI_IO_ERROR;
         }
+        tryFinish();
         return CGI_IO_CLOSED;
     }
     if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)

@@ -182,6 +182,7 @@ private:
 
     static void closeFd(int& fd);
     static bool setNonBlocking(int fd);
+    static bool setCloseOnExec(int fd);
     bool terminal() const;
     void tryFinish();
     SignalResult signalChild(int signalNumber);
