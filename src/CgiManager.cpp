@@ -33,7 +33,7 @@ CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& bo
 }
 
 // Build launch data before registration and retain ownership before forking.
-// No event registrations exist yet, so a pre-fork failure can be rolled back.
+// Bind events only after a successful launch, so pre-fork failure can roll back.
 CgiManager::StartResult CgiManager::start(unsigned long connectionId,
     const Request& request, const Decision& decision,
     const CgiEnvironmentBuilder::ConnectionInfo& connection) {
@@ -105,4 +105,80 @@ bool CgiManager::remove(unsigned long connectionId) {
 // Count registered processes, including those awaiting cleanup.
 std::size_t CgiManager::size() const {
     return processes_.size();
+}
+
+// Return the current parent endpoint for a channel, or -1 for an invalid channel.
+int CgiManager::channelFd(const CgiProcess& process, Channel channel) {
+    switch (channel) {
+        case CGI_STDIN: return process.parentStdinFd();
+        case CGI_STDOUT: return process.parentStdoutFd();
+        case CGI_EXEC_ERROR: return process.parentExecErrorFd();
+    }
+    return -1;
+}
+
+// Reserve one association per live endpoint; the caller performs epoll ADD.
+CgiManager::BindResult CgiManager::bindEvent(EventToken token,
+    unsigned long connectionId, Channel channel) {
+    if (token == 0)
+        return CGI_BIND_INVALID;
+    if (events_.find(token) != events_.end())
+        return CGI_BIND_DUPLICATE;
+    if (token <= last_token_)
+        return CGI_BIND_STALE_TOKEN;
+    const CgiProcess* process = find(connectionId);
+    if (!process || process->state() != CgiProcess::CGI_RUNNING ||
+        process->cleanupStarted())
+        return CGI_BIND_INVALID;
+    const int fd = channelFd(*process, channel);
+    if (fd < 0 || (channel == CGI_STDIN &&
+        process->inputOffset() >= process->inputBuffer().size()))
+        return CGI_BIND_INVALID;
+    for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
+        if (it->second.fd == fd || (it->second.connectionId == connectionId &&
+            it->second.channel == channel))
+            return CGI_BIND_DUPLICATE;
+    }
+    EventBinding binding = {connectionId, fd, channel};
+    try {
+        if (!events_.insert(std::make_pair(token, binding)).second)
+            return CGI_BIND_DUPLICATE;
+    } catch (const std::bad_alloc&) {
+        return CGI_BIND_MEMORY_ERROR;
+    }
+    last_token_ = token;
+    return CGI_BIND_OK;
+}
+
+// Reject retired tokens and endpoints that have already been closed.
+bool CgiManager::resolveEvent(EventToken token, EventBinding& binding) const {
+    EventMap::const_iterator it = events_.find(token);
+    if (it == events_.end())
+        return false;
+    const EventBinding& entry = it->second;
+    const CgiProcess* process = find(entry.connectionId);
+    if (!process || process->state() != CgiProcess::CGI_RUNNING ||
+        process->cleanupStarted() || channelFd(*process, entry.channel) != entry.fd)
+        return false;
+    binding = entry;
+    return true;
+}
+
+// Remove metadata after epoll DEL, even if the process is no longer running.
+bool CgiManager::unbindEvent(EventToken token) {
+    return events_.erase(token) != 0;
+}
+
+// Count associations, including those awaiting explicit retirement.
+std::size_t CgiManager::eventCount() const {
+    return events_.size();
+}
+
+// Prevent destruction while an event association still references this process.
+bool CgiManager::hasEvents(unsigned long connectionId) const {
+    for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
+        if (it->second.connectionId == connectionId)
+            return true;
+    }
+    return false;
 }
