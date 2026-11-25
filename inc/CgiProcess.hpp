@@ -15,7 +15,7 @@
 #include <sys/wait.h>
 
 // Track one CGI execution independently from the server event loop.
-// Increment 3A models state and buffers; it does not create processes or FDs.
+// Own pipe endpoints and supervise one direct child without blocking.
 class CgiProcess {
 public:
     enum State {
@@ -108,6 +108,21 @@ public:
     SignalResult requestTermination();
     SignalResult forceKill();
 
+    enum CleanupResult {
+        CGI_CLEANUP_DONE,
+        CGI_CLEANUP_PENDING,
+        CGI_CLEANUP_INTERRUPTED,
+        CGI_CLEANUP_ERROR
+    };
+
+    // Start nonblocking cleanup: close all pipes and request SIGTERM if needed.
+    // The manager retains ownership and schedules follow-up cleanup calls.
+    CleanupResult beginCleanup();
+
+    // Poll for reaping without blocking; manager may call forceKill after grace.
+    CleanupResult continueCleanup();
+    bool cleanupStarted() const;
+
     // Prepare a process-owned copy of the request body before any fork.
     bool prepare(unsigned long connectionId, const std::string& requestBody);
 
@@ -160,6 +175,7 @@ private:
     bool exec_error_received_;
     bool exec_error_eof_;
     int exec_error_code_;
+    bool cleanup_started_;
 
     CgiProcess(const CgiProcess& other);
     CgiProcess& operator=(const CgiProcess& other);

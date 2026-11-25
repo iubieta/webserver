@@ -4,7 +4,8 @@ CgiProcess::CgiProcess()
     : state_(CGI_CREATED), pid_(-1), connection_id_(0),
       stdin_closed_(false), stdout_eof_(false), child_exited_(false),
       child_exit_status_(0), input_offset_(0), exec_error_offset_(0),
-      exec_error_received_(false), exec_error_eof_(false), exec_error_code_(0) {
+      exec_error_received_(false), exec_error_eof_(false), exec_error_code_(0),
+      cleanup_started_(false) {
     stdin_pipe_[0] = stdin_pipe_[1] = -1;
     stdout_pipe_[0] = stdout_pipe_[1] = -1;
     exec_error_pipe_[0] = exec_error_pipe_[1] = -1;
@@ -289,6 +290,7 @@ CgiProcess::IoResult CgiProcess::readExecError() {
     if (state_ != CGI_RUNNING || exec_error_eof_ || exec_error_received_ ||
         exec_error_pipe_[0] < 0)
         return CGI_IO_INVALID;
+
     const ssize_t n = read(exec_error_pipe_[0],
         exec_error_bytes_ + exec_error_offset_, sizeof(int) - exec_error_offset_);
     if (n > 0) {
@@ -357,6 +359,52 @@ CgiProcess::SignalResult CgiProcess::requestTermination() {
 // Escalate termination for a child that has not yet been reaped.
 CgiProcess::SignalResult CgiProcess::forceKill() {
     return signalChild(SIGKILL);
+}
+
+// Start cleanup without blocking or losing the original terminal failure reason.
+// Close pipes first so no new I/O can occur while the child is being stopped.
+CgiProcess::CleanupResult CgiProcess::beginCleanup() {
+    if (!cleanup_started_) {
+        cleanup_started_ = true;
+        closePipes();
+        stdin_closed_ = true;
+        if (state_ == CGI_RUNNING)
+            fail();
+    }
+    if (pid_ <= 0 || child_exited_)
+        return CGI_CLEANUP_DONE;
+
+    // Reap first: do not signal a child that has already terminated.
+    const WaitResult result = pollChild();
+    if (result == CGI_WAIT_REAPED)
+        return CGI_CLEANUP_DONE;
+    if (result == CGI_WAIT_ERROR)
+        return CGI_CLEANUP_ERROR;
+    if (result == CGI_WAIT_INTERRUPTED)
+        return CGI_CLEANUP_INTERRUPTED;
+
+    const SignalResult signalled = requestTermination();
+    if (signalled == CGI_SIGNAL_ERROR || signalled == CGI_SIGNAL_INVALID)
+        return CGI_CLEANUP_ERROR;
+    return CGI_CLEANUP_PENDING;
+}
+
+// Recheck cleanup progress; never block or signal again automatically.
+// SIGKILL escalation and retry timing are owned by CgiManager.
+CgiProcess::CleanupResult CgiProcess::continueCleanup() {
+    if (!cleanup_started_)
+        return CGI_CLEANUP_ERROR;
+    if (pid_ <= 0 || child_exited_)
+        return CGI_CLEANUP_DONE;
+
+    const WaitResult result = pollChild();
+    if (result == CGI_WAIT_REAPED)
+        return CGI_CLEANUP_DONE;
+    if (result == CGI_WAIT_RUNNING)
+        return CGI_CLEANUP_PENDING;
+    if (result == CGI_WAIT_INTERRUPTED)
+        return CGI_CLEANUP_INTERRUPTED;
+    return CGI_CLEANUP_ERROR;
 }
 
 CgiProcess::State CgiProcess::state() const { 
@@ -433,4 +481,8 @@ int CgiProcess::execErrorCode() const {
 
 bool CgiProcess::execErrorEof() const { 
     return exec_error_eof_; 
+}
+
+bool CgiProcess::cleanupStarted() const { 
+    return cleanup_started_; 
 }
