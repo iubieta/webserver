@@ -264,7 +264,8 @@ void	Connection::advance()
 			LOG_DEBUG("Connection: response generated");
 			LOG_INFO("Response: "
 				<< response_.getVersion() << " "
-				<< request_.getStatus() << " "
+				<< response_.getStatusCode() << " "
+				<< response_.getReasonPhrase() << " "
 			);
 			write_buff_.append(response_.build());
 			// TODO: decide to remove finalized state
