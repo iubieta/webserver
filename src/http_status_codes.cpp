@@ -24,7 +24,7 @@ static const  t_status_message status_messages[] =
 	{ PAYLOAD_TOO_LARGE , 		"Payload Too Large" },
 	{ URI_TOO_LONG,				"URI Too Long"},
 	{ UNSUPPORTED_MEDIA_TYPE , 	"Unsupported Media Type" },
-	{ HEADERS_TOO_LARGE , 		"Request Header Field Too Large" },
+	{ HEADERS_TOO_LARGE , 		"Request Header Fields Too Large" },
 	{ INTERNAL_ERROR , 			"Internal Server Error" },
 	{ NOT_IMPLEMENTED , 		"Not Implemented" },
 	{ BAD_GATEWAY , 			"Bad Gateway" },
