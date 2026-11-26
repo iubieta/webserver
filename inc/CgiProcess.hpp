@@ -81,6 +81,14 @@ public:
     IoResult writeInput();
     IoResult readOutput();
     IoResult readExecError();
+    // Managed I/O leaves logically completed endpoints open until epoll DEL.
+    IoResult writeInput(bool deferClose);
+    IoResult readOutput(bool deferClose);
+    IoResult readExecError(bool deferClose);
+
+    // Close only a matching completed endpoint, or an endpoint of a terminal CGI.
+    // Caller must retire its event registration first.
+    bool closeCompletedEndpoint(int fd);
     bool execErrorReceived() const;
     int execErrorCode() const;
     bool execErrorEof() const;

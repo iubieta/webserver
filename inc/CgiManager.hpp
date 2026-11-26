@@ -10,6 +10,7 @@
 #include <exception>
 #include <new>
 #include <utility>
+#include <sys/epoll.h>
 
 // Own CGI processes by stable connection identifier.
 class CgiManager {
@@ -61,6 +62,22 @@ public:
     bool unbindEvent(EventToken token);
     std::size_t eventCount() const;
 
+    enum DispatchResult {
+        CGI_DISPATCH_IGNORED, 
+        CGI_DISPATCH_AGAIN, 
+        CGI_DISPATCH_PROGRESS,
+        CGI_DISPATCH_RETIRE, 
+        CGI_DISPATCH_TERMINAL
+    };
+    // Dispatch one bounded nonblocking operation using Linux readiness flags.
+    DispatchResult dispatchEvent(EventToken token, uint32_t flags);
+    // Find even inactive bindings for teardown; outputs change only on success.
+    bool nextBinding(unsigned long connectionId, EventToken& token, EventBinding& binding) const;
+    // After successful epoll DEL, retire metadata and close an inactive endpoint.
+    bool retireEvent(EventToken token);
+    // Close unregistered stdin when no body bytes remain.
+    bool closeEmptyInput(unsigned long connectionId);
+
     CgiProcess* create(unsigned long connectionId, const std::string& body);
     CgiProcess* find(unsigned long connectionId);
     const CgiProcess* find(unsigned long connectionId) const;
@@ -75,6 +92,7 @@ private:
 
     static int channelFd(const CgiProcess& process, Channel channel);
     bool hasEvents(unsigned long connectionId) const;
+    static bool channelDone(const CgiProcess& process, Channel channel);
     CgiManager(const CgiManager& other);
     CgiManager& operator=(const CgiManager& other);
 };

@@ -240,10 +240,16 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
 // Write at most one chunk; progress is recorded only after a successful write.
 // SIGPIPE must be ignored or otherwise handled by the hosting server.
 CgiProcess::IoResult CgiProcess::writeInput() {
+    return writeInput(false);
+}
+
+// Transfer one chunk with optional deferred descriptor closure.
+CgiProcess::IoResult CgiProcess::writeInput(bool deferClose) {
     if (state_ != CGI_RUNNING || stdin_closed_ || stdin_pipe_[1] < 0)
         return CGI_IO_INVALID;
     if (input_offset_ == input_buffer_.size()) {
-        closeFd(stdin_pipe_[1]);
+        if (!deferClose)
+            closeFd(stdin_pipe_[1]);
         markStdinClosed();
         return CGI_IO_CLOSED;
     }
@@ -254,14 +260,16 @@ CgiProcess::IoResult CgiProcess::writeInput() {
     if (n > 0) {
         input_offset_ = input_offset_ + static_cast<std::size_t>(n);
         if (input_offset_ == input_buffer_.size()) {
-            closeFd(stdin_pipe_[1]);
+            if (!deferClose)
+                closeFd(stdin_pipe_[1]);
             markStdinClosed();
         }
         return CGI_IO_PROGRESS;
     }
     if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
         return CGI_IO_AGAIN;
-    closeFd(stdin_pipe_[1]);
+    if (!deferClose)
+        closeFd(stdin_pipe_[1]);
     markStdinClosed();
     fail();
     return CGI_IO_ERROR;
@@ -269,6 +277,11 @@ CgiProcess::IoResult CgiProcess::writeInput() {
 
 // Read one chunk and retain binary bytes; EOF is distinct from child reaping.
 CgiProcess::IoResult CgiProcess::readOutput() {
+    return readOutput(false);
+}
+
+// Transfer one chunk with optional deferred descriptor closure.
+CgiProcess::IoResult CgiProcess::readOutput(bool deferClose) {
     if (state_ != CGI_RUNNING || stdout_eof_ || stdout_pipe_[0] < 0)
         return CGI_IO_INVALID;
     char buffer[8192];
@@ -281,7 +294,8 @@ CgiProcess::IoResult CgiProcess::readOutput() {
         return CGI_IO_PROGRESS;
     }
     if (n == 0) {
-        closeFd(stdout_pipe_[0]);
+        if (!deferClose)
+            closeFd(stdout_pipe_[0]);
         markStdoutEof();
         return CGI_IO_CLOSED;
     }
@@ -294,6 +308,11 @@ CgiProcess::IoResult CgiProcess::readOutput() {
 // Read a possibly fragmented native int; EOF without data indicates exec success.
 // An incomplete integer at EOF is a protocol error, not a successful exec.
 CgiProcess::IoResult CgiProcess::readExecError() {
+    return readExecError(false);
+}
+
+// Transfer one chunk with optional deferred descriptor closure.
+CgiProcess::IoResult CgiProcess::readExecError(bool deferClose) {
     if (state_ != CGI_RUNNING || exec_error_eof_ || exec_error_received_ ||
         exec_error_pipe_[0] < 0)
         return CGI_IO_INVALID;
@@ -305,14 +324,16 @@ CgiProcess::IoResult CgiProcess::readExecError() {
         if (exec_error_offset_ == sizeof(int)) {
             std::memcpy(&exec_error_code_, exec_error_bytes_, sizeof(int));
             exec_error_received_ = true;
-            closeFd(exec_error_pipe_[0]);
+            if (!deferClose)
+                closeFd(exec_error_pipe_[0]);
             fail();
         }
         return CGI_IO_PROGRESS;
     }
     if (n == 0) {
         exec_error_eof_ = true;
-        closeFd(exec_error_pipe_[0]);
+        if (!deferClose)
+            closeFd(exec_error_pipe_[0]);
         if (exec_error_offset_ != 0) {
             fail();
             return CGI_IO_ERROR;
@@ -413,6 +434,26 @@ CgiProcess::CleanupResult CgiProcess::continueCleanup() {
     if (result == CGI_WAIT_INTERRUPTED)
         return CGI_CLEANUP_INTERRUPTED;
     return CGI_CLEANUP_ERROR;
+}
+
+// Close a matching endpoint only after logical completion or terminal state.
+bool CgiProcess::closeCompletedEndpoint(int fd) {
+    if (fd < 0)
+        return false;
+    if (fd == stdin_pipe_[1] && (stdin_closed_ || terminal())) {
+        closeFd(stdin_pipe_[1]);
+        return true;
+    }
+    if (fd == stdout_pipe_[0] && (stdout_eof_ || terminal())) {
+        closeFd(stdout_pipe_[0]);
+        return true;
+    }
+    if (fd == exec_error_pipe_[0] &&
+        (exec_error_eof_ || exec_error_received_ || terminal())) {
+        closeFd(exec_error_pipe_[0]);
+        return true;
+    }
+    return false;
 }
 
 CgiProcess::State CgiProcess::state() const { 
