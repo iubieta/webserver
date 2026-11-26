@@ -6,6 +6,7 @@
 #include "Request.hpp"
 #include "Decision.hpp"
 #include <map>
+#include <ctime>
 #include <stdint.h>
 #include <exception>
 #include <new>
@@ -26,7 +27,8 @@ public:
         CGI_START_INVALID,
         CGI_START_PIPE_ERROR,
         CGI_START_FORK_ERROR,
-        CGI_START_MEMORY_ERROR
+        CGI_START_MEMORY_ERROR,
+        CGI_START_SHUTTING_DOWN
     };
     // Start a registered child; STARTED does not guarantee execve success.
     StartResult start(unsigned long connectionId, const Request& request,
@@ -69,6 +71,7 @@ public:
         CGI_DISPATCH_RETIRE, 
         CGI_DISPATCH_TERMINAL
     };
+
     // Dispatch one bounded nonblocking operation using Linux readiness flags.
     DispatchResult dispatchEvent(EventToken token, uint32_t flags);
     // Find even inactive bindings for teardown; outputs change only on success.
@@ -77,6 +80,57 @@ public:
     bool retireEvent(EventToken token);
     // Close unregistered stdin when no body bytes remain.
     bool closeEmptyInput(unsigned long connectionId);
+
+    // Periodic supervision; caller must wake even without pipe events.
+    enum SupervisionResult { 
+        CGI_SUPERVISION_OK, 
+        CGI_SUPERVISION_RETIRE,
+        CGI_SUPERVISION_ERROR 
+    };
+
+    SupervisionResult supervise();
+    bool cancel(unsigned long connectionId);
+    // Return a terminal connection with bindings still requiring epoll DEL.
+    bool nextTerminalBinding(EventToken& token, EventBinding& binding) const;
+    bool ready(unsigned long connectionId) const;
+    static const unsigned int TIMEOUT_SECONDS = 30;
+    static const unsigned int GRACE_SECONDS = 2;
+
+    enum ResultStatus { 
+        CGI_RESULT_SUCCESS, 
+        CGI_RESULT_EXEC_ERROR,
+        CGI_RESULT_IO_ERROR, 
+        CGI_RESULT_OUTPUT_LIMIT, 
+        CGI_RESULT_GLOBAL_LIMIT,
+        CGI_RESULT_MEMORY_ERROR, 
+        CGI_RESULT_SUPERVISION_ERROR,
+        CGI_RESULT_CHILD_ERROR, 
+        CGI_RESULT_TIMEOUT, 
+        CGI_RESULT_CANCELLED,
+        CGI_RESULT_FAILED 
+    };
+    struct CgiResult {
+        unsigned long connectionId;
+        ResultStatus status;
+        bool childExited;
+        int childExitStatus;
+        int execError;
+        std::string output;
+    };
+
+    static const std::size_t MAX_GLOBAL_OUTPUT_BYTES = 100u * 1024u * 1024u;
+    std::size_t bufferedOutputBytes() const;
+    bool nextReady(unsigned long& connectionId) const;
+    // Consume a ready result; destination output must be empty.
+    bool takeResult(unsigned long connectionId, CgiResult& result);
+
+    // Stop accepting work and cancel live children; caller retires epoll bindings.
+    void beginShutdown();
+    // Drive nonblocking cleanup and discard completed results during shutdown.
+    SupervisionResult shutdownStep();
+    bool shutdownComplete() const;
+    // Obtain a parent endpoint without exposing mutable process ownership.
+    int endpointFd(unsigned long connectionId, Channel channel) const;
 
     CgiProcess* create(unsigned long connectionId, const std::string& body);
     CgiProcess* find(unsigned long connectionId);
@@ -89,7 +143,19 @@ private:
     typedef std::map<EventToken, EventBinding> EventMap;
     EventMap events_;
     EventToken last_token_;
+    bool shutting_down_;
+    struct Supervision {
+        std::time_t started;
+        std::time_t termAt;
+        bool timed;
+        bool termSent;
+        bool killSent;
+        ResultStatus failure;
+    };
+    typedef std::map<unsigned long, Supervision> SupervisionMap;
+    SupervisionMap supervision_;
 
+    SupervisionResult superviseOne(CgiProcess& process, Supervision& info, std::time_t now);
     static int channelFd(const CgiProcess& process, Channel channel);
     bool hasEvents(unsigned long connectionId) const;
     static bool channelDone(const CgiProcess& process, Channel channel);

@@ -1,7 +1,7 @@
 #include "../inc/CgiManager.hpp"
 
 // Start with an empty registry.
-CgiManager::CgiManager() : last_token_(0) {}
+CgiManager::CgiManager() : last_token_(0), shutting_down_(false) {}
 
 // Shutdown must resolve every child before destroying the manager.
 CgiManager::~CgiManager() {
@@ -13,7 +13,7 @@ CgiManager::~CgiManager() {
 
 // Allocate and prepare a process before publishing it in the registry.
 CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& body) {
-    if (find(connectionId) != NULL)
+    if (shutting_down_ || find(connectionId) != NULL)
         return NULL;
     CgiProcess* process = new CgiProcess();
     try {
@@ -25,7 +25,10 @@ CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& bo
             delete process;
             return NULL;
         }
+        Supervision info = {0, 0, false, false, false, CGI_RESULT_FAILED};
+        supervision_.insert(std::make_pair(connectionId, info));
     } catch (...) {
+        processes_.erase(connectionId);
         delete process;
         throw;
     }
@@ -37,6 +40,8 @@ CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& bo
 CgiManager::StartResult CgiManager::start(unsigned long connectionId, 
     const Request& request, const Decision& decision,
     const CgiEnvironmentBuilder::ConnectionInfo& connection) {
+    if (shutting_down_)
+        return CGI_START_SHUTTING_DOWN;
     if (find(connectionId) != NULL)
         return CGI_START_DUPLICATE;
     try {
@@ -59,6 +64,15 @@ CgiManager::StartResult CgiManager::start(unsigned long connectionId,
             return CGI_START_PREPARE_ERROR;
         const CgiProcess::LaunchResult launched = process->launch(executable, data.argv(), data.envp());
         if (launched == CgiProcess::CGI_LAUNCH_STARTED) {
+            const std::time_t now = std::time(NULL);
+            Supervision& info = supervision_.find(connectionId)->second;
+            if (now != static_cast<std::time_t>(-1)) {
+                info.started = now;
+                info.timed = true;
+            } else {
+                info.failure = CGI_RESULT_SUPERVISION_ERROR;
+                process->fail();
+            }
             if (process->inputBuffer().empty())
                 closeEmptyInput(connectionId);
             return CGI_START_STARTED;
@@ -102,6 +116,7 @@ bool CgiManager::remove(unsigned long connectionId) {
         return false;
     process->closePipes();
     delete process;
+    supervision_.erase(connectionId);
     processes_.erase(it);
     return true;
 }
@@ -193,9 +208,12 @@ bool CgiManager::hasEvents(unsigned long connectionId) const {
 // Logical completion is independent from physical descriptor closure.
 bool CgiManager::channelDone(const CgiProcess& process, Channel channel) {
     switch (channel) {
-        case CGI_STDIN: return process.stdinClosed();
-        case CGI_STDOUT: return process.stdoutEof();
-        case CGI_EXEC_ERROR: return process.execErrorEof() || process.execErrorReceived();
+        case CGI_STDIN: 
+            return process.stdinClosed();
+        case CGI_STDOUT: 
+            return process.stdoutEof();
+        case CGI_EXEC_ERROR: 
+            return process.execErrorEof() || process.execErrorReceived();
     }
     return true;
 }
@@ -206,6 +224,7 @@ CgiManager::DispatchResult CgiManager::dispatchEvent(EventToken token, uint32_t 
     if (!resolveEvent(token, binding))
         return CGI_DISPATCH_IGNORED;
     CgiProcess* process = find(binding.connectionId);
+    Supervision& info = supervision_.find(binding.connectionId)->second;
     CgiProcess::IoResult result = CgiProcess::CGI_IO_INVALID;
     try {
         if (binding.channel == CGI_STDIN) {
@@ -215,6 +234,7 @@ CgiManager::DispatchResult CgiManager::dispatchEvent(EventToken token, uint32_t 
             if (!process->execErrorEof())
                 return CGI_DISPATCH_AGAIN;
             if (flags & (EPOLLERR | EPOLLHUP)) {
+                info.failure = CGI_RESULT_IO_ERROR;
                 process->fail();
                 return CGI_DISPATCH_TERMINAL;
             }
@@ -224,15 +244,24 @@ CgiManager::DispatchResult CgiManager::dispatchEvent(EventToken token, uint32_t 
         } else {
             if (!(flags & (EPOLLIN | EPOLLHUP | EPOLLERR)))
                 return CGI_DISPATCH_IGNORED;
-            result = binding.channel == CGI_STDOUT ? process->readOutput(true)
-                : process->readExecError(true);
+            if (binding.channel == CGI_STDOUT) {
+                const std::size_t used = bufferedOutputBytes();
+                const std::size_t remaining = used >= MAX_GLOBAL_OUTPUT_BYTES ? 0
+                    : MAX_GLOBAL_OUTPUT_BYTES - used;
+                result = process->readOutput(true, remaining);
+            } else
+                result = process->readExecError(true);
         }
     } catch (const std::bad_alloc&) {
+        info.failure = CGI_RESULT_MEMORY_ERROR;
         process->fail();
         return CGI_DISPATCH_TERMINAL;
     }
     if (result == CgiProcess::CGI_IO_ERROR || result == CgiProcess::CGI_IO_TOO_LARGE ||
-        result == CgiProcess::CGI_IO_INVALID) {
+        result == CgiProcess::CGI_IO_INVALID || result == CgiProcess::CGI_IO_GLOBAL_LIMIT) {
+        info.failure = result == CgiProcess::CGI_IO_TOO_LARGE ? CGI_RESULT_OUTPUT_LIMIT
+            : result == CgiProcess::CGI_IO_GLOBAL_LIMIT ? CGI_RESULT_GLOBAL_LIMIT
+            : CGI_RESULT_IO_ERROR;
         process->fail();
         return CGI_DISPATCH_TERMINAL;
     }
@@ -289,4 +318,190 @@ bool CgiManager::closeEmptyInput(unsigned long connectionId) {
     if (process->stdinClosed())
         return process->parentStdinFd() < 0;
     return process->writeInput() == CgiProcess::CGI_IO_CLOSED;
+}
+
+// Cancel a live execution; never overwrite a terminal result.
+bool CgiManager::cancel(unsigned long connectionId) {
+    CgiProcess* process = find(connectionId);
+    if (!process || process->state() != CgiProcess::CGI_RUNNING)
+        return false;
+    process->cancel();
+    return true;
+}
+
+// Expose terminal bindings even when resolveEvent rejects them.
+bool CgiManager::nextTerminalBinding(EventToken& token, EventBinding& binding) const {
+    for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
+        const CgiProcess* process = find(it->second.connectionId);
+        if (process && process->state() != CgiProcess::CGI_RUNNING) {
+            token = it->first;
+            binding = it->second;
+            return true;
+        }
+    }
+    return false;
+}
+
+// A result remains owned by the manager until explicit removal.
+bool CgiManager::ready(unsigned long connectionId) const {
+    const CgiProcess* p = find(connectionId);
+    return p && p->cleanupStarted() && p->state() != CgiProcess::CGI_RUNNING &&
+        p->state() != CgiProcess::CGI_CREATED &&
+        (p->pid() <= 0 || p->childExited()) && !hasEvents(connectionId);
+}
+
+// Poll first, preserve terminal states, and never close registered endpoints.
+CgiManager::SupervisionResult CgiManager::superviseOne(CgiProcess& p,
+    Supervision& info, std::time_t now) {
+    if (p.state() == CgiProcess::CGI_CREATED)
+        return CGI_SUPERVISION_OK;
+    if (!info.timed) {
+        info.started = now;
+        info.timed = true;
+    }
+    if (p.pid() > 0 && !p.childExited()) {
+        const CgiProcess::WaitResult r = p.pollChild();
+        if (r == CgiProcess::CGI_WAIT_ERROR || r == CgiProcess::CGI_WAIT_INVALID) {
+            if (p.state() == CgiProcess::CGI_RUNNING)
+                info.failure = CGI_RESULT_SUPERVISION_ERROR;
+            p.fail();
+            return CGI_SUPERVISION_ERROR;
+        }
+        if (r == CgiProcess::CGI_WAIT_INTERRUPTED)
+            return CGI_SUPERVISION_OK;
+    }
+    if (p.state() == CgiProcess::CGI_RUNNING &&
+        std::difftime(now, info.started) >= TIMEOUT_SECONDS)
+        p.timeOut();
+    if (p.state() == CgiProcess::CGI_RUNNING)
+        return CGI_SUPERVISION_OK;
+    p.discardFailedOutput();
+    if (hasEvents(p.connectionId()))
+        return CGI_SUPERVISION_RETIRE;
+    if (!info.termSent) {
+        const CgiProcess::CleanupResult r = p.beginCleanup();
+        if (r == CgiProcess::CGI_CLEANUP_ERROR)
+            return CGI_SUPERVISION_ERROR;
+        if (r == CgiProcess::CGI_CLEANUP_INTERRUPTED)
+            return CGI_SUPERVISION_OK;
+        info.termSent = true;
+        info.termAt = now;
+    }
+    if (!p.childExited() && p.pid() > 0 && !info.killSent && 
+            std::difftime(now, info.termAt) >= GRACE_SECONDS) {
+        const CgiProcess::SignalResult r = p.forceKill();
+        if (r == CgiProcess::CGI_SIGNAL_ERROR || r == CgiProcess::CGI_SIGNAL_INVALID)
+            return CGI_SUPERVISION_ERROR;
+        info.killSent = true;
+    }
+    return CGI_SUPERVISION_OK;
+}
+
+// Visit every child even if another child requires retirement or reports an error.
+CgiManager::SupervisionResult CgiManager::supervise() {
+    const std::time_t now = std::time(NULL);
+    if (now == static_cast<std::time_t>(-1))
+        return CGI_SUPERVISION_ERROR;
+    SupervisionResult result = CGI_SUPERVISION_OK;
+    for (ProcessMap::iterator it = processes_.begin(); it != processes_.end(); ++it) {
+        const SupervisionResult r = superviseOne(*it->second,
+            supervision_.find(it->first)->second, now);
+        if (r == CGI_SUPERVISION_ERROR || (r == CGI_SUPERVISION_RETIRE && result == CGI_SUPERVISION_OK))
+            result = r;
+    }
+    return result;
+}
+
+// Count actual stored stdout, including results not yet consumed.
+std::size_t CgiManager::bufferedOutputBytes() const {
+    std::size_t total = 0;
+    for (ProcessMap::const_iterator it = processes_.begin(); it != processes_.end(); ++it) {
+        const std::size_t n = it->second->outputBuffer().size();
+        if (n > static_cast<std::size_t>(-1) - total)
+            return static_cast<std::size_t>(-1);
+        total += n;
+    }
+    return total;
+}
+
+// Find one completed execution without exposing its process pointer.
+bool CgiManager::nextReady(unsigned long& connectionId) const {
+    for (ProcessMap::const_iterator it = processes_.begin(); it != processes_.end(); ++it) {
+        if (ready(it->first)) {
+            connectionId = it->first;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Deliver raw stdout only on successful execution, then release the process.
+bool CgiManager::takeResult(unsigned long connectionId, CgiResult& result) {
+    if (!result.output.empty() || !ready(connectionId))
+        return false;
+    CgiProcess* p = find(connectionId);
+    ResultStatus status = supervision_.find(connectionId)->second.failure;
+    if (p->state() == CgiProcess::CGI_TIMED_OUT)
+        status = CGI_RESULT_TIMEOUT;
+    else if (p->state() == CgiProcess::CGI_CANCELLED)
+        status = CGI_RESULT_CANCELLED;
+    else if (p->execErrorReceived())
+        status = CGI_RESULT_EXEC_ERROR;
+    else if (p->state() == CgiProcess::CGI_FINISHED)
+        status = p->childExited() && WIFEXITED(p->childExitStatus()) &&
+            WEXITSTATUS(p->childExitStatus()) == 0 ? CGI_RESULT_SUCCESS : CGI_RESULT_CHILD_ERROR;
+    CgiResult pending;
+    if (status == CGI_RESULT_SUCCESS && !p->takeOutput(pending.output))
+        return false;
+    pending.connectionId = connectionId;
+    pending.status = status;
+    pending.childExited = p->childExited();
+    pending.childExitStatus = p->childExitStatus();
+    pending.execError = p->execErrorReceived() ? p->execErrorCode() : 0;
+    if (!remove(connectionId))
+        return false;
+    result.output.swap(pending.output);
+    result.connectionId = pending.connectionId;
+    result.status = pending.status;
+    result.childExited = pending.childExited;
+    result.childExitStatus = pending.childExitStatus;
+    result.execError = pending.execError;
+    return true;
+}
+
+// Expose only the descriptor needed for event registration.
+int CgiManager::endpointFd(unsigned long connectionId, Channel channel) const {
+    const CgiProcess* p = find(connectionId);
+    if (!p || shutting_down_ || p->state() != CgiProcess::CGI_RUNNING ||
+        channelDone(*p, channel))
+        return -1;
+    return channelFd(*p, channel);
+}
+
+// Freeze admission and preserve already terminal outcomes.
+void CgiManager::beginShutdown() {
+    shutting_down_ = true;
+    for (ProcessMap::iterator it = processes_.begin(); it != processes_.end(); ++it)
+        if (it->second->state() == CgiProcess::CGI_RUNNING)
+            it->second->cancel();
+}
+
+// Never block or remove a registered endpoint; the event loop performs DEL.
+CgiManager::SupervisionResult CgiManager::shutdownStep() {
+    if (!shutting_down_)
+        return CGI_SUPERVISION_ERROR;
+    const SupervisionResult result = supervise();
+    ProcessMap::iterator it = processes_.begin();
+    while (it != processes_.end()) {
+        const unsigned long id = it->first;
+        ++it;
+        if (ready(id) || find(id)->state() == CgiProcess::CGI_CREATED)
+            remove(id);
+    }
+    return result;
+}
+
+// Destruction is safe only after all owned children and bindings are gone.
+bool CgiManager::shutdownComplete() const {
+    return shutting_down_ && processes_.empty() && events_.empty();
 }

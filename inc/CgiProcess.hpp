@@ -39,6 +39,7 @@ public:
         CGI_IO_CLOSED,
         CGI_IO_ERROR,
         CGI_IO_TOO_LARGE,
+        CGI_IO_GLOBAL_LIMIT,
         CGI_IO_INVALID
     };
 
@@ -84,6 +85,11 @@ public:
     // Managed I/O leaves logically completed endpoints open until epoll DEL.
     IoResult writeInput(bool deferClose);
     IoResult readOutput(bool deferClose);
+    IoResult readOutput(bool deferClose, std::size_t globalRemaining);
+    // Transfer terminal stdout without copying; caller owns the destination.
+    bool takeOutput(std::string& destination);
+    // Release stdout that cannot be delivered as a successful result.
+    void discardFailedOutput();
     IoResult readExecError(bool deferClose);
 
     // Close only a matching completed endpoint, or an endpoint of a terminal CGI.

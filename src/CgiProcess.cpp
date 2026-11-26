@@ -282,15 +282,26 @@ CgiProcess::IoResult CgiProcess::readOutput() {
 
 // Transfer one chunk with optional deferred descriptor closure.
 CgiProcess::IoResult CgiProcess::readOutput(bool deferClose) {
+    return readOutput(deferClose, MAX_OUTPUT_BYTES);
+}
+
+// Enforce both budgets before appending a chunk.
+CgiProcess::IoResult CgiProcess::readOutput(bool deferClose, std::size_t globalRemaining) {
     if (state_ != CGI_RUNNING || stdout_eof_ || stdout_pipe_[0] < 0)
         return CGI_IO_INVALID;
+
     char buffer[8192];
     const ssize_t n = read(stdout_pipe_[0], buffer, sizeof(buffer));
     if (n > 0) {
-        if (appendOutput(buffer, static_cast<std::size_t>(n)) == CGI_OUTPUT_TOO_LARGE) {
+        if (static_cast<std::size_t>(n) > MAX_OUTPUT_BYTES - output_buffer_.size()) {
             fail();
             return CGI_IO_TOO_LARGE;
         }
+        if (static_cast<std::size_t>(n) > globalRemaining) {
+            fail();
+            return CGI_IO_GLOBAL_LIMIT;
+        }
+        appendOutput(buffer, static_cast<std::size_t>(n));
         return CGI_IO_PROGRESS;
     }
     if (n == 0) {
@@ -454,6 +465,22 @@ bool CgiProcess::closeCompletedEndpoint(int fd) {
         return true;
     }
     return false;
+}
+
+// Swap only after the execution is terminal and cleanup has started.
+bool CgiProcess::takeOutput(std::string& destination) {
+    if (!terminal() || !cleanup_started_ || !destination.empty())
+        return false;
+    output_buffer_.swap(destination);
+    return true;
+}
+
+// Release failed output storage, not merely its logical length.
+void CgiProcess::discardFailedOutput() {
+    if (state_ == CGI_FAILED || state_ == CGI_TIMED_OUT || state_ == CGI_CANCELLED) {
+        std::string empty;
+        output_buffer_.swap(empty);
+    }
 }
 
 CgiProcess::State CgiProcess::state() const { 
