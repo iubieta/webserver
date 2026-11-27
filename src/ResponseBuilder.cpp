@@ -122,6 +122,7 @@ void ResponseBuilder::listDir(Decision& data, HttpResponse &res) const
 		struct stat st;
 		if (stat((dir_path + name).c_str(), &st) == -1) {
 			data.setError(INTERNAL_ERROR);
+			closedir(dir);
 			return errorHandler(data, res);
 		}
 		if (S_ISDIR(st.st_mode))
@@ -129,6 +130,7 @@ void ResponseBuilder::listDir(Decision& data, HttpResponse &res) const
 
 		oss << "<li><a href=\"" << name << "\">" << name << "</a></li>\n";
 	}
+	closedir(dir);
     
     oss << "</ul>\n"
 	<< "<p>webserver/0.1</p>\n"
