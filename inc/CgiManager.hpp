@@ -42,6 +42,16 @@ public:
         CGI_EXEC_ERROR 
     };
 
+    // Describe an eligible endpoint before the event loop assigns a token.
+    struct EventInterest {
+        unsigned long connectionId;
+        Channel channel;
+        int fd;
+        uint32_t flags;
+    };
+    // Return one unbound interest; leave the destination unchanged on failure.
+    bool nextPendingInterest(EventInterest& interest) const;
+
     struct EventBinding {
         unsigned long connectionId;
         int fd;
@@ -132,10 +142,16 @@ public:
     // Obtain a parent endpoint without exposing mutable process ownership.
     int endpointFd(unsigned long connectionId, Channel channel) const;
 
+#ifdef CGI_INTERNAL_TESTS
+public:
+#else
+private:
+#endif
     CgiProcess* create(unsigned long connectionId, const std::string& body);
     CgiProcess* find(unsigned long connectionId);
     const CgiProcess* find(unsigned long connectionId) const;
     bool remove(unsigned long connectionId);
+public:
     std::size_t size() const;
 private:
     typedef std::map<unsigned long, CgiProcess*> ProcessMap;
@@ -156,6 +172,7 @@ private:
     SupervisionMap supervision_;
 
     SupervisionResult superviseOne(CgiProcess& process, Supervision& info, std::time_t now);
+    bool pendingInterest(const CgiProcess& process, Channel channel, EventInterest& interest) const;
     static int channelFd(const CgiProcess& process, Channel channel);
     bool hasEvents(unsigned long connectionId) const;
     static bool channelDone(const CgiProcess& process, Channel channel);

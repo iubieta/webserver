@@ -142,7 +142,7 @@ int CgiManager::channelFd(const CgiProcess& process, Channel channel) {
 // Reserve one association per live endpoint; the caller performs epoll ADD.
 CgiManager::BindResult CgiManager::bindEvent(EventToken token,
     unsigned long connectionId, Channel channel) {
-    if (token == 0)
+    if (shutting_down_ || token == 0)
         return CGI_BIND_INVALID;
     if (events_.find(token) != events_.end())
         return CGI_BIND_DUPLICATE;
@@ -504,4 +504,43 @@ CgiManager::SupervisionResult CgiManager::shutdownStep() {
 // Destruction is safe only after all owned children and bindings are gone.
 bool CgiManager::shutdownComplete() const {
     return shutting_down_ && processes_.empty() && events_.empty();
+}
+
+// Offer only live, unbound endpoints that can make useful I/O progress.
+bool CgiManager::pendingInterest(const CgiProcess& process, Channel channel,
+    EventInterest& interest) const {
+    if (shutting_down_ || process.state() != CgiProcess::CGI_RUNNING ||
+        process.cleanupStarted() || channelDone(process, channel))
+        return false;
+    const int fd = channelFd(process, channel);
+    if (fd < 0)
+        return false;
+    // Delay writable interest until the exec-error stream has closed cleanly.
+    if (channel == CGI_STDIN && (!process.execErrorEof() ||
+        process.execErrorReceived() ||
+        process.inputOffset() >= process.inputBuffer().size()))
+        return false;
+    for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
+        if (it->second.fd == fd || (it->second.connectionId == process.connectionId() &&
+            it->second.channel == channel))
+            return false;
+    }
+    EventInterest pending = {process.connectionId(), channel, fd,
+        static_cast<uint32_t>(channel == CGI_STDIN ? EPOLLOUT : EPOLLIN)};
+    interest = pending;
+    return true;
+}
+
+// Enumerate pending interests without allocating tokens or modifying epoll.
+bool CgiManager::nextPendingInterest(EventInterest& interest) const {
+    if (shutting_down_)
+        return false;
+    for (ProcessMap::const_iterator it = processes_.begin(); it != processes_.end(); ++it) {
+        const CgiProcess& process = *it->second;
+        if (pendingInterest(process, CGI_STDOUT, interest) ||
+            pendingInterest(process, CGI_EXEC_ERROR, interest) ||
+            pendingInterest(process, CGI_STDIN, interest))
+            return true;
+    }
+    return false;
 }
