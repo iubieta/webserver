@@ -211,11 +211,12 @@ void	Connection::advance()
 				|| parser_state == ERROR)
 			{
 				LOG_DEBUG("Connection: request received -> fd: " << fd_);
-				LOG_INFO("Request: "
+				LOG_INFO("--- REQUEST: "
 					<< request_.getMethod() << " "
 					<< request_.getPath() << " "
 					<< request_.getQuery() << " "
 					<< request_.getVersion() << " "
+					<< "---"
 				);
 				state_ = PROCESSING;
 				LOG_DEBUG("Connection: switched to PROCESSING state");
@@ -262,10 +263,11 @@ void	Connection::advance()
 		{
 			response_ = builder_.execute(decision_);
 			LOG_DEBUG("Connection: response generated");
-			LOG_INFO("Response: "
+			LOG_INFO("--- RESPONSE: "
 				<< response_.getVersion() << " "
 				<< response_.getStatusCode() << " "
 				<< response_.getReasonPhrase() << " "
+				<< "---"
 			);
 			write_buff_.append(response_.build());
 			// TODO: decide to remove finalized state
