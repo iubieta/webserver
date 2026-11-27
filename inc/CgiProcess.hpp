@@ -1,6 +1,7 @@
 #ifndef CGI_PROCESS_HPP
 #define CGI_PROCESS_HPP
 
+#include "CgiDebug.hpp"
 #include <unistd.h>
 #include <fcntl.h>
 #include <cerrno>
@@ -58,8 +59,7 @@ public:
     // Fork a CGI child using previously built execve arrays.
     // The caller owns launchData and must keep it valid through this call.
     LaunchResult launch(const std::string& executable, char* const* argv,
-        char* const* envp);
-
+        char* const* envp, const std::string& workingDirectory = "");
     // Allocate three pipes and make only the future parent ends nonblocking.
     // On failure all descriptors are closed and the object stays CREATED.
     bool createPipes();

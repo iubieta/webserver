@@ -112,6 +112,7 @@ void CgiProcess::markChildExited(int waitStatus) {
         return;
     child_exited_ = true;
     child_exit_status_ = waitStatus;
+    CGI_TRACE(1, "reaped id=" << connection_id_ << " pid=" << pid_ << " wait_status=" << waitStatus);
     tryFinish();
 }
 
@@ -142,20 +143,26 @@ CgiProcess::OutputResult CgiProcess::appendOutput(const char* bytes, std::size_t
 
 // Record a terminal transport failure; resource cleanup comes in later steps.
 void CgiProcess::fail() {
-    if (!terminal()) 
+    if (!terminal()) { 
         state_ = CGI_FAILED;
+        CGI_TRACE(1, "failed id=" << connection_id_ << " pid=" << pid_);
+    }
 }
 
 // Record a terminal timeout without overwriting an earlier terminal state.
 void CgiProcess::timeOut() {
-    if (!terminal()) 
+    if (!terminal()) {
         state_ = CGI_TIMED_OUT;
+        CGI_TRACE(1, "timeout id=" << connection_id_ << " pid=" << pid_);
+    }
 }
 
 // Record a disconnected client without overwriting an earlier terminal state.
 void CgiProcess::cancel() {
-    if (!terminal()) 
+    if (!terminal()) {
         state_ = CGI_CANCELLED;
+        CGI_TRACE(1, "cancelled id=" << connection_id_ << " pid=" << pid_);
+    }
 }
 
 // Advance only by the number of bytes confirmed written to the stdin pipe.
@@ -181,7 +188,7 @@ void CgiProcess::tryFinish() {
 // Launch a child after creating all pipes. The parent retains only its ends.
 // No std::string/vector operations or allocations are performed in the child.
 CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
-    char* const* argv, char* const* envp) {
+    char* const* argv, char* const* envp, const std::string& workingDirectory) {
     if (state_ != CGI_CREATED || executable.empty() ||
         executable.find('\0') != std::string::npos ||
         argv == NULL || argv[0] == NULL || envp == NULL ||
@@ -193,6 +200,9 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
     if (!createPipes())
         return CGI_LAUNCH_PIPE_ERROR;
 
+    CGI_TRACE(2, "pipes id=" << connection_id_ << " stdin=" << stdin_pipe_[0] << "," << stdin_pipe_[1]
+        << " stdout=" << stdout_pipe_[0] << "," << stdout_pipe_[1]
+        << " exec_error=" << exec_error_pipe_[0] << "," << exec_error_pipe_[1]);
     const pid_t child = fork();
     if (child < 0) {
         closePipes();
@@ -203,9 +213,13 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
         // Duplicate source descriptors above stdio before dup2: this also
         // handles a server launched with stdin or stdout initially closed.
         int input = fcntl(stdin_pipe_[0], F_DUPFD, 3);
+        int failure = input < 0 ? errno : 0;
         int output = fcntl(stdout_pipe_[1], F_DUPFD, 3);
+        if (output < 0 && failure == 0)
+            failure = errno;
         int errorFd = fcntl(exec_error_pipe_[1], F_DUPFD, 3);
-        int failure = errno;
+        if (errorFd < 0 && failure == 0)
+            failure = errno;
         if (input < 0 || output < 0 || errorFd < 0) {
             if (errorFd >= 0) 
                 write(errorFd, &failure, sizeof(failure));
@@ -225,8 +239,12 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
             write(errorFd, &failure, sizeof(failure));
             std::terminate();
         }
-        close(input);
-        close(output);
+        // Change only the child directory, after descriptor setup.
+        if (!workingDirectory.empty() && chdir(workingDirectory.c_str()) == -1) {
+            failure = errno;
+            write(errorFd, &failure, sizeof(failure));
+            std::terminate();
+        }
         execve(executable.c_str(), argv, envp);
         failure = errno;
         write(errorFd, &failure, sizeof(failure));
@@ -234,6 +252,7 @@ CgiProcess::LaunchResult CgiProcess::launch(const std::string& executable,
     }
     closeChildEndsInParent();
     markRunning(child);
+    CGI_TRACE(1, "running id=" << connection_id_ << " pid=" << pid_);
     return CGI_LAUNCH_STARTED;
 }
 
@@ -378,8 +397,10 @@ CgiProcess::WaitResult CgiProcess::pollChild() {
 CgiProcess::SignalResult CgiProcess::signalChild(int signalNumber) {
     if (pid_ <= 0 || child_exited_)
         return CGI_SIGNAL_INVALID;
-    if (kill(pid_, signalNumber) == 0)
+    if (kill(pid_, signalNumber) == 0) {
+        CGI_TRACE(1, "signal id=" << connection_id_ << " pid=" << pid_ << " signal=" << signalNumber);
         return CGI_SIGNAL_SENT;
+    }
     if (errno == ESRCH)
         return CGI_SIGNAL_ALREADY_EXITED;
     return CGI_SIGNAL_ERROR;

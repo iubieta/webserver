@@ -5,6 +5,7 @@
 #include "CgiLaunchData.hpp"
 #include "Request.hpp"
 #include "Decision.hpp"
+#include "CgiDebug.hpp"
 #include <map>
 #include <ctime>
 #include <stdint.h>

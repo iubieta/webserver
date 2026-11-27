@@ -59,10 +59,31 @@ CgiManager::StartResult CgiManager::start(unsigned long connectionId,
         }
         // Resolve the executable reference before publishing the process.
         const std::string executable = decision.getCgiInterpreter();
+        // The interpreter must remain resolvable after the child changes directory.
+        if (executable.empty() || executable[0] != '/')
+            return CGI_START_INVALID;
+        const std::string script = decision.getDiskPath();
+        const std::size_t slash = script.rfind('/');
+        const std::string directory = slash == std::string::npos ? "."
+            : slash == 0 ? "/" : script.substr(0, slash);
+        const std::string argument = script[0] == '/' ? script
+            : "./" + script.substr(slash == std::string::npos ? 0 : slash + 1);
+        std::vector<char*> argv;
+
+        for (std::size_t i = 0; data.argv()[i] != NULL; ++i)
+            argv.push_back(i == 1 ? const_cast<char*>(argument.c_str()) : data.argv()[i]);
+        argv.push_back(NULL);
+        CGI_TRACE(1, "start id=" << connectionId << " body_bytes=" << request.getBody().size());
+        CGI_TRACE(2, "launch id=" << connectionId << " argc=" << argv.size() - 1
+            << " env_count=" << data.environment().size());
+        CGI_DETAIL(connectionId, "script", script);
+        CGI_DETAIL(connectionId, "interpreter", executable);
         CgiProcess* process = create(connectionId, request.getBody());
         if (process == NULL)
             return CGI_START_PREPARE_ERROR;
-        const CgiProcess::LaunchResult launched = process->launch(executable, data.argv(), data.envp());
+
+        const CgiProcess::LaunchResult launched = process->launch(executable, &argv[0], 
+            data.envp(), directory);
         if (launched == CgiProcess::CGI_LAUNCH_STARTED) {
             const std::time_t now = std::time(NULL);
             Supervision& info = supervision_.find(connectionId)->second;
@@ -77,6 +98,7 @@ CgiManager::StartResult CgiManager::start(unsigned long connectionId,
                 closeEmptyInput(connectionId);
             return CGI_START_STARTED;
         }
+
         // All current launch failures occur before a child is owned.
         remove(connectionId);
         if (launched == CgiProcess::CGI_LAUNCH_PIPE_ERROR)
@@ -118,6 +140,8 @@ bool CgiManager::remove(unsigned long connectionId) {
     delete process;
     supervision_.erase(connectionId);
     processes_.erase(it);
+    CGI_TRACE(1, "removed id=" << connectionId << " processes=" << processes_.size()
+        << " bindings=" << events_.size());
     return true;
 }
 
@@ -169,6 +193,9 @@ CgiManager::BindResult CgiManager::bindEvent(EventToken token,
         return CGI_BIND_MEMORY_ERROR;
     }
     last_token_ = token;
+    CGI_TRACE(2, "bind-reserved id=" << connectionId << " pid=" << process->pid()
+        << " token=" << token << " fd=" << fd << " channel="
+        << (channel == CGI_STDIN ? "STDIN" : channel == CGI_STDOUT ? "STDOUT" : "EXEC_ERROR"));
     return CGI_BIND_OK;
 }
 
@@ -202,6 +229,7 @@ bool CgiManager::registrationFailed(EventToken token) {
     EventMap::iterator it = events_.find(token);
     if (it == events_.end())
         return false;
+    CGI_TRACE(1, "registration-failed id=" << it->second.connectionId << " token=" << token);
     failRegistration(it->second.connectionId);
     events_.erase(it);
     return true;
@@ -262,6 +290,8 @@ CgiManager::DispatchResult CgiManager::dispatchEvent(EventToken token, uint32_t 
         return CGI_DISPATCH_IGNORED;
     CgiProcess* process = find(binding.connectionId);
     Supervision& info = supervision_.find(binding.connectionId)->second;
+    CGI_TRACE(2, "event id=" << binding.connectionId << " token=" << token
+        << " fd=" << binding.fd << " flags=" << flags);
     CgiProcess::IoResult result = CgiProcess::CGI_IO_INVALID;
     try {
         if (binding.channel == CGI_STDIN) {
@@ -294,6 +324,9 @@ CgiManager::DispatchResult CgiManager::dispatchEvent(EventToken token, uint32_t 
         process->fail();
         return CGI_DISPATCH_TERMINAL;
     }
+    CGI_TRACE(2, "io id=" << binding.connectionId << " token=" << token << " result=" << result
+        << " input=" << process->inputOffset() << "/" << process->inputBuffer().size()
+        << " output=" << process->outputBuffer().size() << " exec_eof=" << process->execErrorEof());
     if (result == CgiProcess::CGI_IO_ERROR || result == CgiProcess::CGI_IO_TOO_LARGE ||
         result == CgiProcess::CGI_IO_INVALID || result == CgiProcess::CGI_IO_GLOBAL_LIMIT) {
         info.failure = result == CgiProcess::CGI_IO_TOO_LARGE ? CGI_RESULT_OUTPUT_LIMIT
@@ -339,6 +372,7 @@ bool CgiManager::retireEvent(EventToken token) {
     if (!process->closeCompletedEndpoint(binding.fd))
         return false;
     events_.erase(it);
+    CGI_TRACE(2, "retired id=" << binding.connectionId << " token=" << token << " fd=" << binding.fd);
     return true;
 }
 
@@ -507,6 +541,10 @@ bool CgiManager::takeResult(unsigned long connectionId, CgiResult& result) {
     result.childExited = pending.childExited;
     result.childExitStatus = pending.childExitStatus;
     result.execError = pending.execError;
+    CGI_TRACE(1, "result id=" << connectionId << " status=" << result.status
+        << " wait_status=" << result.childExitStatus << " exec_error=" << result.execError
+        << " bytes=" << result.output.size());
+    CGI_DETAIL(connectionId, "raw-preview", result.output);
     return true;
 }
 
