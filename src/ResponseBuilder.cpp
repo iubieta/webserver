@@ -74,7 +74,7 @@ void ResponseBuilder::writeFile(Decision& data, HttpResponse& res) const {
 			res.setStatusCode(NO_CONTENT);
 		}
 	} else {
-		res.setStatusCode(CREATED);
+		res.setWholeStatus(CREATED);
 		res.addHeader("Location", data.getTarget());
 	}
 }
