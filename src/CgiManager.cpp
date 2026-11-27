@@ -531,13 +531,15 @@ void CgiManager::beginShutdown() {
 CgiManager::SupervisionResult CgiManager::shutdownStep() {
     if (!shutting_down_)
         return CGI_SUPERVISION_ERROR;
-    const SupervisionResult result = supervise();
+    SupervisionResult result = supervise();
     ProcessMap::iterator it = processes_.begin();
     while (it != processes_.end()) {
         const unsigned long id = it->first;
         ++it;
-        if (ready(id) || find(id)->state() == CgiProcess::CGI_CREATED)
-            remove(id);
+        if (ready(id) || find(id)->state() == CgiProcess::CGI_CREATED) {
+            if (!remove(id))
+                result = CGI_SUPERVISION_ERROR;
+        }
     }
     return result;
 }
