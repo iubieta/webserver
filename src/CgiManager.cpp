@@ -25,7 +25,7 @@ CgiProcess* CgiManager::create(unsigned long connectionId, const std::string& bo
             delete process;
             return NULL;
         }
-        Supervision info = {0, 0, false, false, false, CGI_RESULT_FAILED};
+        Supervision info = {0, 0, false, false, false, CGI_RESULT_FAILED, false};
         supervision_.insert(std::make_pair(connectionId, info));
     } catch (...) {
         processes_.erase(connectionId);
@@ -153,7 +153,8 @@ CgiManager::BindResult CgiManager::bindEvent(EventToken token,
         return CGI_BIND_INVALID;
     const int fd = channelFd(*process, channel);
     if (fd < 0 || channelDone(*process, channel) || (channel == CGI_STDIN &&
-        process->inputOffset() >= process->inputBuffer().size()))
+        (!process->execErrorEof() || process->execErrorReceived() ||
+         process->inputOffset() >= process->inputBuffer().size())))
         return CGI_BIND_INVALID;
     for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
         if (it->second.fd == fd || (it->second.connectionId == connectionId &&
@@ -186,9 +187,45 @@ bool CgiManager::resolveEvent(EventToken token, EventBinding& binding) const {
     return true;
 }
 
+// Fail only a running execution; preserve an existing terminal outcome.
+bool CgiManager::failRegistration(unsigned long connectionId) {
+    CgiProcess* process = find(connectionId);
+    if (!process || process->state() != CgiProcess::CGI_RUNNING)
+        return false;
+    supervision_.find(connectionId)->second.failure = CGI_RESULT_REGISTRATION_ERROR;
+    process->fail();
+    return true;
+}
+
+// The caller must establish that ADD did not install a kernel registration.
+bool CgiManager::registrationFailed(EventToken token) {
+    EventMap::iterator it = events_.find(token);
+    if (it == events_.end())
+        return false;
+    failRegistration(it->second.connectionId);
+    events_.erase(it);
+    return true;
+}
+
+#ifdef CGI_INTERNAL_TESTS
 // Remove metadata after epoll DEL, even if the process is no longer running.
 bool CgiManager::unbindEvent(EventToken token) {
     return events_.erase(token) != 0;
+}
+#endif
+
+// Keep completed bindings discoverable even after a failed DEL attempt.
+bool CgiManager::nextRetirement(EventToken& token, EventBinding& binding) const {
+    for (EventMap::const_iterator it = events_.begin(); it != events_.end(); ++it) {
+        const CgiProcess* process = find(it->second.connectionId);
+        if (process && (process->state() != CgiProcess::CGI_RUNNING ||
+            channelDone(*process, it->second.channel))) {
+            token = it->first;
+            binding = it->second;
+            return true;
+        }
+    }
+    return false;
 }
 
 // Count associations, including those awaiting explicit retirement.
@@ -426,8 +463,11 @@ std::size_t CgiManager::bufferedOutputBytes() const {
 
 // Find one completed execution without exposing its process pointer.
 bool CgiManager::nextReady(unsigned long& connectionId) const {
+    if (shutting_down_)
+        return false;
+
     for (ProcessMap::const_iterator it = processes_.begin(); it != processes_.end(); ++it) {
-        if (ready(it->first)) {
+        if (!supervision_.find(it->first)->second.detached && ready(it->first)) {
             connectionId = it->first;
             return true;
         }
@@ -437,7 +477,8 @@ bool CgiManager::nextReady(unsigned long& connectionId) const {
 
 // Deliver raw stdout only on successful execution, then release the process.
 bool CgiManager::takeResult(unsigned long connectionId, CgiResult& result) {
-    if (!result.output.empty() || !ready(connectionId))
+    if (!result.output.empty() || !ready(connectionId) || 
+        supervision_.find(connectionId)->second.detached || shutting_down_)
         return false;
     CgiProcess* p = find(connectionId);
     ResultStatus status = supervision_.find(connectionId)->second.failure;
@@ -543,4 +584,43 @@ bool CgiManager::nextPendingInterest(EventInterest& interest) const {
             return true;
     }
     return false;
+}
+
+// Keep the identifier reserved until the child and all endpoints are released.
+bool CgiManager::contains(unsigned long connectionId) const {
+    return find(connectionId) != NULL;
+}
+
+// Disconnect is independent of the child's terminal outcome.
+bool CgiManager::detach(unsigned long connectionId) {
+    CgiProcess* process = find(connectionId);
+    if (!process)
+        return false;
+    supervision_.find(connectionId)->second.detached = true;
+    if (process->state() == CgiProcess::CGI_RUNNING)
+        process->cancel();
+    return true;
+}
+
+// Drive lifecycle work even on an empty or interrupted event batch.
+CgiManager::SupervisionResult CgiManager::tick() {
+    if (shutting_down_)
+        return shutdownStep();
+    SupervisionResult result = supervise();
+    ProcessMap::iterator it = processes_.begin();
+    while (it != processes_.end()) {
+        const unsigned long id = it->first;
+        ++it;
+        if (supervision_.find(id)->second.detached &&
+            (ready(id) || find(id)->state() == CgiProcess::CGI_CREATED)) {
+            if (!remove(id))
+                result = CGI_SUPERVISION_ERROR;
+        }
+    }
+    // Completed channels of running children also require retirement.
+    EventToken token;
+    EventBinding binding;
+    if (result == CGI_SUPERVISION_OK && nextRetirement(token, binding))
+        result = CGI_SUPERVISION_RETIRE;
+    return result;
 }

@@ -70,8 +70,14 @@ public:
     BindResult bindEvent(EventToken token, unsigned long connectionId, Channel channel);
     // Resolve only a live binding; copy metadata, never transfer ownership.
     bool resolveEvent(EventToken token, EventBinding& binding) const;
-    // Retire after epoll DEL; never close the descriptor here.
+    // Roll back a reservation only after the caller establishes no kernel registration.
+    bool registrationFailed(EventToken token);
+    // Fail an execution when registration cannot proceed before a reservation exists.
+    bool failRegistration(unsigned long connectionId);
+#ifdef CGI_INTERNAL_TESTS
+    // Legacy metadata-only operation for historical internal tests.
     bool unbindEvent(EventToken token);
+#endif
     std::size_t eventCount() const;
 
     enum DispatchResult {
@@ -88,6 +94,8 @@ public:
     bool nextBinding(unsigned long connectionId, EventToken& token, EventBinding& binding) const;
     // After successful epoll DEL, retire metadata and close an inactive endpoint.
     bool retireEvent(EventToken token);
+    // Enumerate inactive bindings, including completed channels of running children.
+    bool nextRetirement(EventToken& token, EventBinding& binding) const;
     // Close unregistered stdin when no body bytes remain.
     bool closeEmptyInput(unsigned long connectionId);
 
@@ -100,6 +108,12 @@ public:
 
     SupervisionResult supervise();
     bool cancel(unsigned long connectionId);
+    // Abandon delivery on disconnect; retain ownership until cleanup completes.
+    bool detach(unsigned long connectionId);
+    // True while an execution still occupies this stable identifier.
+    bool contains(unsigned long connectionId) const;
+    // Advance normal or shutdown supervision without waiting for readiness.
+    SupervisionResult tick();
     // Return a terminal connection with bindings still requiring epoll DEL.
     bool nextTerminalBinding(EventToken& token, EventBinding& binding) const;
     bool ready(unsigned long connectionId) const;
@@ -117,7 +131,8 @@ public:
         CGI_RESULT_CHILD_ERROR, 
         CGI_RESULT_TIMEOUT, 
         CGI_RESULT_CANCELLED,
-        CGI_RESULT_FAILED 
+        CGI_RESULT_FAILED,
+        CGI_RESULT_REGISTRATION_ERROR
     };
     struct CgiResult {
         unsigned long connectionId;
@@ -167,6 +182,7 @@ private:
         bool termSent;
         bool killSent;
         ResultStatus failure;
+        bool detached;
     };
     typedef std::map<unsigned long, Supervision> SupervisionMap;
     SupervisionMap supervision_;
