@@ -25,8 +25,9 @@ Processor::~Processor() {}
 // Resolves the whole path to useful one
 std::string Processor::resolvePath(const Request& req) const
 {
-	std::string new_path = PathUtils::decodePath(req.getPath());
-	new_path = PathUtils::normalizePath(new_path);
+	std::string new_path;
+	//std::string new_path = PathUtils::decodePath(req.getPath());
+	new_path = PathUtils::normalizePath(req.getPath());
 	return new_path;
 }
 

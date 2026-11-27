@@ -124,7 +124,7 @@ int RequestLine::decodePercentEncoding(
 				return (-1);
 
 			dig = hexPairToValue(hex_pair);
-			if (dig == 0 || dig == '/')
+			if (dig == 0 )
 				return (-1);
 
 			c = static_cast<char>(dig);
