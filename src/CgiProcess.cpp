@@ -266,8 +266,6 @@ CgiProcess::IoResult CgiProcess::writeInput(bool deferClose) {
         }
         return CGI_IO_PROGRESS;
     }
-    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR))
-        return CGI_IO_AGAIN;
     if (!deferClose)
         closeFd(stdin_pipe_[1]);
     markStdinClosed();
@@ -310,8 +308,6 @@ CgiProcess::IoResult CgiProcess::readOutput(bool deferClose, std::size_t globalR
         markStdoutEof();
         return CGI_IO_CLOSED;
     }
-    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-        return CGI_IO_AGAIN;
     fail();
     return CGI_IO_ERROR;
 }
@@ -352,8 +348,6 @@ CgiProcess::IoResult CgiProcess::readExecError(bool deferClose) {
         tryFinish();
         return CGI_IO_CLOSED;
     }
-    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
-        return CGI_IO_AGAIN;
     fail();
     return CGI_IO_ERROR;
 }
