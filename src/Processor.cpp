@@ -86,7 +86,7 @@ Decision Processor::procRequest(const Request& req) {
 	res.setServerConfig(serv_cfg_);
 	std::string target = resolvePath(req);
 	res.setTarget(target);
-	LOG_DEBUG("Processor: Target: " << res.getTarget());
+	LOG_DEBUG("Processor: target: " << res.getTarget());
 	const LocationConfig* cfg = PathUtils::findLocation(target, *serv_cfg_);
 	res.setLocationConfig(cfg);
 	// If a location is find fill the allowed methods in Decision
@@ -159,7 +159,7 @@ Decision Processor::procRequest(const Request& req) {
 	if (stat(disk_path.c_str(), &stat_buf) == -1)
 	{
 		int err = errno;
-		LOG_WARNING("Processor: stat error -> " << strerror(err));
+		LOG_DEBUG("Processor: stat error -> " << strerror(err));
 		switch (err) {
 			case EACCES: // Permission error
 				res.setError(FORBIDDEN);
